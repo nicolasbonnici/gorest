@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:15
+    container_name: restgen_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: restgen_api
+    restart: always
+    depends_on:
+      - db
+    environment:
+      PORT: 3000
+      DB_URL: postgres://postgres:postgres@db:5432/mydb?sslmode=disable
+      JWT_SECRET: supersecret
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:
