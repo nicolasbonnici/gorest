@@ -33,12 +33,12 @@ help:
 .PHONY: build
 build: tidy
 	@echo "[INFO] Building Go binary..."
-	go build -o $(BINARY) ./cmd/server.go
+	go build -o ./bin/$(BINARY) ./cmd/server.go
 
 .PHONY: run
 run: build
 	@echo "[INFO] Running API locally..."
-	./$(BINARY)
+	./bin/$(BINARY)
 
 .PHONY: tidy
 tidy:
@@ -56,7 +56,7 @@ rebuild: clean build
 .PHONY: clean
 clean:
 	@echo "[INFO] Cleaning binary..."
-	-rm -f $(BINARY)
+	-rm -f ./bin/$(BINARY)
 
 # ----------------------------
 # Docker targets
