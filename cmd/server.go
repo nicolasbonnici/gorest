@@ -3,14 +3,14 @@ package main
 import (
 	"os"
 
-	"github.com/tonmodule/restgen/pkg"
+	"github.com/nicolasbonnici/gorest/pkg"
 )
 
 func main() {
-	cfg := restgen.Config{
+	cfg := gorest.Config{
 		DBUrl:     "postgres://postgres:postgres@localhost:5432/mydb?sslmode=disable",
 		JWTSecret: os.Getenv("JWT_SECRET"),
 		Port:      "3000",
 	}
-	restgen.Start(cfg)
+	gorest.Start(cfg)
 }

@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:15
-    container_name: restgen_db
+    container_name: gorest_db
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -14,7 +14,7 @@ services:
 
   api:
     build: .
-    container_name: restgen_api
+    container_name: gorest_api
     restart: always
     depends_on:
       - db
