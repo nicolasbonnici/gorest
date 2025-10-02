@@ -1,6 +1,6 @@
-# restgen
+# gorest
 
-🚀 **restgen** is a generic REST API generator for PostgreSQL written in Go.  
+🚀 **gorest** is a generic REST API generator for PostgreSQL written in Go.  
 It introspects your database tables and relationships to expose **CRUD endpoints automatically**.
 
 ## ✨ Features
@@ -26,15 +26,15 @@ It introspects your database tables and relationships to expose **CRUD endpoints
 
 ### 1. Clone the project
 ```bash
-git clone https://github.com/tonmodule/restgen.git
-cd restgen
+git clone https://github.com/nicolasbonnici/gorest.git
+cd gorest
 ```
 
 ### 2. Run locally (without Docker)
 
 #### Start PostgreSQL (local or Docker)
 ```bash
-docker run --name restgen_db   -e POSTGRES_USER=postgres   -e POSTGRES_PASSWORD=postgres   -e POSTGRES_DB=mydb   -p 5432:5432   -d postgres:15
+docker run --name gorest_db   -e POSTGRES_USER=postgres   -e POSTGRES_PASSWORD=postgres   -e POSTGRES_DB=mydb   -p 5432:5432   -d postgres:15
 ```
 
 #### Create tables
@@ -131,16 +131,16 @@ You can import it into **Swagger UI** or **Postman**.
 
 ## 📂 Project Structure
 ```
-restgen/
+gorest/
 ├── cmd/server/main.go        # Entrypoint
 ├── internal/                 # Internal logic
 │   ├── api.go                # CRUD + relations
 │   ├── auth.go               # JWT authentication
 │   ├── db.go                 # Schema introspection
 │   └── openapi.go            # OpenAPI generator
-├── pkg/restgen.go            # API bootstrap
+├── pkg/gorest.go            # API bootstrap
 ├── Dockerfile
-├── docker-compose.yml
+├── compose.yml
 ├── go.mod
 └── go.sum
 ```
@@ -161,7 +161,7 @@ go run ./cmd/server
 
 Build binary:
 ```bash
-go build -o restgen ./cmd/server
+go build -o gorest ./cmd/server
 ```
 
 Run tests:

@@ -1,4 +1,4 @@
-package restgen
+package gorest
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonmodule/restgen/internal"
+	"github.com/nicolasbonnici/gorest/internal"
 )
 
 type Config struct {
