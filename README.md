@@ -151,22 +151,22 @@ gorest/
 
 Install dependencies:
 ```bash
-go mod tidy
+make tidy
 ```
 
 Run locally:
 ```bash
-go run ./cmd/server
+make run
 ```
 
 Build binary:
 ```bash
-go build -o gorest ./cmd/server
+make build
 ```
 
 Run tests:
 ```bash
-go test ./...
+make test
 ```
 
 ---
