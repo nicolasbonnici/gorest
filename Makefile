@@ -8,6 +8,7 @@ API_CONTAINER ?= gorest_api
 API_PORT ?= 3000
 DB_PORT ?= 5432
 DB_URL ?= postgres://postgres:postgres@db:$(DB_PORT)/mydb?sslmode=disable
+DB_TEST_CONTAINER=db_test
 
 # ----------------------------
 # Default target
@@ -45,10 +46,15 @@ tidy:
 	@echo "[INFO] Tidying Go modules..."
 	go mod tidy
 
-.PHONY: test
+.PHONY: test test-up
+test-up:
+	docker compose -f compose.yml -f compose.override.test.yml up -d $(DB_TEST_CONTAINER)
+	@echo "Waiting 2s for DB to be ready..."
+	sleep 2
+
 test:
-	@echo "[INFO] Running tests..."
-	go test ./...
+	$(MAKE) test-up
+	go test ./... -v
 
 .PHONY: rebuild
 rebuild: clean build
