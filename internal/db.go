@@ -2,15 +2,24 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type TableSchema struct {
 	TableName string
-	Columns   []string
+	Columns   []Column
 	Relations []Relation
+}
+
+type Column struct {
+	Name       string
+	Type       string
+	IsNullable bool
 }
 
 type Relation struct {
@@ -24,11 +33,12 @@ func LoadSchema(db *pgxpool.Pool) map[string]TableSchema {
 	tables := map[string]TableSchema{}
 
 	colQuery := `
-	SELECT table_name, column_name
+	SELECT table_name, column_name, is_nullable, data_type
 	FROM information_schema.columns
 	WHERE table_schema='public'
 	ORDER BY table_name, ordinal_position;
 	`
+
 	rows, err := db.Query(context.Background(), colQuery)
 	if err != nil {
 		log.Fatal(err)
@@ -36,15 +46,19 @@ func LoadSchema(db *pgxpool.Pool) map[string]TableSchema {
 	defer rows.Close()
 
 	for rows.Next() {
-		var table, col string
-		if err := rows.Scan(&table, &col); err != nil {
+		var table, col, nullable, dataType string
+		if err := rows.Scan(&table, &col, &nullable, &dataType); err != nil {
 			log.Fatal(err)
 		}
 		if _, ok := tables[table]; !ok {
-			tables[table] = TableSchema{TableName: table, Columns: []string{}, Relations: []Relation{}}
+			tables[table] = TableSchema{TableName: table, Columns: []Column{}, Relations: []Relation{}}
 		}
 		ts := tables[table]
-		ts.Columns = append(ts.Columns, col)
+		ts.Columns = append(ts.Columns, Column{
+			Name:       col,
+			Type:       dataType,
+			IsNullable: nullable == "YES",
+		})
 		tables[table] = ts
 	}
 
@@ -77,4 +91,86 @@ func LoadSchema(db *pgxpool.Pool) map[string]TableSchema {
 	}
 
 	return tables
+}
+
+func GenerateStructs(tables map[string]TableSchema) {
+	os.MkdirAll("internal/models", 0755)
+
+	for _, table := range tables {
+		structName := toCamelCase(table.TableName)
+		filePath := fmt.Sprintf("internal/models/%s.go", strings.ToLower(structName))
+
+		var b strings.Builder
+		b.WriteString("package models\n\n")
+		b.WriteString("type " + structName + " struct {\n")
+
+		for _, col := range table.Columns {
+			fieldName := toCamelCase(col.Name)
+			fieldType := pgToGoType(col.Type, col.IsNullable)
+			jsonTag := fmt.Sprintf("`json:\"%s\" db:\"%s\"`", col.Name, col.Name)
+			b.WriteString(fmt.Sprintf("\t%s %s %s\n", fieldName, fieldType, jsonTag))
+		}
+		b.WriteString("}\n")
+
+		os.WriteFile(filePath, []byte(b.String()), 0644)
+		fmt.Printf("✅ Generated struct for table: %s → %s\n", table.TableName, filePath)
+	}
+}
+
+func GenerateOpenAPI(tables map[string]TableSchema) {
+	os.MkdirAll("internal/api", 0755)
+	filePath := "internal/api/openapi_gen.go"
+
+	var b strings.Builder
+	b.WriteString("package api\n\n")
+	b.WriteString("// Auto-generated OpenAPI schema stubs\n\n")
+
+	for _, table := range tables {
+		resource := toCamelCase(table.TableName)
+		b.WriteString(fmt.Sprintf("// %sResource defines OpenAPI schema and endpoints for %s\n", resource, table.TableName))
+		b.WriteString(fmt.Sprintf("type %sResource struct {}\n\n", resource))
+	}
+
+	os.WriteFile(filePath, []byte(b.String()), 0644)
+	fmt.Println("✅ Generated OpenAPI resource stubs → internal/api/openapi_gen.go")
+}
+
+func pgToGoType(pgType string, nullable bool) string {
+	base := map[string]string{
+		"integer":  "int",
+		"bigint":   "int64",
+		"smallint": "int16",
+		"text":     "string",
+		"varchar":  "string",
+		"boolean":  "bool",
+		"timestamp without time zone": "time.Time",
+		"timestamp with time zone": "time.Time",
+		"numeric": "float64",
+		"double precision": "float64",
+		"real": "float32",
+		"json": "map[string]interface{}",
+		"jsonb": "map[string]interface{}",
+	}
+	goType, ok := base[pgType]
+	if !ok {
+		goType = "interface{}"
+	}
+	if nullable && goType != "interface{}" {
+		goType = "*" + goType
+	}
+	return goType
+}
+
+func toCamelCase(s string) string {
+	parts := strings.Split(s, "_")
+	for i, p := range parts {
+		parts[i] = strings.Title(p)
+	}
+	return strings.Join(parts, "")
+}
+
+func ScaffoldAll(db *pgxpool.Pool) {
+	tables := LoadSchema(db)
+	GenerateStructs(tables)
+	GenerateOpenAPI(tables)
 }

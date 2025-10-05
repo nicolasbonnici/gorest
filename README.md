@@ -39,19 +39,28 @@ docker run --name gorest_db   -e POSTGRES_USER=postgres   -e POSTGRES_PASSWORD=p
 
 #### Create tables
 ```sql
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    firstname TEXT NOT NULL,
+    lastname TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT,
+    updated_at TIMESTAMP(0) WITHOUT TIME ZONE,
+    created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE INDEX idx_user_email ON users (email);
+
+CREATE TABLE todo (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID REFERENCES users(id),
-    amount NUMERIC NOT NULL
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    updated_at TIMESTAMP(0) WITHOUT TIME ZONE,
+    created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_todo_title ON todo (title);
 ```
 
 #### Run the API
