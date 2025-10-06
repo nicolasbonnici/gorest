@@ -51,7 +51,6 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	var zero T
 	t := reflect.TypeOf(zero)
 
-	// Build column list from struct tags
 	var cols []string
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -91,7 +90,6 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 	var item T
 	t := reflect.TypeOf(item)
 
-	// Build column list from struct tags
 	var cols []string
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)

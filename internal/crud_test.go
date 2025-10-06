@@ -229,19 +229,18 @@ func TestCRUD_TodoModel(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	// First create a user (foreign key requirement)
+	crud := New[models.Todo](db)
+	ctx := context.Background()
+
 	var userID int
-	err := db.QueryRow(context.Background(), `
+	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id
-	`, "Test", "User", "test@example.com", "pass").Scan(&userID)
+	`, "Test", "User", "test_todo@example.com", "pass").Scan(&userID)
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
-
-	crud := New[models.Todo](db)
-	ctx := context.Background()
 
 	todo := models.Todo{
 		UserId:  userID,
@@ -254,7 +253,6 @@ func TestCRUD_TodoModel(t *testing.T) {
 		t.Fatalf("Failed to create todo: %v", err)
 	}
 
-	// Verify todo was created
 	var count int
 	err = db.QueryRow(ctx, "SELECT COUNT(*) FROM todo WHERE title = $1", todo.Title).Scan(&count)
 	if err != nil {
