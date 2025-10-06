@@ -98,6 +98,11 @@ func GenerateStructs(tables map[string]TableSchema) {
 
 	for _, table := range tables {
 		structName := toCamelCase(table.TableName)
+        switch structName {
+        case "model":
+            continue
+        }
+
 		filePath := fmt.Sprintf("internal/models/%s.go", strings.ToLower(structName))
 
 		var b strings.Builder

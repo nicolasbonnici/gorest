@@ -85,6 +85,7 @@ package resources
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/models"
 )
 
@@ -93,11 +94,15 @@ import (
 // @Description CRUD operations for %s
 // @Tags %s
 type %sResource struct {
-	DB *pgxpool.Pool
+	DB   *pgxpool.Pool
+	CRUD *internal.CRUD[models.%s]
 }
 
 func Register%sRoutes(router fiber.Router, db *pgxpool.Pool) {
-	res := &%sResource{DB: db}
+	res := &%sResource{
+		DB:   db,
+		CRUD: internal.New[models.%s](db),
+	}
 	router.Get("/%s", res.List)
 	router.Get("/%s/:id", res.Get)
 	router.Post("/%s", res.Create)
@@ -112,7 +117,11 @@ func Register%sRoutes(router fiber.Router, db *pgxpool.Pool) {
 // @Success 200 {array} models.%s
 // @Router /%s [get]
 func (r *%sResource) List(c *fiber.Ctx) error {
-	return c.JSON([]models.%s{})
+	items, err := r.CRUD.GetAll(c.Context())
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(items)
 }
 
 // Get %s by ID
@@ -123,7 +132,12 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 // @Success 200 {object} models.%s
 // @Router /%s/{id} [get]
 func (r *%sResource) Get(c *fiber.Ctx) error {
-	return c.JSON(models.%s{})
+	id := c.Params("id")
+	item, err := r.CRUD.GetByID(c.Context(), id)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
+	}
+	return c.JSON(item)
 }
 
 // Create %s
@@ -135,7 +149,14 @@ func (r *%sResource) Get(c *fiber.Ctx) error {
 // @Success 201 {object} models.%s
 // @Router /%s [post]
 func (r *%sResource) Create(c *fiber.Ctx) error {
-	return c.JSON(models.%s{})
+	var item models.%s
+	if err := c.BodyParser(&item); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	if err := r.CRUD.Create(c.Context(), item); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(201).JSON(item)
 }
 
 // Update %s
@@ -148,7 +169,15 @@ func (r *%sResource) Create(c *fiber.Ctx) error {
 // @Success 200 {object} models.%s
 // @Router /%s/{id} [put]
 func (r *%sResource) Update(c *fiber.Ctx) error {
-	return c.JSON(models.%s{})
+	id := c.Params("id")
+	var item models.%s
+	if err := c.BodyParser(&item); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	if err := r.CRUD.Update(c.Context(), id, item); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(item)
 }
 
 // Delete %s
@@ -158,16 +187,21 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 // @Success 204
 // @Router /%s/{id} [delete]
 func (r *%sResource) Delete(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := r.CRUD.Delete(c.Context(), id); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
 	return c.SendStatus(204)
 }
 `,
-		structName,
-		structName, structName, structName, structName, structName,
-		structName,
-		structName, structName, resourceName, resourceName, resourceName, resourceName, resourceName,
-		structName, structName, structName, structName, resourceName, structName,
-		structName, structName, structName, structName, resourceName, structName, structName,
-		structName, structName, structName, structName, structName, structName, resourceName,
-		structName, structName, structName, structName, structName, structName, resourceName,
-		structName, structName, structName, resourceName, structName)
+		structName, // Resource generated for model %s
+		structName, structName, structName, structName, structName, // %sResource defines REST endpoints for %s model. @Summary %s resource @Description CRUD operations for %s @Tags %s
+		structName, structName, // type %sResource struct { CRUD *crud.CRUD[models.%s] }
+		structName, structName, structName, // func Register%sRoutes(router fiber.Router, db *pgxpool.Pool) { res := &%sResource{ CRUD: crud.New[models.%s](db)
+		resourceName, resourceName, resourceName, resourceName, resourceName, // router.Get("/%s", res.List) router.Get("/%s/:id", res.Get) router.Post("/%s", res.Create) router.Put("/%s/:id", res.Update) router.Delete("/%s/:id", res.Delete)
+		structName, structName, structName, structName, resourceName, structName, // // List %s @Summary List %s @Tags %s @Success 200 {array} models.%s @Router /%s [get] func (r *%sResource) List(c *fiber.Ctx) error
+		structName, structName, structName, structName, resourceName, structName, // // Get %s by ID @Summary Get %s @Tags %s @Success 200 {object} models.%s @Router /%s/{id} [get] func (r *%sResource) Get(c *fiber.Ctx) error
+		structName, structName, structName, structName, structName, structName, resourceName, structName, structName, // // Create %s @Summary Create %s @Tags %s @Param input body models.%s true "New %s" @Success 201 {object} models.%s @Router /%s [post] func (r *%sResource) Create(c *fiber.Ctx) error { var item models.%s
+		structName, structName, structName, structName, structName, structName, resourceName, structName, structName, // // Update %s @Summary Update %s @Tags %s @Param input body models.%s true "Updated %s" @Success 200 {object} models.%s @Router /%s/{id} [put] func (r *%sResource) Update(c *fiber.Ctx) error { var item models.%s
+		structName, structName, structName, resourceName, structName) // // Delete %s @Summary Delete %s @Tags %s @Router /%s/{id} [delete] func (r *%sResource) Delete(c *fiber.Ctx) error
 }
