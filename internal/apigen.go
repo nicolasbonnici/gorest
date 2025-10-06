@@ -66,7 +66,7 @@ func parseStructs(path string) []string {
 }
 
 func generateResourceForStruct(apiDir string, structName string) {
-	resourceFile := filepath.Join(apiDir, strings.ToLower(structName)+"_resource.go")
+	resourceFile := filepath.Join(apiDir, strings.ToLower(structName)+".go")
 
 	code := generateResourceFromModel(structName)
 	if err := os.WriteFile(resourceFile, []byte(code), 0644); err != nil {

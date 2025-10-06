@@ -105,11 +105,20 @@ func GenerateStructs(tables map[string]TableSchema) {
 		b.WriteString("type " + structName + " struct {\n")
 
 		for _, col := range table.Columns {
+            switch col.Name {
+            case "id", "created_at", "updated_at":
+                continue
+            }
+
 			fieldName := toCamelCase(col.Name)
 			fieldType := pgToGoType(col.Type, col.IsNullable)
 			jsonTag := fmt.Sprintf("`json:\"%s\" db:\"%s\"`", col.Name, col.Name)
 			b.WriteString(fmt.Sprintf("\t%s %s %s\n", fieldName, fieldType, jsonTag))
 		}
+		b.WriteString("}\n")
+		b.WriteString("\n")
+		b.WriteString("func (" + structName + ") TableName() string {\n")
+		b.WriteString("	return \"" + table.TableName + "\" \n")
 		b.WriteString("}\n")
 
 		os.WriteFile(filePath, []byte(b.String()), 0644)
