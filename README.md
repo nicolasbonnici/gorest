@@ -16,9 +16,9 @@ It introspects your database tables and relationships to expose **CRUD endpoints
 ---
 
 ## ⚙️ Requirements
-- Go **1.22+**
+- Go **1.23+**
 - Docker & Docker Compose
-- PostgreSQL **15+**
+- PostgreSQL **18+**
 
 ---
 
