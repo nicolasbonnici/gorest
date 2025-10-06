@@ -25,11 +25,14 @@ func Start(cfg Config) {
 
 	tables := internal.LoadSchema(db)
 
+	internal.GenerateStructs(tables)
+	internal.GenerateOpenAPI(tables)
+
 	app := fiber.New()
 
 	internal.SetupAuth(app, cfg.JWTSecret)
 
-	internal.SetupAPI(app, db, tables, cfg.JWTSecret)
+    internal.GenerateAPI(db, tables)
 
 	internal.SetupOpenAPI(app, tables)
 
