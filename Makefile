@@ -62,7 +62,7 @@ test-generate:
 	go run ./test/generate/main.go
 
 test: test-up test-schema test-generate
-	go test ./... -v
+	go test ./... -v -p=1
 
 .PHONY: rebuild
 rebuild: clean build
