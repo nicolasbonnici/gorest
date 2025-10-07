@@ -42,8 +42,8 @@ make test-generate
 
 This generates:
 - `gen/models/*.go` - Type-safe model structs
-- `gen/crud/crud.go` - Generic CRUD operations
 - `gen/resources/*.go` - REST API endpoints
+- `gen/api/*.go` - OpenAPI schema stubs
 
 ### 4. Build & Run
 ```bash
@@ -60,17 +60,21 @@ API available at: **http://localhost:3000**
 gorest/
 ├── cmd/gorest/main.go        # API server entrypoint
 ├── test/
-│   ├── generate/main.go      # Code generator
+│   ├── generate/main.go      # Code generator entrypoint
 │   └── sql/schema.sql        # Test database schema
-├── internal/                 # Code generation logic
-│   ├── modelgen.go           # Model & CRUD generator
+├── internal/                 # Core logic
+│   ├── modelgen.go           # Model generator
 │   ├── apigen.go             # REST API generator
 │   ├── auth.go               # JWT authentication
-│   └── openapi.go            # OpenAPI spec generator
+│   ├── openapi.go            # OpenAPI spec generator
+│   ├── utils.go              # Shared utilities
+│   └── crud/                 # Generic CRUD operations
+│       ├── crud.go           # Type-safe CRUD implementation
+│       └── model.go          # Model interface
 ├── gen/                      # Generated code (gitignored)
 │   ├── models/               # Database models
-│   ├── crud/                 # CRUD operations
-│   └── resources/            # REST endpoints
+│   ├── resources/            # REST endpoints
+│   └── api/                  # OpenAPI schema stubs
 ├── Makefile
 ├── compose.yml
 └── .github/workflows/        # CI/CD
@@ -94,9 +98,8 @@ make test             # Run all tests
 
 1. **Schema Introspection**: Reads PostgreSQL `information_schema`
 2. **Model Generation**: Creates Go structs with proper types & tags
-3. **CRUD Generation**: Generic type-safe CRUD operations
-4. **API Generation**: REST endpoints with Fiber handlers
-5. **Build**: Compile everything into a single binary
+3. **API Generation**: REST endpoints with Fiber handlers using generic CRUD
+4. **Build**: Compile everything into a single binary
 
 ---
 
