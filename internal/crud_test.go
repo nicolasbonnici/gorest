@@ -9,7 +9,6 @@ import (
 	"github.com/nicolasbonnici/gorest/gen/models"
 )
 
-// Test database connection string
 const testDBURL = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
 
 func setupTestDB(t *testing.T) *pgxpool.Pool {

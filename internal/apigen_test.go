@@ -15,12 +15,17 @@ func TestGenerateAPI(t *testing.T) {
 	GenerateStructs(tables)
 	GenerateAPI(db, tables)
 
-	usersResourceFile := filepath.Join("gen/resources", "users.go")
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("Failed to find project root: %v", err)
+	}
+
+	usersResourceFile := filepath.Join(projectRoot, "gen/resources", "users.go")
 	if _, err := os.Stat(usersResourceFile); os.IsNotExist(err) {
 		t.Error("Expected users.go resource to be generated")
 	}
 
-	todoResourceFile := filepath.Join("gen/resources", "todo.go")
+	todoResourceFile := filepath.Join(projectRoot, "gen/resources", "todo.go")
 	if _, err := os.Stat(todoResourceFile); os.IsNotExist(err) {
 		t.Error("Expected todo.go resource to be generated")
 	}
@@ -169,7 +174,12 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 	GenerateStructs(tables)
 	GenerateAPI(db, tables)
 
-	usersResourceFile := filepath.Join("gen/resources", "users.go")
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("Failed to find project root: %v", err)
+	}
+
+	usersResourceFile := filepath.Join(projectRoot, "gen/resources", "users.go")
 	content, err := os.ReadFile(usersResourceFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated users resource: %v", err)
@@ -192,7 +202,6 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 		}
 	}
 
-	// Check error handling
 	errorHandling := []string{
 		"if err != nil",
 		"c.Status(500)",

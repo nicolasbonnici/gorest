@@ -12,8 +12,13 @@ import (
 )
 
 func GenerateAPI(_ interface{}, _ map[string]TableSchema) {
-	modelsDir := filepath.Join("gen", "models")
-	apiDir := filepath.Join("gen", "resources")
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		log.Fatalf("failed to find project root: %v", err)
+	}
+
+	modelsDir := filepath.Join(projectRoot, "gen", "models")
+	apiDir := filepath.Join(projectRoot, "gen", "resources")
 
 	if err := os.MkdirAll(apiDir, 0755); err != nil {
 		log.Fatalf("failed to create api/resources dir: %v", err)

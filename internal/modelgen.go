@@ -94,7 +94,13 @@ func LoadSchema(db *pgxpool.Pool) map[string]TableSchema {
 }
 
 func GenerateStructs(tables map[string]TableSchema) {
-	os.MkdirAll("gen/models", 0755)
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		log.Fatalf("failed to find project root: %v", err)
+	}
+
+	modelsDir := fmt.Sprintf("%s/gen/models", projectRoot)
+	os.MkdirAll(modelsDir, 0755)
 
 	for _, table := range tables {
 		structName := toCamelCase(table.TableName)
@@ -103,9 +109,8 @@ func GenerateStructs(tables map[string]TableSchema) {
             continue
         }
 
-		filePath := fmt.Sprintf("gen/models/%s.go", strings.ToLower(structName))
+		filePath := fmt.Sprintf("%s/gen/models/%s.go", projectRoot, strings.ToLower(structName))
 
-		// Check if any field uses time.Time
 		needsTime := false
 		for _, col := range table.Columns {
 			if strings.Contains(col.Type, "timestamp") {
@@ -125,7 +130,6 @@ func GenerateStructs(tables map[string]TableSchema) {
 			fieldName := toCamelCase(col.Name)
 			fieldType := pgToGoType(col.Type, col.IsNullable)
 
-			// Add omitempty for id, timestamps, and nullable fields
 			omitempty := ""
 			if col.Name == "id" || col.Name == "created_at" || col.Name == "updated_at" || col.IsNullable {
 				omitempty = ",omitempty"
@@ -146,8 +150,14 @@ func GenerateStructs(tables map[string]TableSchema) {
 }
 
 func GenerateOpenAPI(tables map[string]TableSchema) {
-	os.MkdirAll("gen/api", 0755)
-	filePath := "gen/api/openapi_gen.go"
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		log.Fatalf("failed to find project root: %v", err)
+	}
+
+	apiDir := fmt.Sprintf("%s/gen/api", projectRoot)
+	os.MkdirAll(apiDir, 0755)
+	filePath := fmt.Sprintf("%s/gen/api/openapi_gen.go", projectRoot)
 
 	var b strings.Builder
 	b.WriteString("package api\n\n")
@@ -187,7 +197,6 @@ func pgToGoType(pgType string, nullable bool) string {
 		goType = "interface{}"
 	}
 
-	// Make timestamps always nullable for omitempty to work properly
 	isTimestamp := goType == "time.Time"
 	if (nullable || isTimestamp) && goType != "interface{}" {
 		goType = "*" + goType
