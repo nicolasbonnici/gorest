@@ -66,7 +66,7 @@ CREATE INDEX idx_todo_title ON todo (title);
 #### Run the API
 ```bash
 go mod tidy
-go run ./cmd/server
+go run ./cmd/gorest/main.go
 ```
 
 👉 API available at:
@@ -141,13 +141,14 @@ You can import it into **Swagger UI** or **Postman**.
 ## 📂 Project Structure
 ```
 gorest/
-├── cmd/server/main.go        # Entrypoint
+├── cmd/gorest/main.go        # API server entrypoint
+├── test/generate/main.go     # Test code generator
 ├── internal/                 # Internal logic
 │   ├── api.go                # CRUD + relations
 │   ├── auth.go               # JWT authentication
 │   ├── db.go                 # Schema introspection
 │   └── openapi.go            # OpenAPI generator
-├── pkg/gorest.go            # API bootstrap
+├── pkg/gorest.go             # Entrypoint
 ├── Dockerfile
 ├── compose.yml
 ├── go.mod

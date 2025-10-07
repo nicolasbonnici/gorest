@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicolasbonnici/gorest/internal/models"
+	"github.com/nicolasbonnici/gorest/gen/models"
 )
 
 type CRUD[T models.Model] struct {
@@ -29,7 +29,7 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag == "" || tag == "id" {
+		if tag == "" || tag == "id" || tag == "created_at" || tag == "updated_at" {
 			continue
 		}
 		cols = append(cols, tag)
@@ -127,7 +127,7 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag == "" || tag == "id" {
+		if tag == "" || tag == "id" || tag == "created_at" {
 			continue
 		}
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", tag, paramIdx))

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicolasbonnici/gorest/internal/models"
+	"github.com/nicolasbonnici/gorest/gen/models"
 )
 
 // Test database connection string
@@ -25,22 +25,22 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 		DROP TABLE IF EXISTS users CASCADE;
 
 		CREATE TABLE users (
-			id SERIAL PRIMARY KEY,
-			firstname VARCHAR(255) NOT NULL,
-			lastname VARCHAR(255) NOT NULL,
-			email VARCHAR(255) UNIQUE NOT NULL,
-			password VARCHAR(255),
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			firstname TEXT NOT NULL,
+			lastname TEXT NOT NULL,
+			email TEXT UNIQUE NOT NULL,
+			password TEXT,
+			updated_at TIMESTAMP(0) WITHOUT TIME ZONE,
+			created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
 
 		CREATE TABLE todo (
-			id SERIAL PRIMARY KEY,
-			user_id INTEGER REFERENCES users(id),
-			title VARCHAR(255) NOT NULL,
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES users(id),
+			title TEXT NOT NULL,
 			content TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP
+			updated_at TIMESTAMP(0) WITHOUT TIME ZONE,
+			created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
 	`)
 	if err != nil {
@@ -120,7 +120,7 @@ func TestCRUD_GetByID(t *testing.T) {
 	crud := New[models.Users](db)
 	ctx := context.Background()
 
-	var userID int
+	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)
@@ -148,7 +148,7 @@ func TestCRUD_Update(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert test user
-	var userID int
+	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)
@@ -191,7 +191,7 @@ func TestCRUD_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert test user
-	var userID int
+	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)
@@ -226,7 +226,7 @@ func TestCRUD_TodoModel(t *testing.T) {
 	crud := New[models.Todo](db)
 	ctx := context.Background()
 
-	var userID int
+	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)

@@ -19,13 +19,13 @@ func TestGenerateAPI(t *testing.T) {
 	GenerateAPI(db, tables)
 
 	// Verify users resource was generated
-	usersResourceFile := filepath.Join("internal/api/resources", "users.go")
+	usersResourceFile := filepath.Join("gen/resources", "users.go")
 	if _, err := os.Stat(usersResourceFile); os.IsNotExist(err) {
 		t.Error("Expected users.go resource to be generated")
 	}
 
 	// Verify todo resource was generated
-	todoResourceFile := filepath.Join("internal/api/resources", "todo.go")
+	todoResourceFile := filepath.Join("gen/resources", "todo.go")
 	if _, err := os.Stat(todoResourceFile); os.IsNotExist(err) {
 		t.Error("Expected todo.go resource to be generated")
 	}
@@ -193,7 +193,7 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 	// This test ensures the generated code is syntactically correct
 	// by checking if we can read the generated files without errors
 
-	usersResourceFile := filepath.Join("internal/api/resources", "users.go")
+	usersResourceFile := filepath.Join("gen/resources", "users.go")
 	content, err := os.ReadFile(usersResourceFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated users resource: %v", err)

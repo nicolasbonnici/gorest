@@ -12,8 +12,8 @@ import (
 )
 
 func GenerateAPI(_ interface{}, _ map[string]TableSchema) {
-	modelsDir := filepath.Join("internal", "models")
-	apiDir := filepath.Join("internal", "api", "resources")
+	modelsDir := filepath.Join("gen", "models")
+	apiDir := filepath.Join("gen", "resources")
 
 	if err := os.MkdirAll(apiDir, 0755); err != nil {
 		log.Fatalf("failed to create api/resources dir: %v", err)
@@ -85,7 +85,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal"
-	"github.com/nicolasbonnici/gorest/internal/models"
+	"github.com/nicolasbonnici/gorest/gen/models"
 )
 
 // %sResource defines REST endpoints for %s model.
@@ -150,7 +150,7 @@ func (r *%sResource) Get(c *fiber.Ctx) error {
 func (r *%sResource) Create(c *fiber.Ctx) error {
 	var item models.%s
 	if err := c.BodyParser(&item); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body", "details": err.Error()})
 	}
 	if err := r.CRUD.Create(c.Context(), item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})

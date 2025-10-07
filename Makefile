@@ -35,7 +35,7 @@ help:
 .PHONY: build
 build: tidy
 	@echo "[INFO] Building Go binary..."
-	go build -o ./bin/$(BINARY) ./cmd/server.go
+	go build -o ./bin/$(BINARY) ./cmd/gorest/main.go
 
 .PHONY: run
 run: build
@@ -55,11 +55,11 @@ test-up:
 
 test-schema:
 	@echo "[INFO] Loading test database schema..."
-	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < sql/schema.sql
+	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
 
 test-generate:
 	@echo "[INFO] Generating models and API resources for tests..."
-	go run ./cmd/generate/main.go
+	go run ./test/generate/main.go
 
 test: test-up test-schema test-generate
 	go test ./... -v
