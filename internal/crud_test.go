@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nicolasbonnici/gorest/gen/crud"
 	"github.com/nicolasbonnici/gorest/gen/models"
 )
 
@@ -59,7 +60,7 @@ func TestCRUD_Create(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
 	user := models.Users{
@@ -69,7 +70,7 @@ func TestCRUD_Create(t *testing.T) {
 		Password:  stringPtr("password123"),
 	}
 
-	err := crud.Create(ctx, user)
+	err := c.Create(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -90,7 +91,7 @@ func TestCRUD_GetAll(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
 	_, err := db.Exec(ctx, `
@@ -103,7 +104,7 @@ func TestCRUD_GetAll(t *testing.T) {
 		t.Fatalf("Failed to insert test data: %v", err)
 	}
 
-	results, err := crud.GetAll(ctx)
+	results, err := c.GetAll(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get all users: %v", err)
 	}
@@ -117,7 +118,7 @@ func TestCRUD_GetByID(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
 	var userID string
@@ -130,7 +131,7 @@ func TestCRUD_GetByID(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	user, err := crud.GetByID(ctx, userID)
+	user, err := c.GetByID(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to get user by ID: %v", err)
 	}
@@ -144,7 +145,7 @@ func TestCRUD_Update(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
 	// Insert test user
@@ -166,7 +167,7 @@ func TestCRUD_Update(t *testing.T) {
 		Password:  stringPtr("newpass"),
 	}
 
-	err = crud.Update(ctx, userID, updatedUser)
+	err = c.Update(ctx, userID, updatedUser)
 	if err != nil {
 		t.Fatalf("Failed to update user: %v", err)
 	}
@@ -187,7 +188,7 @@ func TestCRUD_Delete(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
 	// Insert test user
@@ -202,7 +203,7 @@ func TestCRUD_Delete(t *testing.T) {
 	}
 
 	// Delete user
-	err = crud.Delete(ctx, userID)
+	err = c.Delete(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
 	}
@@ -223,7 +224,7 @@ func TestCRUD_TodoModel(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Todo](db)
+	c := crud.New[models.Todo](db)
 	ctx := context.Background()
 
 	var userID string
@@ -242,7 +243,7 @@ func TestCRUD_TodoModel(t *testing.T) {
 		Content: "This is a test todo item",
 	}
 
-	err = crud.Create(ctx, todo)
+	err = c.Create(ctx, todo)
 	if err != nil {
 		t.Fatalf("Failed to create todo: %v", err)
 	}
