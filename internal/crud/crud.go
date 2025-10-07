@@ -1,4 +1,4 @@
-package internal
+package crud
 
 import (
 	"context"
@@ -7,14 +7,13 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicolasbonnici/gorest/internal/models"
 )
 
-type CRUD[T models.Model] struct {
+type CRUD[T Model] struct {
 	DB *pgxpool.Pool
 }
 
-func New[T models.Model](db *pgxpool.Pool) *CRUD[T] {
+func New[T Model](db *pgxpool.Pool) *CRUD[T] {
 	return &CRUD[T]{DB: db}
 }
 
@@ -29,7 +28,7 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag == "" || tag == "id" {
+		if tag == "" || tag == "id" || tag == "created_at" || tag == "updated_at" {
 			continue
 		}
 		cols = append(cols, tag)
@@ -51,13 +50,14 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	var zero T
 	t := reflect.TypeOf(zero)
 
-	// Build column list from struct tags
 	var cols []string
+	var fieldIndices []int
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
 		if tag != "" {
 			cols = append(cols, tag)
+			fieldIndices = append(fieldIndices, i)
 		}
 	}
 
@@ -74,9 +74,9 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 		var item T
 		v := reflect.ValueOf(&item).Elem()
 
-		fields := make([]interface{}, t.NumField())
-		for i := 0; i < t.NumField(); i++ {
-			fields[i] = v.Field(i).Addr().Interface()
+		fields := make([]interface{}, len(fieldIndices))
+		for i, idx := range fieldIndices {
+			fields[i] = v.Field(idx).Addr().Interface()
 		}
 
 		if err := rows.Scan(fields...); err != nil {
@@ -91,13 +91,14 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 	var item T
 	t := reflect.TypeOf(item)
 
-	// Build column list from struct tags
 	var cols []string
+	var fieldIndices []int
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
 		if tag != "" {
 			cols = append(cols, tag)
+			fieldIndices = append(fieldIndices, i)
 		}
 	}
 
@@ -107,9 +108,9 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 
 	v := reflect.ValueOf(&item).Elem()
 
-	fields := make([]interface{}, t.NumField())
-	for i := 0; i < t.NumField(); i++ {
-		fields[i] = v.Field(i).Addr().Interface()
+	fields := make([]interface{}, len(fieldIndices))
+	for i, idx := range fieldIndices {
+		fields[i] = v.Field(idx).Addr().Interface()
 	}
 
 	if err := row.Scan(fields...); err != nil {
@@ -129,7 +130,7 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag == "" || tag == "id" {
+		if tag == "" || tag == "id" || tag == "created_at" {
 			continue
 		}
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", tag, paramIdx))
@@ -155,7 +156,6 @@ func (c *CRUD[T]) Delete(ctx context.Context, id any) error {
 	_, err := c.DB.Exec(ctx, query, id)
 	return err
 }
-
 
 type Repository[T any] interface {
 	Create(ctx context.Context, m T) error

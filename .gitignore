@@ -1,0 +1,26 @@
+# Binaries
+/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Generated code
+/gen/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment variables
+.env
+.env.local
