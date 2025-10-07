@@ -274,7 +274,7 @@ func TestTodoResource_Create(t *testing.T) {
 	RegisterTodoRoutes(app, db)
 
 	todo := models.Todo{
-		UserId:  userID,
+		UserId:  &userID,
 		Title:   "Test Todo",
 		Content: "This is a test todo",
 	}

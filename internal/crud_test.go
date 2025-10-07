@@ -93,20 +93,16 @@ func TestCRUD_GetAll(t *testing.T) {
 	crud := New[models.Users](db)
 	ctx := context.Background()
 
-	// Insert test data with unique emails
-	users := []models.Users{
-		{Firstname: "Alice", Lastname: "Smith", Email: "alice.getall@example.com", Password: stringPtr("pass1")},
-		{Firstname: "Bob", Lastname: "Jones", Email: "bob.getall@example.com", Password: stringPtr("pass2")},
+	_, err := db.Exec(ctx, `
+		INSERT INTO users (firstname, lastname, email, password)
+		VALUES
+			('Alice', 'Smith', 'alice.getall@example.com', 'pass1'),
+			('Bob', 'Jones', 'bob.getall@example.com', 'pass2')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
 	}
 
-	for _, user := range users {
-		err := crud.Create(ctx, user)
-		if err != nil {
-			t.Fatalf("Failed to create test user: %v", err)
-		}
-	}
-
-	// Test GetAll
 	results, err := crud.GetAll(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get all users: %v", err)
@@ -124,7 +120,6 @@ func TestCRUD_GetByID(t *testing.T) {
 	crud := New[models.Users](db)
 	ctx := context.Background()
 
-	// Insert test user and get ID
 	var userID int
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
@@ -135,14 +130,13 @@ func TestCRUD_GetByID(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Test GetByID
 	user, err := crud.GetByID(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to get user by ID: %v", err)
 	}
 
 	if user.Email != "charlie@example.com" {
-		t.Errorf("Expected email charlie@example.com, got %s", user.Email)
+		t.Errorf("Expected email charlie@example.com, got %v", user.Email)
 	}
 }
 
@@ -243,7 +237,7 @@ func TestCRUD_TodoModel(t *testing.T) {
 	}
 
 	todo := models.Todo{
-		UserId:  userID,
+		UserId:  &userID,
 		Title:   "Test Todo",
 		Content: "This is a test todo item",
 	}
