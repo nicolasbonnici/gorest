@@ -84,7 +84,7 @@ package resources
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicolasbonnici/gorest/gen/crud"
+	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/gen/models"
 )
 

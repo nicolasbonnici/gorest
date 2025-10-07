@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicolasbonnici/gorest/gen/crud"
+	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/gen/models"
 )
 
@@ -20,7 +20,6 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}
 
-	// Create test tables
 	_, err = db.Exec(context.Background(), `
 		DROP TABLE IF EXISTS todo CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
@@ -75,7 +74,6 @@ func TestCRUD_Create(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Verify user was created
 	var count int
 	err = db.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE email = $1", user.Email).Scan(&count)
 	if err != nil {
@@ -159,7 +157,6 @@ func TestCRUD_Update(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Update user
 	updatedUser := models.Users{
 		Firstname: "David",
 		Lastname:  "Wilson-Updated",
@@ -172,7 +169,6 @@ func TestCRUD_Update(t *testing.T) {
 		t.Fatalf("Failed to update user: %v", err)
 	}
 
-	// Verify update
 	var email string
 	err = db.QueryRow(ctx, "SELECT email FROM users WHERE id = $1", userID).Scan(&email)
 	if err != nil {
@@ -191,7 +187,6 @@ func TestCRUD_Delete(t *testing.T) {
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
-	// Insert test user
 	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
@@ -202,13 +197,11 @@ func TestCRUD_Delete(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Delete user
 	err = c.Delete(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
 	}
 
-	// Verify deletion
 	var count int
 	err = db.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE id = $1", userID).Scan(&count)
 	if err != nil {
@@ -259,7 +252,6 @@ func TestCRUD_TodoModel(t *testing.T) {
 	}
 }
 
-// Helper function
 func stringPtr(s string) *string {
 	return &s
 }
