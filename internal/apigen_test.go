@@ -11,26 +11,25 @@ func TestGenerateAPI(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	// Ensure models are generated first
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-
-	// Generate API resources
 	GenerateAPI(db, tables)
 
-	// Verify users resource was generated
-	usersResourceFile := filepath.Join("internal/api/resources", "users.go")
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("Failed to find project root: %v", err)
+	}
+
+	usersResourceFile := filepath.Join(projectRoot, "gen/resources", "users.go")
 	if _, err := os.Stat(usersResourceFile); os.IsNotExist(err) {
 		t.Error("Expected users.go resource to be generated")
 	}
 
-	// Verify todo resource was generated
-	todoResourceFile := filepath.Join("internal/api/resources", "todo.go")
+	todoResourceFile := filepath.Join(projectRoot, "gen/resources", "todo.go")
 	if _, err := os.Stat(todoResourceFile); os.IsNotExist(err) {
 		t.Error("Expected todo.go resource to be generated")
 	}
 
-	// Read and verify users resource content
 	content, err := os.ReadFile(usersResourceFile)
 	if err != nil {
 		t.Fatalf("Failed to read users.go: %v", err)
@@ -38,13 +37,12 @@ func TestGenerateAPI(t *testing.T) {
 
 	contentStr := string(content)
 
-	// Check for expected content
 	expectedStrings := []string{
 		"package resources",
 		"UsersResource",
 		"RegisterUsersRoutes",
-		"CRUD *internal.CRUD[models.Users]",
-		"internal.New[models.Users](db)",
+		"CRUD *crud.CRUD[models.Users]",
+		"crud.New[models.Users](db)",
 		"func (r *UsersResource) List(c *fiber.Ctx) error",
 		"func (r *UsersResource) Get(c *fiber.Ctx) error",
 		"func (r *UsersResource) Create(c *fiber.Ctx) error",
@@ -65,7 +63,6 @@ func TestGenerateAPI(t *testing.T) {
 }
 
 func TestParseStructs(t *testing.T) {
-	// Create a temporary test file
 	tempDir := t.TempDir()
 	testFile := filepath.Join(tempDir, "test.go")
 
@@ -88,10 +85,7 @@ func SomeFunction() {}
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Parse the file
 	structs := parseStructs(testFile)
-
-	// Verify results
 	if len(structs) != 2 {
 		t.Errorf("Expected 2 structs, got %d", len(structs))
 	}
@@ -117,13 +111,12 @@ func SomeFunction() {}
 func TestGenerateResourceFromModel(t *testing.T) {
 	result := generateResourceFromModel("User")
 
-	// Check for expected patterns in generated code
 	expectedStrings := []string{
 		"package resources",
 		"UserResource",
 		"RegisterUserRoutes",
-		"CRUD *internal.CRUD[models.User]",
-		"internal.New[models.User](db)",
+		"CRUD *crud.CRUD[models.User]",
+		"crud.New[models.User](db)",
 		"router.Get(\"/user\", res.List)",
 		"router.Get(\"/user/:id\", res.Get)",
 		"router.Post(\"/user\", res.Create)",
@@ -150,27 +143,20 @@ func TestGenerateResourceFromModel(t *testing.T) {
 }
 
 func TestGenerateResourceForStruct(t *testing.T) {
-	// Create a temporary directory
 	tempDir := t.TempDir()
-
-	// Generate resource for a test struct
 	generateResourceForStruct(tempDir, "TestModel")
 
-	// Verify file was created
 	resourceFile := filepath.Join(tempDir, "testmodel.go")
 	if _, err := os.Stat(resourceFile); os.IsNotExist(err) {
 		t.Error("Expected testmodel.go to be generated")
 	}
 
-	// Read and verify content
 	content, err := os.ReadFile(resourceFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated file: %v", err)
 	}
 
 	contentStr := string(content)
-
-	// Check for expected content
 	if !strings.Contains(contentStr, "TestModelResource") {
 		t.Error("Expected generated file to contain TestModelResource")
 	}
@@ -184,26 +170,25 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	// Generate everything
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
 	GenerateAPI(db, tables)
 
-	// Verify that generated resources compile correctly
-	// This test ensures the generated code is syntactically correct
-	// by checking if we can read the generated files without errors
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("Failed to find project root: %v", err)
+	}
 
-	usersResourceFile := filepath.Join("internal/api/resources", "users.go")
+	usersResourceFile := filepath.Join(projectRoot, "gen/resources", "users.go")
 	content, err := os.ReadFile(usersResourceFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated users resource: %v", err)
 	}
 
-	// Check that CRUD operations are properly integrated
 	contentStr := string(content)
 
 	crudChecks := []string{
-		"CRUD *internal.CRUD[models.Users]",
+		"CRUD *crud.CRUD[models.Users]",
 		"r.CRUD.GetAll",
 		"r.CRUD.GetByID",
 		"r.CRUD.Create",
@@ -217,7 +202,6 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 		}
 	}
 
-	// Check error handling
 	errorHandling := []string{
 		"if err != nil",
 		"c.Status(500)",

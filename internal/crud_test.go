@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicolasbonnici/gorest/internal/models"
+	"github.com/nicolasbonnici/gorest/internal/crud"
+	"github.com/nicolasbonnici/gorest/gen/models"
 )
 
-// Test database connection string
 const testDBURL = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
 
 func setupTestDB(t *testing.T) *pgxpool.Pool {
@@ -19,28 +19,27 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}
 
-	// Create test tables
 	_, err = db.Exec(context.Background(), `
 		DROP TABLE IF EXISTS todo CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
 
 		CREATE TABLE users (
-			id SERIAL PRIMARY KEY,
-			firstname VARCHAR(255) NOT NULL,
-			lastname VARCHAR(255) NOT NULL,
-			email VARCHAR(255) UNIQUE NOT NULL,
-			password VARCHAR(255),
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			firstname TEXT NOT NULL,
+			lastname TEXT NOT NULL,
+			email TEXT UNIQUE NOT NULL,
+			password TEXT,
+			updated_at TIMESTAMP(0) WITHOUT TIME ZONE,
+			created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
 
 		CREATE TABLE todo (
-			id SERIAL PRIMARY KEY,
-			user_id INTEGER REFERENCES users(id),
-			title VARCHAR(255) NOT NULL,
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES users(id),
+			title TEXT NOT NULL,
 			content TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP
+			updated_at TIMESTAMP(0) WITHOUT TIME ZONE,
+			created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
 	`)
 	if err != nil {
@@ -59,7 +58,7 @@ func TestCRUD_Create(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
 	user := models.Users{
@@ -69,12 +68,11 @@ func TestCRUD_Create(t *testing.T) {
 		Password:  stringPtr("password123"),
 	}
 
-	err := crud.Create(ctx, user)
+	err := c.Create(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Verify user was created
 	var count int
 	err = db.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE email = $1", user.Email).Scan(&count)
 	if err != nil {
@@ -90,24 +88,20 @@ func TestCRUD_GetAll(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
-	// Insert test data with unique emails
-	users := []models.Users{
-		{Firstname: "Alice", Lastname: "Smith", Email: "alice.getall@example.com", Password: stringPtr("pass1")},
-		{Firstname: "Bob", Lastname: "Jones", Email: "bob.getall@example.com", Password: stringPtr("pass2")},
+	_, err := db.Exec(ctx, `
+		INSERT INTO users (firstname, lastname, email, password)
+		VALUES
+			('Alice', 'Smith', 'alice.getall@example.com', 'pass1'),
+			('Bob', 'Jones', 'bob.getall@example.com', 'pass2')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
 	}
 
-	for _, user := range users {
-		err := crud.Create(ctx, user)
-		if err != nil {
-			t.Fatalf("Failed to create test user: %v", err)
-		}
-	}
-
-	// Test GetAll
-	results, err := crud.GetAll(ctx)
+	results, err := c.GetAll(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get all users: %v", err)
 	}
@@ -121,11 +115,10 @@ func TestCRUD_GetByID(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
-	// Insert test user and get ID
-	var userID int
+	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)
@@ -135,14 +128,13 @@ func TestCRUD_GetByID(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Test GetByID
-	user, err := crud.GetByID(ctx, userID)
+	user, err := c.GetByID(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to get user by ID: %v", err)
 	}
 
 	if user.Email != "charlie@example.com" {
-		t.Errorf("Expected email charlie@example.com, got %s", user.Email)
+		t.Errorf("Expected email charlie@example.com, got %v", user.Email)
 	}
 }
 
@@ -150,11 +142,11 @@ func TestCRUD_Update(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
 	// Insert test user
-	var userID int
+	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)
@@ -164,7 +156,6 @@ func TestCRUD_Update(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Update user
 	updatedUser := models.Users{
 		Firstname: "David",
 		Lastname:  "Wilson-Updated",
@@ -172,12 +163,11 @@ func TestCRUD_Update(t *testing.T) {
 		Password:  stringPtr("newpass"),
 	}
 
-	err = crud.Update(ctx, userID, updatedUser)
+	err = c.Update(ctx, userID, updatedUser)
 	if err != nil {
 		t.Fatalf("Failed to update user: %v", err)
 	}
 
-	// Verify update
 	var email string
 	err = db.QueryRow(ctx, "SELECT email FROM users WHERE id = $1", userID).Scan(&email)
 	if err != nil {
@@ -193,11 +183,10 @@ func TestCRUD_Delete(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	crud := New[models.Users](db)
+	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
-	// Insert test user
-	var userID int
+	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)
@@ -207,13 +196,11 @@ func TestCRUD_Delete(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Delete user
-	err = crud.Delete(ctx, userID)
+	err = c.Delete(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
 	}
 
-	// Verify deletion
 	var count int
 	err = db.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE id = $1", userID).Scan(&count)
 	if err != nil {
@@ -229,32 +216,30 @@ func TestCRUD_TodoModel(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	// First create a user (foreign key requirement)
-	var userID int
-	err := db.QueryRow(context.Background(), `
+	c := crud.New[models.Todo](db)
+	ctx := context.Background()
+
+	var userID string
+	err := db.QueryRow(ctx, `
 		INSERT INTO users (firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id
-	`, "Test", "User", "test@example.com", "pass").Scan(&userID)
+	`, "Test", "User", "test_todo@example.com", "pass").Scan(&userID)
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	crud := New[models.Todo](db)
-	ctx := context.Background()
-
 	todo := models.Todo{
-		UserId:  userID,
+		UserId:  &userID,
 		Title:   "Test Todo",
 		Content: "This is a test todo item",
 	}
 
-	err = crud.Create(ctx, todo)
+	err = c.Create(ctx, todo)
 	if err != nil {
 		t.Fatalf("Failed to create todo: %v", err)
 	}
 
-	// Verify todo was created
 	var count int
 	err = db.QueryRow(ctx, "SELECT COUNT(*) FROM todo WHERE title = $1", todo.Title).Scan(&count)
 	if err != nil {
@@ -266,7 +251,6 @@ func TestCRUD_TodoModel(t *testing.T) {
 	}
 }
 
-// Helper function
 func stringPtr(s string) *string {
 	return &s
 }

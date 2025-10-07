@@ -94,7 +94,13 @@ func LoadSchema(db *pgxpool.Pool) map[string]TableSchema {
 }
 
 func GenerateStructs(tables map[string]TableSchema) {
-	os.MkdirAll("internal/models", 0755)
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		log.Fatalf("failed to find project root: %v", err)
+	}
+
+	modelsDir := fmt.Sprintf("%s/gen/models", projectRoot)
+	os.MkdirAll(modelsDir, 0755)
 
 	for _, table := range tables {
 		structName := toCamelCase(table.TableName)
@@ -103,21 +109,33 @@ func GenerateStructs(tables map[string]TableSchema) {
             continue
         }
 
-		filePath := fmt.Sprintf("internal/models/%s.go", strings.ToLower(structName))
+		filePath := fmt.Sprintf("%s/gen/models/%s.go", projectRoot, strings.ToLower(structName))
+
+		needsTime := false
+		for _, col := range table.Columns {
+			if strings.Contains(col.Type, "timestamp") {
+				needsTime = true
+				break
+			}
+		}
 
 		var b strings.Builder
 		b.WriteString("package models\n\n")
+		if needsTime {
+			b.WriteString("import \"time\"\n\n")
+		}
 		b.WriteString("type " + structName + " struct {\n")
 
 		for _, col := range table.Columns {
-            switch col.Name {
-            case "id", "created_at", "updated_at":
-                continue
-            }
-
 			fieldName := toCamelCase(col.Name)
 			fieldType := pgToGoType(col.Type, col.IsNullable)
-			jsonTag := fmt.Sprintf("`json:\"%s\" db:\"%s\"`", col.Name, col.Name)
+
+			omitempty := ""
+			if col.Name == "id" || col.Name == "created_at" || col.Name == "updated_at" || col.IsNullable {
+				omitempty = ",omitempty"
+			}
+
+			jsonTag := fmt.Sprintf("`json:\"%s%s\" db:\"%s\"`", col.Name, omitempty, col.Name)
 			b.WriteString(fmt.Sprintf("\t%s %s %s\n", fieldName, fieldType, jsonTag))
 		}
 		b.WriteString("}\n")
@@ -132,8 +150,14 @@ func GenerateStructs(tables map[string]TableSchema) {
 }
 
 func GenerateOpenAPI(tables map[string]TableSchema) {
-	os.MkdirAll("internal/api", 0755)
-	filePath := "internal/api/openapi_gen.go"
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		log.Fatalf("failed to find project root: %v", err)
+	}
+
+	apiDir := fmt.Sprintf("%s/gen/api", projectRoot)
+	os.MkdirAll(apiDir, 0755)
+	filePath := fmt.Sprintf("%s/gen/api/openapi_gen.go", projectRoot)
 
 	var b strings.Builder
 	b.WriteString("package api\n\n")
@@ -146,7 +170,7 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 	}
 
 	os.WriteFile(filePath, []byte(b.String()), 0644)
-	fmt.Println("✅ Generated OpenAPI resource stubs → internal/api/openapi_gen.go")
+	fmt.Println("✅ Generated OpenAPI resource stubs → gen/api/openapi_gen.go")
 }
 
 func pgToGoType(pgType string, nullable bool) string {
@@ -156,9 +180,12 @@ func pgToGoType(pgType string, nullable bool) string {
 		"smallint": "int16",
 		"text":     "string",
 		"varchar":  "string",
+		"character varying": "string",
 		"boolean":  "bool",
 		"timestamp without time zone": "time.Time",
 		"timestamp with time zone": "time.Time",
+		"timestamp": "time.Time",
+		"uuid": "string",
 		"numeric": "float64",
 		"double precision": "float64",
 		"real": "float32",
@@ -169,7 +196,9 @@ func pgToGoType(pgType string, nullable bool) string {
 	if !ok {
 		goType = "interface{}"
 	}
-	if nullable && goType != "interface{}" {
+
+	isTimestamp := goType == "time.Time"
+	if (nullable || isTimestamp) && goType != "interface{}" {
 		goType = "*" + goType
 	}
 	return goType

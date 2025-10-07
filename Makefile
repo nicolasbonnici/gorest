@@ -8,7 +8,8 @@ API_CONTAINER ?= gorest_api
 API_PORT ?= 3000
 DB_PORT ?= 5432
 DB_URL ?= postgres://postgres:postgres@db:$(DB_PORT)/mydb?sslmode=disable
-DB_TEST_CONTAINER=db_test
+DB_TEST_SERVICE=db_test
+DB_TEST_CONTAINER=gorest_db_test
 
 # ----------------------------
 # Default target
@@ -34,7 +35,7 @@ help:
 .PHONY: build
 build: tidy
 	@echo "[INFO] Building Go binary..."
-	go build -o ./bin/$(BINARY) ./cmd/server.go
+	go build -o ./bin/$(BINARY) ./cmd/gorest/main.go
 
 .PHONY: run
 run: build
@@ -46,15 +47,22 @@ tidy:
 	@echo "[INFO] Tidying Go modules..."
 	go mod tidy
 
-.PHONY: test test-up
+.PHONY: test test-up test-schema test-generate
 test-up:
-	docker compose -f compose.yml -f compose.override.test.yml up -d $(DB_TEST_CONTAINER)
+	docker compose -f compose.yml -f compose.override.test.yml up -d $(DB_TEST_SERVICE)
 	@echo "Waiting 2s for DB to be ready..."
 	sleep 2
 
-test:
-	$(MAKE) test-up
-	go test ./... -v
+test-schema:
+	@echo "[INFO] Loading test database schema..."
+	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
+
+test-generate:
+	@echo "[INFO] Generating models and API resources for tests..."
+	go run ./test/generate/main.go
+
+test: test-up test-schema test-generate
+	go test ./... -v -p=1
 
 .PHONY: rebuild
 rebuild: clean build

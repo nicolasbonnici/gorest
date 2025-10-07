@@ -5,7 +5,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o gorest ./cmd/server.go
+RUN go build -o gorest ./cmd/gorest/main.go
 
 FROM alpine:3.19
 
