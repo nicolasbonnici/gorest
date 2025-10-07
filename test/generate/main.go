@@ -19,6 +19,7 @@ func main() {
 
 	tables := internal.LoadSchema(db)
 	internal.GenerateStructs(tables)
+	internal.GenerateCRUD()
 	internal.GenerateAPI(db, tables)
 
 	log.Println("✅ Code generation completed successfully")

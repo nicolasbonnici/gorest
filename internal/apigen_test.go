@@ -11,9 +11,10 @@ func TestGenerateAPI(t *testing.T) {
 	db := setupTestDB(t)
 	defer cleanupTestDB(t, db)
 
-	// Ensure models are generated first
+	// Ensure models and CRUD are generated first
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
+	GenerateCRUD()
 
 	// Generate API resources
 	GenerateAPI(db, tables)
@@ -43,8 +44,8 @@ func TestGenerateAPI(t *testing.T) {
 		"package resources",
 		"UsersResource",
 		"RegisterUsersRoutes",
-		"CRUD *internal.CRUD[models.Users]",
-		"internal.New[models.Users](db)",
+		"CRUD *crud.CRUD[models.Users]",
+		"crud.New[models.Users](db)",
 		"func (r *UsersResource) List(c *fiber.Ctx) error",
 		"func (r *UsersResource) Get(c *fiber.Ctx) error",
 		"func (r *UsersResource) Create(c *fiber.Ctx) error",
@@ -122,8 +123,8 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		"package resources",
 		"UserResource",
 		"RegisterUserRoutes",
-		"CRUD *internal.CRUD[models.User]",
-		"internal.New[models.User](db)",
+		"CRUD *crud.CRUD[models.User]",
+		"crud.New[models.User](db)",
 		"router.Get(\"/user\", res.List)",
 		"router.Get(\"/user/:id\", res.Get)",
 		"router.Post(\"/user\", res.Create)",
@@ -187,6 +188,7 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 	// Generate everything
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
+	GenerateCRUD()
 	GenerateAPI(db, tables)
 
 	// Verify that generated resources compile correctly
@@ -203,7 +205,7 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 	contentStr := string(content)
 
 	crudChecks := []string{
-		"CRUD *internal.CRUD[models.Users]",
+		"CRUD *crud.CRUD[models.Users]",
 		"r.CRUD.GetAll",
 		"r.CRUD.GetByID",
 		"r.CRUD.Create",

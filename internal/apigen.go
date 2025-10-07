@@ -84,7 +84,7 @@ package resources
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicolasbonnici/gorest/internal"
+	"github.com/nicolasbonnici/gorest/gen/crud"
 	"github.com/nicolasbonnici/gorest/gen/models"
 )
 
@@ -94,13 +94,13 @@ import (
 // @Tags %s
 type %sResource struct {
 	DB   *pgxpool.Pool
-	CRUD *internal.CRUD[models.%s]
+	CRUD *crud.CRUD[models.%s]
 }
 
 func Register%sRoutes(router fiber.Router, db *pgxpool.Pool) {
 	res := &%sResource{
 		DB:   db,
-		CRUD: internal.New[models.%s](db),
+		CRUD: crud.New[models.%s](db),
 	}
 	router.Get("/%s", res.List)
 	router.Get("/%s/:id", res.Get)
