@@ -29,21 +29,22 @@ git clone https://github.com/nicolasbonnici/gorest.git
 cd gorest
 ```
 
-### 2. Start Test Database
+### 2. Configure Environment
+```bash
+cp .env.example .env
+# Edit .env with your database connection details
+```
+
+Required environment variables:
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - Secret key for JWT authentication
+- `PORT` - Server port (default: 3000)
+
+### 3. Start Test Database
 ```bash
 make test-up
 make test-schema
 ```
-
-### 3. Generate Code
-```bash
-make test-generate
-```
-
-This generates:
-- `gen/models/*.go` - Type-safe model structs
-- `gen/resources/*.go` - REST API endpoints
-- `gen/api/*.go` - OpenAPI schema stubs
 
 ### 4. Build & Run
 ```bash
@@ -58,9 +59,10 @@ API available at: **http://localhost:3000**
 ## 📂 Project Structure
 ```
 gorest/
-├── cmd/gorest/main.go        # API server entrypoint
+├── pkg/
+│   ├── gorest/main.go        # API server entrypoint
+│   └── gorest.go             # Core package
 ├── test/
-│   ├── generate/main.go      # Code generator entrypoint
 │   └── sql/schema.sql        # Test database schema
 ├── internal/                 # Core logic
 │   ├── modelgen.go           # Model generator
@@ -75,6 +77,7 @@ gorest/
 │   ├── models/               # Database models
 │   ├── resources/            # REST endpoints
 │   └── api/                  # OpenAPI schema stubs
+├── .env.example              # Environment variables template
 ├── Makefile
 ├── compose.yml
 └── .github/workflows/        # CI/CD
@@ -87,7 +90,6 @@ gorest/
 ```bash
 make test-up          # Start test database
 make test-schema      # Load database schema
-make test-generate    # Generate models & API
 make build            # Build binary
 make test             # Run all tests
 ```
@@ -96,10 +98,10 @@ make test             # Run all tests
 
 ## 📚 How It Works
 
-1. **Schema Introspection**: Reads PostgreSQL `information_schema`
-2. **Model Generation**: Creates Go structs with proper types & tags
-3. **API Generation**: REST endpoints with Fiber handlers using generic CRUD
-4. **Build**: Compile everything into a single binary
+1. **Schema Introspection**: Reads PostgreSQL `information_schema` at startup
+2. **Code Generation**: Creates models, API endpoints, and OpenAPI specs on-the-fly
+3. **API Server**: Serves REST endpoints with Fiber handlers using generic CRUD
+4. **Runtime**: All code generation and API serving happen in a single binary
 
 ---
 
