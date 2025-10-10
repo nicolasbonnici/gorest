@@ -58,7 +58,7 @@ test-schema:
 	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
 
 test: test-up test-schema
-	go test ./... -v -p=1
+	go test ./... -v -p=1 -tags=integration
 
 .PHONY: rebuild
 rebuild: clean build
