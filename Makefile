@@ -35,7 +35,7 @@ help:
 .PHONY: build
 build: tidy
 	@echo "[INFO] Building Go binary..."
-	go build -o ./bin/$(BINARY) ./cmd/gorest/main.go
+	go build -o ./bin/$(BINARY) ./pkg/gorest/main.go
 
 .PHONY: run
 run: build
@@ -47,7 +47,7 @@ tidy:
 	@echo "[INFO] Tidying Go modules..."
 	go mod tidy
 
-.PHONY: test test-up test-schema test-generate
+.PHONY: test test-up test-schema
 test-up:
 	docker compose -f compose.yml -f compose.override.test.yml up -d $(DB_TEST_SERVICE)
 	@echo "Waiting 2s for DB to be ready..."
@@ -57,11 +57,7 @@ test-schema:
 	@echo "[INFO] Loading test database schema..."
 	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
 
-test-generate:
-	@echo "[INFO] Generating models and API resources for tests..."
-	go run ./test/generate/main.go
-
-test: test-up test-schema test-generate
+test: test-up test-schema
 	go test ./... -v -p=1
 
 .PHONY: rebuild
