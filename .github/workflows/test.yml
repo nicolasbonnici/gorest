@@ -24,9 +24,6 @@ jobs:
       - name: Load test schema
         run: make test-schema
 
-      - name: Generate models
-        run: make test-generate
-        
       - name: Build
         run: make build
         env:
