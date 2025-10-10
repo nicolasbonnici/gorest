@@ -48,6 +48,8 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("Failed to create test tables: %v", err)
 	}
 
+	ScaffoldAll(db)
+
 	return db
 }
 

@@ -45,17 +45,15 @@ run: build
 .PHONY: tidy
 tidy:
 	@echo "[INFO] Tidying Go modules..."
-	go mod tidy
+	@mkdir -p gen/models && echo "package models" > gen/models/.build.go
+	@go mod tidy
+	@rm -f gen/models/.build.go
 
 .PHONY: test test-up test-schema
 test-up:
 	docker compose -f compose.yml -f compose.override.test.yml up -d $(DB_TEST_SERVICE)
 	@echo "Waiting 2s for DB to be ready..."
 	sleep 2
-
-test-schema:
-	@echo "[INFO] Loading test database schema..."
-	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
 
 test: test-up test-schema
 	go test ./... -v -p=1 -tags=integration
