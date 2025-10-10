@@ -18,17 +18,12 @@ jobs:
         with:
           go-version: '1.23'
 
-      - name: Start test database
-        run: make test-up
-
-      - name: Load test schema
-        run: make test-schema
-
-      - name: Generate models
-        run: make test-generate
-
       - name: Build
         run: make build
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable
+          JWT_SECRET: test-secret-key
+          PORT: 3000
 
       - name: Test
         run: make test
