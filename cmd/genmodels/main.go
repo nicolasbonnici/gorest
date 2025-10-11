@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"log"
+	"net/url"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal"
@@ -15,11 +18,39 @@ func main() {
 		log.Fatal("❌ DATABASE_URL environment variable is required")
 	}
 
-	db, err := pgxpool.New(context.Background(), dbURL)
+	// Validate URL format
+	if !strings.HasPrefix(dbURL, "postgres://") && !strings.HasPrefix(dbURL, "postgresql://") {
+		log.Fatal("❌ DATABASE_URL must be a valid PostgreSQL connection string (postgres:// or postgresql://)")
+	}
+
+	// Validate URL is well-formed
+	if _, err := url.Parse(dbURL); err != nil {
+		log.Fatalf("❌ Invalid DATABASE_URL format: %v", err)
+	}
+
+	// Create context with timeout for connection
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Parse config and set connection pool settings
+	config, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		log.Fatalf("❌ Invalid DATABASE_URL: %v", err)
+	}
+
+	// Configure for code generation workload
+	config.MaxConns = 5
+	config.MinConns = 1
+	config.MaxConnLifetime = time.Hour
+	config.MaxConnIdleTime = 30 * time.Minute
+
+	db, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		log.Fatalf("❌ DB connection failed: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		db.Close()
+	}()
 
 	log.Println("🔄 Generating models and API from database schema...")
 	internal.ScaffoldAll(db)

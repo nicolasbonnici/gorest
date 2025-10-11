@@ -6,8 +6,11 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type TableSchema struct {
@@ -39,9 +42,12 @@ func LoadSchema(db *pgxpool.Pool) map[string]TableSchema {
 	ORDER BY table_name, ordinal_position;
 	`
 
-	rows, err := db.Query(context.Background(), colQuery)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	rows, err := db.Query(ctx, colQuery)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to query database columns: %v", err)
 	}
 	defer rows.Close()
 
@@ -74,9 +80,13 @@ func LoadSchema(db *pgxpool.Pool) map[string]TableSchema {
 		ON kcu.constraint_name = ccu.constraint_name
 	WHERE kcu.table_schema='public';
 	`
-	relRows, err := db.Query(context.Background(), relQuery)
+
+	relCtx, relCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer relCancel()
+
+	relRows, err := db.Query(relCtx, relQuery)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to query table relations: %v", err)
 	}
 	defer relRows.Close()
 
@@ -144,7 +154,9 @@ func GenerateStructs(tables map[string]TableSchema) {
 		b.WriteString("	return \"" + table.TableName + "\" \n")
 		b.WriteString("}\n")
 
-		os.WriteFile(filePath, []byte(b.String()), 0644)
+		if err := os.WriteFile(filePath, []byte(b.String()), 0644); err != nil {
+			log.Fatalf("Failed to write file %s: %v", filePath, err)
+		}
 		fmt.Printf("✅ Generated struct for table: %s → %s\n", table.TableName, filePath)
 	}
 }
@@ -169,7 +181,9 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 		b.WriteString(fmt.Sprintf("type %sResource struct {}\n\n", resource))
 	}
 
-	os.WriteFile(filePath, []byte(b.String()), 0644)
+	if err := os.WriteFile(filePath, []byte(b.String()), 0644); err != nil {
+		log.Fatalf("Failed to write file %s: %v", filePath, err)
+	}
 	fmt.Println("✅ Generated OpenAPI resource stubs → gen/api/openapi_gen.go")
 }
 
@@ -206,8 +220,9 @@ func pgToGoType(pgType string, nullable bool) string {
 
 func toCamelCase(s string) string {
 	parts := strings.Split(s, "_")
+	caser := cases.Title(language.English)
 	for i, p := range parts {
-		parts[i] = strings.Title(p)
+		parts[i] = caser.String(p)
 	}
 	return strings.Join(parts, "")
 }

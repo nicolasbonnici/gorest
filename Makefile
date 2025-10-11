@@ -91,14 +91,14 @@ clean:
 .PHONY: docker
 docker:
 	@echo "[INFO] Building and running Docker Compose..."
-	docker-compose up --build
+	docker compose up --build
 
 .PHONY: docker-stop
 docker-stop:
 	@echo "[INFO] Stopping Docker Compose..."
-	docker-compose down
+	docker compose down
 
 .PHONY: docker-clean
 docker-clean:
 	@echo "[INFO] Stopping and removing Docker Compose containers and images..."
-	docker-compose down --rmi all --volumes --remove-orphans
+	docker compose down --rmi all --volumes --remove-orphans

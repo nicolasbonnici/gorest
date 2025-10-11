@@ -11,6 +11,7 @@ import (
 )
 
 func TestCRUD_Create(t *testing.T) {
+	cleanupTestDB(t)
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -38,6 +39,7 @@ func TestCRUD_Create(t *testing.T) {
 }
 
 func TestCRUD_GetAll(t *testing.T) {
+	cleanupTestDB(t)
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -62,6 +64,7 @@ func TestCRUD_GetAll(t *testing.T) {
 }
 
 func TestCRUD_GetByID(t *testing.T) {
+	cleanupTestDB(t)
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -86,6 +89,7 @@ func TestCRUD_GetByID(t *testing.T) {
 }
 
 func TestCRUD_Update(t *testing.T) {
+	cleanupTestDB(t)
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -124,6 +128,7 @@ func TestCRUD_Update(t *testing.T) {
 }
 
 func TestCRUD_Delete(t *testing.T) {
+	cleanupTestDB(t)
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -154,6 +159,7 @@ func TestCRUD_Delete(t *testing.T) {
 }
 
 func TestCRUD_TodoModel(t *testing.T) {
+	cleanupTestDB(t)
 	c := crud.New[models.Todo](db)
 	ctx := context.Background()
 
