@@ -32,7 +32,7 @@ func Start(cfg Config) {
 
 	internal.SetupAuth(app, cfg.JWTSecret)
 
-    internal.GenerateAPI(db, tables)
+	internal.GenerateAPI(db, tables)
 
 	internal.SetupOpenAPI(app, tables)
 
