@@ -63,6 +63,20 @@ test-schema:
 test: test-up test-schema
 	go test ./... -v -p=1 -tags=integration
 
+.PHONY: generate
+generate:
+	@echo "[INFO] Generating models and API from database schema..."
+	DATABASE_URL=$(DB_URL) go run ./cmd/genmodels
+
+.PHONY: generate-test
+generate-test: test-up test-schema
+	@echo "[INFO] Generating models from test database..."
+	DATABASE_URL=postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable go run ./cmd/genmodels
+
+.PHONY: ci-setup
+ci-setup: test-up test-schema generate-test
+	@echo "[INFO] CI setup complete - database and generated code ready"
+
 .PHONY: rebuild
 rebuild: clean build
 
