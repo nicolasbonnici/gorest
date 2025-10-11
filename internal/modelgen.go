@@ -215,5 +215,6 @@ func toCamelCase(s string) string {
 func ScaffoldAll(db *pgxpool.Pool) {
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
+	GenerateAPI(db, tables)
 	GenerateOpenAPI(tables)
 }
