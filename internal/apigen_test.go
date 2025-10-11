@@ -8,12 +8,6 @@ import (
 )
 
 func TestGenerateAPI(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
-	tables := LoadSchema(db)
-	GenerateStructs(tables)
-	GenerateAPI(db, tables)
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {
@@ -167,8 +161,6 @@ func TestGenerateResourceForStruct(t *testing.T) {
 }
 
 func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
 
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
