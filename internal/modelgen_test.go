@@ -13,9 +13,6 @@ import (
 )
 
 func TestLoadSchema(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	tables := LoadSchema(db)
 
 	// Verify users table
@@ -56,9 +53,6 @@ func TestLoadSchema(t *testing.T) {
 }
 
 func TestGenerateStructs(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	// Create a temporary directory for test output
 	tempDir := t.TempDir()
 	originalModelsDir := filepath.Join(tempDir, "models")
@@ -122,9 +116,6 @@ func TestGenerateStructs(t *testing.T) {
 }
 
 func TestGenerateOpenAPI(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	tables := LoadSchema(db)
 
 	// Generate OpenAPI stubs
@@ -214,9 +205,6 @@ func TestToCamelCase(t *testing.T) {
 }
 
 func TestScaffoldAll(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	// Run scaffold all
 	ScaffoldAll(db)
 

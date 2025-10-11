@@ -6,62 +6,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/gen/models"
+	"github.com/nicolasbonnici/gorest/internal/crud"
 )
 
-const testDBURL = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
-
-func setupTestDB(t *testing.T) *pgxpool.Pool {
-	t.Helper()
-
-	db, err := pgxpool.New(context.Background(), testDBURL)
-	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
-	}
-
-	_, err = db.Exec(context.Background(), `
-		DROP TABLE IF EXISTS todo CASCADE;
-		DROP TABLE IF EXISTS users CASCADE;
-
-		CREATE TABLE users (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			firstname TEXT NOT NULL,
-			lastname TEXT NOT NULL,
-			email TEXT UNIQUE NOT NULL,
-			password TEXT,
-			updated_at TIMESTAMP(0) WITHOUT TIME ZONE,
-			created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-
-		CREATE TABLE todo (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			user_id UUID REFERENCES users(id),
-			title TEXT NOT NULL,
-			content TEXT NOT NULL,
-			updated_at TIMESTAMP(0) WITHOUT TIME ZONE,
-			created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create test tables: %v", err)
-	}
-
-	ScaffoldAll(db)
-
-	return db
-}
-
-func cleanupTestDB(t *testing.T, db *pgxpool.Pool) {
-	t.Helper()
-	db.Close()
-}
-
 func TestCRUD_Create(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -89,9 +38,6 @@ func TestCRUD_Create(t *testing.T) {
 }
 
 func TestCRUD_GetAll(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -116,9 +62,6 @@ func TestCRUD_GetAll(t *testing.T) {
 }
 
 func TestCRUD_GetByID(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -143,9 +86,6 @@ func TestCRUD_GetByID(t *testing.T) {
 }
 
 func TestCRUD_Update(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -184,9 +124,6 @@ func TestCRUD_Update(t *testing.T) {
 }
 
 func TestCRUD_Delete(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	c := crud.New[models.Users](db)
 	ctx := context.Background()
 
@@ -217,9 +154,6 @@ func TestCRUD_Delete(t *testing.T) {
 }
 
 func TestCRUD_TodoModel(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
-
 	c := crud.New[models.Todo](db)
 	ctx := context.Background()
 
