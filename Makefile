@@ -39,7 +39,8 @@ help:
 .PHONY: build
 build: tidy
 	@echo "[INFO] Building Go binary..."
-	go build -o ./bin/$(BINARY) ./cmd/gorest/main.go
+	@mkdir -p bin
+	go build -o bin/$(BINARY) ./pkg/gorest
 
 .PHONY: run
 run: build
@@ -49,7 +50,9 @@ run: build
 .PHONY: tidy
 tidy:
 	@echo "[INFO] Tidying Go modules..."
-	go mod tidy
+	@mkdir -p gen/models && echo "package models" > gen/models/.build.go
+	@go mod tidy
+	@rm -f gen/models/.build.go
 
 # ----------------------------
 # Code generation targets
@@ -89,8 +92,19 @@ test-schema:
 test-generate: modelgen resourcegen openapigen
 	@echo "[INFO] Code generation for tests completed"
 
-test: test-up test-schema test-generate
-	go test ./... -v -p=1
+.PHONY: generate
+generate:
+	@echo "[INFO] Generating models and API from database schema..."
+	DATABASE_URL=$(DB_URL) go run ./cmd/genmodels
+
+.PHONY: generate-test
+generate-test: test-up test-schema
+	@echo "[INFO] Generating models from test database..."
+	DATABASE_URL=postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable go run ./cmd/genmodels
+
+.PHONY: ci-setup
+ci-setup: test-up test-schema generate-test
+	@echo "[INFO] CI setup complete - database and generated code ready"
 
 .PHONY: rebuild
 rebuild: clean build
@@ -106,14 +120,14 @@ clean:
 .PHONY: docker
 docker:
 	@echo "[INFO] Building and running Docker Compose..."
-	docker-compose up --build
+	docker compose up --build
 
 .PHONY: docker-stop
 docker-stop:
 	@echo "[INFO] Stopping Docker Compose..."
-	docker-compose down
+	docker compose down
 
 .PHONY: docker-clean
 docker-clean:
 	@echo "[INFO] Stopping and removing Docker Compose containers and images..."
-	docker-compose down --rmi all --volumes --remove-orphans
+	docker compose down --rmi all --volumes --remove-orphans

@@ -29,7 +29,18 @@ git clone https://github.com/nicolasbonnici/gorest.git
 cd gorest
 ```
 
-### 2. Start Test Database
+### 2. Configure Environment
+```bash
+cp .env.example .env
+# Edit .env with your database connection details
+```
+
+Required environment variables:
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - Secret key for JWT authentication
+- `PORT` - Server port (default: 3000)
+
+### 3. Start Test Database
 ```bash
 make test-up
 make test-schema
