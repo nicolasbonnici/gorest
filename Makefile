@@ -19,6 +19,10 @@ help:
 	@echo "Usage:"
 	@echo "  make build           - Build the Go binary"
 	@echo "  make run             - Run the API locally"
+	@echo "  make modelgen        - Generate models from database schema"
+	@echo "  make resourcegen     - Generate API resources from models"
+	@echo "  make openapigen      - Generate OpenAPI schema"
+	@echo "  make generate        - Run all code generation (models + resources + openapi)"
 	@echo "  make docker          - Build and run Docker Compose"
 	@echo "  make docker-stop     - Stop Docker Compose"
 	@echo "  make docker-clean    - Stop and remove containers/images"
@@ -47,6 +51,31 @@ tidy:
 	@echo "[INFO] Tidying Go modules..."
 	go mod tidy
 
+# ----------------------------
+# Code generation targets
+# ----------------------------
+.PHONY: modelgen
+modelgen:
+	@echo "[INFO] Generating models from database schema..."
+	go run ./cmd/modelgen/main.go
+
+.PHONY: resourcegen
+resourcegen:
+	@echo "[INFO] Generating API resources from models..."
+	go run ./cmd/resourcegen/main.go
+
+.PHONY: openapigen
+openapigen:
+	@echo "[INFO] Generating OpenAPI schema..."
+	go run ./cmd/openapigen/main.go
+
+.PHONY: generate
+generate: modelgen resourcegen openapigen
+	@echo "[INFO] All code generation completed successfully"
+
+# ----------------------------
+# Test targets
+# ----------------------------
 .PHONY: test test-up test-schema test-generate
 test-up:
 	docker compose -f compose.yml -f compose.override.test.yml up -d $(DB_TEST_SERVICE)
@@ -57,9 +86,8 @@ test-schema:
 	@echo "[INFO] Loading test database schema..."
 	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
 
-test-generate:
-	@echo "[INFO] Generating models and API resources for tests..."
-	go run ./test/generate/main.go
+test-generate: modelgen resourcegen openapigen
+	@echo "[INFO] Code generation for tests completed"
 
 test: test-up test-schema test-generate
 	go test ./... -v -p=1

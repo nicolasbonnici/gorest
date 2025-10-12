@@ -6,7 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal/crud"
-	"github.com/nicolasbonnici/gorest/gen/models"
+	"github.com/nicolasbonnici/gorest/internal/api/models"
 )
 
 const testDBURL = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"

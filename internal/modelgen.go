@@ -99,7 +99,7 @@ func GenerateStructs(tables map[string]TableSchema) {
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
-	modelsDir := fmt.Sprintf("%s/gen/models", projectRoot)
+	modelsDir := fmt.Sprintf("%s/internal/api/models", projectRoot)
 	os.MkdirAll(modelsDir, 0755)
 
 	for _, table := range tables {
@@ -109,7 +109,7 @@ func GenerateStructs(tables map[string]TableSchema) {
             continue
         }
 
-		filePath := fmt.Sprintf("%s/gen/models/%s.go", projectRoot, strings.ToLower(structName))
+		filePath := fmt.Sprintf("%s/internal/api/models/%s.go", projectRoot, strings.ToLower(structName))
 
 		needsTime := false
 		for _, col := range table.Columns {
@@ -155,9 +155,9 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
-	apiDir := fmt.Sprintf("%s/gen/api", projectRoot)
+	apiDir := fmt.Sprintf("%s/internal/api/openapi", projectRoot)
 	os.MkdirAll(apiDir, 0755)
-	filePath := fmt.Sprintf("%s/gen/api/openapi_gen.go", projectRoot)
+	filePath := fmt.Sprintf("%s/internal/api/openapi/openapi_gen.go", projectRoot)
 
 	var b strings.Builder
 	b.WriteString("package api\n\n")
@@ -170,7 +170,7 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 	}
 
 	os.WriteFile(filePath, []byte(b.String()), 0644)
-	fmt.Println("✅ Generated OpenAPI resource stubs → gen/api/openapi_gen.go")
+	fmt.Println("✅ Generated OpenAPI resource stubs → internal/api/openapi/openapi_gen.go")
 }
 
 func pgToGoType(pgType string, nullable bool) string {

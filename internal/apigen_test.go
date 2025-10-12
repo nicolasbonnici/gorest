@@ -20,12 +20,12 @@ func TestGenerateAPI(t *testing.T) {
 		t.Fatalf("Failed to find project root: %v", err)
 	}
 
-	usersResourceFile := filepath.Join(projectRoot, "gen/resources", "users.go")
+	usersResourceFile := filepath.Join(projectRoot, "internal/api/resources", "users.go")
 	if _, err := os.Stat(usersResourceFile); os.IsNotExist(err) {
 		t.Error("Expected users.go resource to be generated")
 	}
 
-	todoResourceFile := filepath.Join(projectRoot, "gen/resources", "todo.go")
+	todoResourceFile := filepath.Join(projectRoot, "internal/api/resources", "todo.go")
 	if _, err := os.Stat(todoResourceFile); os.IsNotExist(err) {
 		t.Error("Expected todo.go resource to be generated")
 	}
@@ -179,7 +179,7 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 		t.Fatalf("Failed to find project root: %v", err)
 	}
 
-	usersResourceFile := filepath.Join(projectRoot, "gen/resources", "users.go")
+	usersResourceFile := filepath.Join(projectRoot, "internal/api/resources", "users.go")
 	content, err := os.ReadFile(usersResourceFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated users resource: %v", err)

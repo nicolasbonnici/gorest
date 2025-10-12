@@ -17,8 +17,8 @@ func GenerateAPI(_ interface{}, _ map[string]TableSchema) {
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
-	modelsDir := filepath.Join(projectRoot, "gen", "models")
-	apiDir := filepath.Join(projectRoot, "gen", "resources")
+	modelsDir := filepath.Join(projectRoot, "internal", "api", "models")
+	apiDir := filepath.Join(projectRoot, "internal", "api", "resources")
 
 	if err := os.MkdirAll(apiDir, 0755); err != nil {
 		log.Fatalf("failed to create api/resources dir: %v", err)
@@ -90,7 +90,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal/crud"
-	"github.com/nicolasbonnici/gorest/gen/models"
+	"github.com/nicolasbonnici/gorest/internal/api/models"
 )
 
 // %sResource defines REST endpoints for %s model.
@@ -124,6 +124,10 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 	items, err := r.CRUD.GetAll(c.Context())
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	// Ensure empty array instead of null
+	if items == nil {
+		items = []models.%s{}
 	}
 	return c.JSON(items)
 }
@@ -202,7 +206,7 @@ func (r *%sResource) Delete(c *fiber.Ctx) error {
 		structName, structName,
 		structName, structName, structName,
 		resourceName, resourceName, resourceName, resourceName, resourceName,
-		structName, structName, structName, structName, resourceName, structName,
+		structName, structName, structName, structName, resourceName, structName, structName,
 		structName, structName, structName, structName, resourceName, structName,
 		structName, structName, structName, structName, structName, structName, resourceName, structName, structName,
 		structName, structName, structName, structName, structName, structName, resourceName, structName, structName,

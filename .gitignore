@@ -14,9 +14,6 @@
 # Go workspace file
 go.work
 
-# Generated code
-/gen/
-
 # IDE
 .vscode/
 .idea/

@@ -37,13 +37,19 @@ make test-schema
 
 ### 3. Generate Code
 ```bash
-make test-generate
+# Generate all code (models → resources → openapi)
+make generate
+
+# Or run individually:
+make modelgen      # Generate models from database schema
+make resourcegen   # Generate REST API resources
+make openapigen    # Generate OpenAPI schema
 ```
 
 This generates:
-- `gen/models/*.go` - Type-safe model structs
-- `gen/resources/*.go` - REST API endpoints
-- `gen/api/*.go` - OpenAPI schema stubs
+- `internal/api/models/*.go` - Type-safe model structs
+- `internal/api/resources/*.go` - REST API endpoints
+- `internal/api/openapi/*.go` - OpenAPI schema stubs
 
 ### 4. Build & Run
 ```bash
@@ -58,23 +64,29 @@ API available at: **http://localhost:3000**
 ## 📂 Project Structure
 ```
 gorest/
-├── cmd/gorest/main.go        # API server entrypoint
+├── cmd/
+│   ├── gorest/main.go        # API server entrypoint
+│   ├── modelgen/main.go      # Model generator CLI
+│   ├── resourcegen/main.go   # Resource generator CLI
+│   └── openapigen/main.go    # OpenAPI generator CLI
 ├── test/
-│   ├── generate/main.go      # Code generator entrypoint
 │   └── sql/schema.sql        # Test database schema
 ├── internal/                 # Core logic
-│   ├── modelgen.go           # Model generator
-│   ├── apigen.go             # REST API generator
+│   ├── modelgen.go           # Model generation logic
+│   ├── apigen.go             # REST API generation logic
 │   ├── auth.go               # JWT authentication
-│   ├── openapi.go            # OpenAPI spec generator
+│   ├── openapi.go            # OpenAPI spec setup
 │   ├── utils.go              # Shared utilities
-│   └── crud/                 # Generic CRUD operations
-│       ├── crud.go           # Type-safe CRUD implementation
-│       └── model.go          # Model interface
-├── gen/                      # Generated code (gitignored)
-│   ├── models/               # Database models
-│   ├── resources/            # REST endpoints
-│   └── api/                  # OpenAPI schema stubs
+│   ├── crud/                 # Generic CRUD operations
+│   │   ├── crud.go           # Type-safe CRUD implementation
+│   │   └── model.go          # Model interface
+│   └── api/                  # Generated code (gitignored)
+│       ├── models/           # Database models
+│       ├── resources/        # REST endpoints
+│       ├── openapi/          # OpenAPI schema stubs
+│       └── routes.go         # Route registration
+├── pkg/
+│   └── gorest.go             # Main application logic
 ├── Makefile
 ├── compose.yml
 └── .github/workflows/        # CI/CD
@@ -85,9 +97,15 @@ gorest/
 ## 🛠 Development Commands
 
 ```bash
+# Code Generation
+make modelgen         # Generate models from database schema
+make resourcegen      # Generate REST API resources
+make openapigen       # Generate OpenAPI schema
+make generate         # Run all generators in order
+
+# Testing & Build
 make test-up          # Start test database
 make test-schema      # Load database schema
-make test-generate    # Generate models & API
 make build            # Build binary
 make test             # Run all tests
 ```
@@ -96,10 +114,24 @@ make test             # Run all tests
 
 ## 📚 How It Works
 
-1. **Schema Introspection**: Reads PostgreSQL `information_schema`
-2. **Model Generation**: Creates Go structs with proper types & tags
-3. **API Generation**: REST endpoints with Fiber handlers using generic CRUD
-4. **Build**: Compile everything into a single binary
+1. **Schema Introspection**: Reads PostgreSQL `information_schema` to discover tables and columns
+2. **Model Generation** (`make modelgen`): Creates Go structs with proper types & JSON tags
+3. **Resource Generation** (`make resourcegen`): Creates REST endpoints with Fiber handlers using generic CRUD
+   - Validates that models exist before generation
+4. **OpenAPI Generation** (`make openapigen`): Creates OpenAPI schema stubs
+5. **Server Startup**: Validates all generated files exist before starting the API server
+
+### Code Generation Architecture
+
+The generators are separate CLI tools that enforce proper ordering:
+- **cmd/modelgen** → generates `internal/api/models/`
+- **cmd/resourcegen** → generates `internal/api/resources/` (requires models)
+- **cmd/openapigen** → generates `internal/api/openapi/`
+
+This separation allows:
+- Running generators independently during development
+- Clear dependency management (resources depend on models)
+- Better testing and validation of each generation step
 
 ---
 
