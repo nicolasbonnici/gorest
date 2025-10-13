@@ -69,6 +69,7 @@ make build
 ```
 
 API available at: **http://localhost:3000**
+OpenAPI API specs: **http://localhost:3000/openapi.json**
 
 ---
 

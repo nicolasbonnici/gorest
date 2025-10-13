@@ -20,7 +20,6 @@ type Config struct {
 }
 
 func Start(cfg Config) {
-	// Validate that generated files exist before starting
 	projectRoot, err := internal.FindProjectRoot()
 	if err != nil {
 		log.Fatalf("❌ Failed to find project root: %v", err)
@@ -52,8 +51,6 @@ func Start(cfg Config) {
 	app := fiber.New()
 
 	internal.SetupAuth(app, cfg.JWTSecret)
-
-	// Register routes dynamically
 	api.RegisterGeneratedRoutes(app, db, tables)
 
 	internal.SetupOpenAPI(app, tables)

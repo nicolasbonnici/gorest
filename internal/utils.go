@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 )
 
-// FindProjectRoot finds the root directory of the project by looking for go.mod
 func FindProjectRoot() (string, error) {
 	return findProjectRoot()
 }

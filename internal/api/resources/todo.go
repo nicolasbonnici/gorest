@@ -41,7 +41,6 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	// Ensure empty array instead of null
 	if items == nil {
 		items = []models.Todo{}
 	}

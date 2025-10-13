@@ -6,7 +6,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/internal/api/models"
 )

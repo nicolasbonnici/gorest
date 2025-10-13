@@ -1,3 +1,5 @@
+//go:build integration
+
 package internal
 
 import (
@@ -8,6 +10,9 @@ import (
 )
 
 func TestGenerateAPI(t *testing.T) {
+	tables := LoadSchema(db)
+	GenerateStructs(tables)
+	GenerateAPI(db, tables)
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {

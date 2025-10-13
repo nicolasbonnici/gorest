@@ -92,10 +92,9 @@ test-schema:
 test-generate: modelgen resourcegen openapigen
 	@echo "[INFO] Code generation for tests completed"
 
-.PHONY: generate
-generate:
-	@echo "[INFO] Generating models and API from database schema..."
-	DATABASE_URL=$(DB_URL) go run ./cmd/genmodels
+test: test-up test-schema test-generate
+	@echo "[INFO] Running Go tests..."
+	DATABASE_URL="postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable" go test -tags=integration -v ./...
 
 .PHONY: generate-test
 generate-test: test-up test-schema

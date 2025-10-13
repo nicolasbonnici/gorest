@@ -19,17 +19,14 @@ func main() {
 		log.Fatal("❌ DATABASE_URL environment variable is required")
 	}
 
-	// Validate URL format
 	if !strings.HasPrefix(dbURL, "postgres://") && !strings.HasPrefix(dbURL, "postgresql://") {
 		log.Fatal("❌ DATABASE_URL must be a valid PostgreSQL connection string (postgres:// or postgresql://)")
 	}
 
-	// Validate URL is well-formed
 	if _, err := url.Parse(dbURL); err != nil {
 		log.Fatalf("❌ Invalid DATABASE_URL format: %v", err)
 	}
 
-	// Validate that models exist
 	projectRoot, err := internal.FindProjectRoot()
 	if err != nil {
 		log.Fatalf("❌ Failed to find project root: %v", err)
@@ -40,7 +37,6 @@ func main() {
 		log.Fatal("❌ Models directory not found. Run 'make modelgen' first to generate models.")
 	}
 
-	// Check if models directory has Go files
 	files, err := os.ReadDir(modelsDir)
 	if err != nil {
 		log.Fatalf("❌ Failed to read models directory: %v", err)
@@ -58,17 +54,14 @@ func main() {
 		log.Fatal("❌ No model files found. Run 'make modelgen' first to generate models.")
 	}
 
-	// Create context with timeout for connection
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Parse config and set connection pool settings
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		log.Fatalf("❌ Invalid DATABASE_URL: %v", err)
 	}
 
-	// Configure for code generation workload
 	config.MaxConns = 5
 	config.MinConns = 1
 	config.MaxConnLifetime = time.Hour
