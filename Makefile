@@ -91,9 +91,7 @@ test-schema:
 
 test-generate:
 	@echo "[INFO] Code generation for tests..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) openapigen
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen && $(MAKE) openapigen
 	@echo "[INFO] Code generation for tests completed"
 
 test: test-up test-schema test-generate
@@ -108,9 +106,7 @@ generate-test: test-up test-schema
 .PHONY: ci-setup
 ci-setup: test-up test-schema
 	@echo "[INFO] Generating code for CI..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) openapigen
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen && $(MAKE) openapigen
 	@echo "[INFO] CI setup complete - database and generated code ready"
 
 .PHONY: rebuild
