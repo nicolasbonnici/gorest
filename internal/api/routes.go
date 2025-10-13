@@ -11,7 +11,7 @@ func RegisterGeneratedRoutes(app *fiber.App, db *pgxpool.Pool, tables map[string
 	for tableName := range tables {
 		switch tableName {
 		case "users":
-			resources.RegisterUsersRoutes(app, db)
+			resources.RegisterUserRoutes(app, db)
 		case "todo":
 			resources.RegisterTodoRoutes(app, db)
 		}

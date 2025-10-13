@@ -5,23 +5,24 @@ package resources
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/internal/api/models"
 )
 
-// UsersResource defines REST endpoints for Users model.
-// @Summary Users resource
-// @Description CRUD operations for Users
-// @Tags Users
-type UsersResource struct {
+// UserResource defines REST endpoints for User model.
+// @Summary User resource
+// @Description CRUD operations for User
+// @Tags User
+type UserResource struct {
 	DB   *pgxpool.Pool
-	CRUD *crud.CRUD[models.Users]
+	CRUD *crud.CRUD[models.User]
 }
 
-func RegisterUsersRoutes(router fiber.Router, db *pgxpool.Pool) {
-	res := &UsersResource{
+func RegisterUserRoutes(router fiber.Router, db *pgxpool.Pool) {
+	res := &UserResource{
 		DB:   db,
-		CRUD: crud.New[models.Users](db),
+		CRUD: crud.New[models.User](db),
 	}
 	router.Get("/users", res.List)
 	router.Get("/users/:id", res.Get)
@@ -30,86 +31,86 @@ func RegisterUsersRoutes(router fiber.Router, db *pgxpool.Pool) {
 	router.Delete("/users/:id", res.Delete)
 }
 
-// List Users
-// @Summary List Users
-// @Tags Users
-// @Produce json
-// @Success 200 {array} models.Users
+// List User
+// @Summary List User
+// @Tags User
+// @Produce json,application/ld+json
+// @Success 200 {array} models.User
 // @Router /users [get]
-func (r *UsersResource) List(c *fiber.Ctx) error {
+func (r *UserResource) List(c *fiber.Ctx) error {
 	items, err := r.CRUD.GetAll(c.Context())
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	if items == nil {
-		items = []models.Users{}
+		items = []models.User{}
 	}
-	return c.JSON(items)
+	return internal.SendFormatted(c, 200, items)
 }
 
-// Get Users by ID
-// @Summary Get Users
-// @Tags Users
-// @Produce json
+// Get User by ID
+// @Summary Get User
+// @Tags User
+// @Produce json,application/ld+json
 // @Param id path int true "ID"
-// @Success 200 {object} models.Users
+// @Success 200 {object} models.User
 // @Router /users/{id} [get]
-func (r *UsersResource) Get(c *fiber.Ctx) error {
+func (r *UserResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
 	item, err := r.CRUD.GetByID(c.Context(), id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
 	}
-	return c.JSON(item)
+	return internal.SendFormatted(c, 200, item)
 }
 
-// Create Users
-// @Summary Create Users
-// @Tags Users
+// Create User
+// @Summary Create User
+// @Tags User
 // @Accept json
-// @Produce json
-// @Param input body models.Users true "New Users"
-// @Success 201 {object} models.Users
+// @Produce json,application/ld+json
+// @Param input body models.User true "New User"
+// @Success 201 {object} models.User
 // @Router /users [post]
-func (r *UsersResource) Create(c *fiber.Ctx) error {
-	var item models.Users
+func (r *UserResource) Create(c *fiber.Ctx) error {
+	var item models.User
 	if err := c.BodyParser(&item); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body", "details": err.Error()})
 	}
 	if err := r.CRUD.Create(c.Context(), item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(201).JSON(item)
+	return internal.SendFormatted(c, 201, item)
 }
 
-// Update Users
-// @Summary Update Users
-// @Tags Users
+// Update User
+// @Summary Update User
+// @Tags User
 // @Accept json
-// @Produce json
+// @Produce json,application/ld+json
 // @Param id path int true "ID"
-// @Param input body models.Users true "Updated Users"
-// @Success 200 {object} models.Users
+// @Param input body models.User true "Updated User"
+// @Success 200 {object} models.User
 // @Router /users/{id} [put]
-func (r *UsersResource) Update(c *fiber.Ctx) error {
+func (r *UserResource) Update(c *fiber.Ctx) error {
 	id := c.Params("id")
-	var item models.Users
+	var item models.User
 	if err := c.BodyParser(&item); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 	if err := r.CRUD.Update(c.Context(), id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(item)
+	return internal.SendFormatted(c, 200, item)
 }
 
-// Delete Users
-// @Summary Delete Users
-// @Tags Users
+// Delete User
+// @Summary Delete User
+// @Tags User
 // @Param id path int true "ID"
 // @Success 204
 // @Router /users/{id} [delete]
-func (r *UsersResource) Delete(c *fiber.Ctx) error {
+func (r *UserResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := r.CRUD.Delete(c.Context(), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})

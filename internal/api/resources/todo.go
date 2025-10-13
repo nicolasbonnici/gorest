@@ -5,6 +5,7 @@ package resources
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/internal/api/models"
 )
@@ -23,19 +24,19 @@ func RegisterTodoRoutes(router fiber.Router, db *pgxpool.Pool) {
 		DB:   db,
 		CRUD: crud.New[models.Todo](db),
 	}
-	router.Get("/todo", res.List)
-	router.Get("/todo/:id", res.Get)
-	router.Post("/todo", res.Create)
-	router.Put("/todo/:id", res.Update)
-	router.Delete("/todo/:id", res.Delete)
+	router.Get("/todos", res.List)
+	router.Get("/todos/:id", res.Get)
+	router.Post("/todos", res.Create)
+	router.Put("/todos/:id", res.Update)
+	router.Delete("/todos/:id", res.Delete)
 }
 
 // List Todo
 // @Summary List Todo
 // @Tags Todo
-// @Produce json
+// @Produce json,application/ld+json
 // @Success 200 {array} models.Todo
-// @Router /todo [get]
+// @Router /todos [get]
 func (r *TodoResource) List(c *fiber.Ctx) error {
 	items, err := r.CRUD.GetAll(c.Context())
 	if err != nil {
@@ -44,33 +45,33 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 	if items == nil {
 		items = []models.Todo{}
 	}
-	return c.JSON(items)
+	return internal.SendFormatted(c, 200, items)
 }
 
 // Get Todo by ID
 // @Summary Get Todo
 // @Tags Todo
-// @Produce json
+// @Produce json,application/ld+json
 // @Param id path int true "ID"
 // @Success 200 {object} models.Todo
-// @Router /todo/{id} [get]
+// @Router /todos/{id} [get]
 func (r *TodoResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
 	item, err := r.CRUD.GetByID(c.Context(), id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
 	}
-	return c.JSON(item)
+	return internal.SendFormatted(c, 200, item)
 }
 
 // Create Todo
 // @Summary Create Todo
 // @Tags Todo
 // @Accept json
-// @Produce json
+// @Produce json,application/ld+json
 // @Param input body models.Todo true "New Todo"
 // @Success 201 {object} models.Todo
-// @Router /todo [post]
+// @Router /todos [post]
 func (r *TodoResource) Create(c *fiber.Ctx) error {
 	var item models.Todo
 	if err := c.BodyParser(&item); err != nil {
@@ -79,18 +80,18 @@ func (r *TodoResource) Create(c *fiber.Ctx) error {
 	if err := r.CRUD.Create(c.Context(), item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(201).JSON(item)
+	return internal.SendFormatted(c, 201, item)
 }
 
 // Update Todo
 // @Summary Update Todo
 // @Tags Todo
 // @Accept json
-// @Produce json
+// @Produce json,application/ld+json
 // @Param id path int true "ID"
 // @Param input body models.Todo true "Updated Todo"
 // @Success 200 {object} models.Todo
-// @Router /todo/{id} [put]
+// @Router /todos/{id} [put]
 func (r *TodoResource) Update(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var item models.Todo
@@ -100,7 +101,7 @@ func (r *TodoResource) Update(c *fiber.Ctx) error {
 	if err := r.CRUD.Update(c.Context(), id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(item)
+	return internal.SendFormatted(c, 200, item)
 }
 
 // Delete Todo
@@ -108,7 +109,7 @@ func (r *TodoResource) Update(c *fiber.Ctx) error {
 // @Tags Todo
 // @Param id path int true "ID"
 // @Success 204
-// @Router /todo/{id} [delete]
+// @Router /todos/{id} [delete]
 func (r *TodoResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := r.CRUD.Delete(c.Context(), id); err != nil {

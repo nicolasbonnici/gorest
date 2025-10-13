@@ -113,7 +113,8 @@ func GenerateStructs(tables map[string]TableSchema) {
 	os.MkdirAll(modelsDir, 0755)
 
 	for _, table := range tables {
-		structName := toCamelCase(table.TableName)
+		singularTable := singularize(table.TableName)
+		structName := toCamelCase(singularTable)
         switch structName {
         case "model":
             continue
@@ -176,7 +177,8 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 	b.WriteString("// Auto-generated OpenAPI schema stubs\n\n")
 
 	for _, table := range tables {
-		resource := toCamelCase(table.TableName)
+		singularTable := singularize(table.TableName)
+		resource := toCamelCase(singularTable)
 		b.WriteString(fmt.Sprintf("// %sResource defines OpenAPI schema and endpoints for %s\n", resource, table.TableName))
 		b.WriteString(fmt.Sprintf("type %sResource struct {}\n\n", resource))
 	}
@@ -223,6 +225,38 @@ func toCamelCase(s string) string {
 		parts[i] = caser.String(p)
 	}
 	return strings.Join(parts, "")
+}
+
+// singularize converts a plural word to singular
+func singularize(word string) string {
+	// Handle common plural patterns
+	if strings.HasSuffix(word, "ies") {
+		// categories -> category, stories -> story
+		return word[:len(word)-3] + "y"
+	}
+	if strings.HasSuffix(word, "ves") {
+		// knives -> knife, wolves -> wolf
+		// Check if it ends in "lves" (wolves, shelves) -> keep 'f'
+		if len(word) > 4 && word[len(word)-4] == 'l' {
+			return word[:len(word)-3] + "f"
+		}
+		return word[:len(word)-3] + "fe"
+	}
+	if strings.HasSuffix(word, "ses") {
+		// classes -> class, addresses -> address
+		return word[:len(word)-2]
+	}
+	if strings.HasSuffix(word, "xes") || strings.HasSuffix(word, "zes") ||
+	   strings.HasSuffix(word, "ches") || strings.HasSuffix(word, "shes") {
+		// boxes -> box, buzzes -> buzz, churches -> church, dishes -> dish
+		return word[:len(word)-2]
+	}
+	if strings.HasSuffix(word, "s") && !strings.HasSuffix(word, "ss") {
+		// users -> user, todos -> todo
+		// but keep "address", "process", etc.
+		return word[:len(word)-1]
+	}
+	return word
 }
 
 func ScaffoldAll(db *pgxpool.Pool) {

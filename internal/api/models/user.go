@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-type Users struct {
+type User struct {
 	Id string `json:"id,omitempty" db:"id"`
 	Firstname string `json:"firstname" db:"firstname"`
 	Lastname string `json:"lastname" db:"lastname"`
@@ -12,6 +12,6 @@ type Users struct {
 	CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
 }
 
-func (Users) TableName() string {
+func (User) TableName() string {
 	return "users" 
 }
