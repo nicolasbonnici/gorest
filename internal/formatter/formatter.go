@@ -8,7 +8,7 @@ import (
 
 // ResponseFormatter defines the interface for formatting API responses
 type ResponseFormatter interface {
-	Format(data interface{}) ([]byte, error)
+	Format(data interface{}, path string) ([]byte, error)
 	ContentType() string
 }
 
@@ -28,7 +28,7 @@ func GetFormatter(format string) ResponseFormatter {
 // JSONFormatter handles standard JSON serialization
 type JSONFormatter struct{}
 
-func (f *JSONFormatter) Format(data interface{}) ([]byte, error) {
+func (f *JSONFormatter) Format(data interface{}, path string) ([]byte, error) {
 	return json.Marshal(data)
 }
 
@@ -39,8 +39,8 @@ func (f *JSONFormatter) ContentType() string {
 // JSONLDFormatter handles JSON-LD serialization with schema.org context
 type JSONLDFormatter struct{}
 
-func (f *JSONLDFormatter) Format(data interface{}) ([]byte, error) {
-	wrapped := f.wrapWithContext(data)
+func (f *JSONLDFormatter) Format(data interface{}, path string) ([]byte, error) {
+	wrapped := f.wrapWithContext(data, path)
 	return json.Marshal(wrapped)
 }
 
@@ -48,32 +48,29 @@ func (f *JSONLDFormatter) ContentType() string {
 	return "application/ld+json"
 }
 
-func (f *JSONLDFormatter) wrapWithContext(data interface{}) map[string]interface{} {
+func (f *JSONLDFormatter) wrapWithContext(data interface{}, path string) map[string]interface{} {
 	result := map[string]interface{}{
 		"@context": "https://schema.org/",
 	}
 
-	// Check if data is a slice (collection)
 	val := reflect.ValueOf(data)
 	if val.Kind() == reflect.Slice {
 		items := make([]interface{}, val.Len())
 		for i := 0; i < val.Len(); i++ {
-			items[i] = f.addTypeToItem(val.Index(i).Interface())
+			items[i] = f.addTypeToItem(val.Index(i).Interface(), path)
 		}
 		result["@graph"] = items
 		return result
 	}
 
-	// Single item
-	item := f.addTypeToItem(data)
+	item := f.addTypeToItem(data, path)
 	for k, v := range item {
 		result[k] = v
 	}
 	return result
 }
 
-func (f *JSONLDFormatter) addTypeToItem(data interface{}) map[string]interface{} {
-	// Convert struct to map
+func (f *JSONLDFormatter) addTypeToItem(data interface{}, path string) map[string]interface{} {
 	jsonBytes, _ := json.Marshal(data)
 	var itemMap map[string]interface{}
 	json.Unmarshal(jsonBytes, &itemMap)
@@ -82,22 +79,18 @@ func (f *JSONLDFormatter) addTypeToItem(data interface{}) map[string]interface{}
 		itemMap = make(map[string]interface{})
 	}
 
-	// Infer @type from the data structure
 	typeName := f.inferSchemaType(data)
 	if typeName != "" {
 		itemMap["@type"] = typeName
 	}
 
-	// Add @id if there's an id field
 	if id, ok := itemMap["id"]; ok && id != nil && id != "" {
-		itemMap["@id"] = fmt.Sprintf("#%v", id)
+		itemMap["@id"] = fmt.Sprintf("%s/%v", path, id)
 	}
 
 	return itemMap
 }
 
 func (f *JSONLDFormatter) inferSchemaType(data interface{}) string {
-	// Use the struct name directly as the @type
-	typeName := reflect.TypeOf(data).Name()
-	return typeName
+	return reflect.TypeOf(data).Name()
 }

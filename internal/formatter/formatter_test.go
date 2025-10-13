@@ -18,7 +18,7 @@ func TestJSONFormatter(t *testing.T) {
 		Title: "Test Item",
 	}
 
-	result, err := formatter.Format(data)
+	result, err := formatter.Format(data, "/testmodels")
 	if err != nil {
 		t.Fatalf("JSON formatting failed: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestJSONLDFormatterSingleItem(t *testing.T) {
 		Title: "Test Item",
 	}
 
-	result, err := formatter.Format(data)
+	result, err := formatter.Format(data, "/testmodels")
 	if err != nil {
 		t.Fatalf("JSON-LD formatting failed: %v", err)
 	}
@@ -69,9 +69,10 @@ func TestJSONLDFormatterSingleItem(t *testing.T) {
 		t.Errorf("Expected @type='TestModel', got %v", decoded["@type"])
 	}
 
-	// Check @id
-	if decoded["@id"] != "#1" {
-		t.Errorf("Expected @id='#1', got %v", decoded["@id"])
+	// Check @id is in format /resource/uuid
+	expectedIRI := "/testmodels/1"
+	if decoded["@id"] != expectedIRI {
+		t.Errorf("Expected @id='%s', got %v", expectedIRI, decoded["@id"])
 	}
 
 	// Check data fields
@@ -96,7 +97,7 @@ func TestJSONLDFormatterCollection(t *testing.T) {
 		{ID: "2", Title: "Second"},
 	}
 
-	result, err := formatter.Format(data)
+	result, err := formatter.Format(data, "/testmodels")
 	if err != nil {
 		t.Fatalf("JSON-LD formatting failed: %v", err)
 	}
@@ -134,8 +135,9 @@ func TestJSONLDFormatterCollection(t *testing.T) {
 	if firstItem["@type"] != "TestModel" {
 		t.Errorf("Expected @type='TestModel', got %v", firstItem["@type"])
 	}
-	if firstItem["@id"] != "#1" {
-		t.Errorf("Expected first item @id='#1', got %v", firstItem["@id"])
+	expectedIRI := "/testmodels/1"
+	if firstItem["@id"] != expectedIRI {
+		t.Errorf("Expected first item @id='%s', got %v", expectedIRI, firstItem["@id"])
 	}
 }
 
