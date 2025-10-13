@@ -89,12 +89,16 @@ test-schema:
 	@echo "[INFO] Loading test database schema..."
 	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
 
-test-generate: modelgen resourcegen openapigen
+test-generate:
+	@echo "[INFO] Code generation for tests..."
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) openapigen
 	@echo "[INFO] Code generation for tests completed"
 
 test: test-up test-schema test-generate
 	@echo "[INFO] Running Go tests..."
-	DATABASE_URL="postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable" go test -tags=integration -v ./...
+	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -v ./...
 
 .PHONY: generate-test
 generate-test: test-up test-schema
@@ -102,7 +106,11 @@ generate-test: test-up test-schema
 	DATABASE_URL=postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable go run ./cmd/genmodels
 
 .PHONY: ci-setup
-ci-setup: test-up test-schema generate-test
+ci-setup: test-up test-schema
+	@echo "[INFO] Generating code for CI..."
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) openapigen
 	@echo "[INFO] CI setup complete - database and generated code ready"
 
 .PHONY: rebuild
