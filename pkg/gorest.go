@@ -50,8 +50,8 @@ func Start(cfg Config) {
 
 	app := fiber.New()
 
-	internal.SetupAuth(app, cfg.JWTSecret)
-	api.RegisterGeneratedRoutes(app, db, tables)
+	internal.SetupAuth(app, db, cfg.JWTSecret)
+	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret)
 
 	internal.SetupOpenAPI(app, tables)
 

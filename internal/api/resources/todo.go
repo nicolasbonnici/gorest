@@ -10,25 +10,21 @@ import (
 	"github.com/nicolasbonnici/gorest/internal/api/models"
 )
 
-// TodoResource defines REST endpoints for Todo model.
-// @Summary Todo resource
-// @Description CRUD operations for Todo
-// @Tags Todo
 type TodoResource struct {
 	DB   *pgxpool.Pool
 	CRUD *crud.CRUD[models.Todo]
 }
 
-func RegisterTodoRoutes(router fiber.Router, db *pgxpool.Pool) {
+func RegisterTodoRoutes(router fiber.Router, db *pgxpool.Pool, jwtSecret string) {
 	res := &TodoResource{
 		DB:   db,
 		CRUD: crud.New[models.Todo](db),
 	}
-	router.Get("/todos", res.List)
-	router.Get("/todos/:id", res.Get)
-	router.Post("/todos", res.Create)
-	router.Put("/todos/:id", res.Update)
-	router.Delete("/todos/:id", res.Delete)
+	router.Get("/todos", internal.RequireAuth(jwtSecret, res.List))
+	router.Get("/todos/:id", internal.RequireAuth(jwtSecret, res.Get))
+	router.Post("/todos", internal.RequireAuth(jwtSecret, res.Create))
+	router.Put("/todos/:id", internal.RequireAuth(jwtSecret, res.Update))
+	router.Delete("/todos/:id", internal.RequireAuth(jwtSecret, res.Delete))
 }
 
 // List Todo

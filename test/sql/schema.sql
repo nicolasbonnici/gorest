@@ -23,3 +23,10 @@ CREATE TABLE todo (
 );
 
 CREATE INDEX idx_todo_title ON todo (title);
+
+
+-- Fixtures
+WITH gen AS (SELECT gen_random_uuid() AS uuid)
+INSERT INTO users (id, firstname, lastname, email, password)
+SELECT gen.uuid, 'Admin', 'User', 'admin@test.com', encode(digest('salt' || 'password' || gen.uuid::text, 'sha256'), 'hex')
+FROM gen;

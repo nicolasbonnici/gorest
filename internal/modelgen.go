@@ -229,6 +229,11 @@ func toCamelCase(s string) string {
 
 // singularize converts a plural word to singular
 func singularize(word string) string {
+	return SingularizeExported(word)
+}
+
+// SingularizeExported converts a plural word to singular (exported for use in other packages)
+func SingularizeExported(word string) string {
 	// Handle common plural patterns
 	if strings.HasSuffix(word, "ies") {
 		// categories -> category, stories -> story
@@ -262,6 +267,6 @@ func singularize(word string) string {
 func ScaffoldAll(db *pgxpool.Pool) {
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables)
+	GenerateAPI(db, tables, NoAuthConfig())
 	GenerateOpenAPI(tables)
 }

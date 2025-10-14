@@ -12,7 +12,7 @@ import (
 func TestGenerateAPI(t *testing.T) {
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables)
+	GenerateAPI(db, tables, NoAuthConfig())
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {
@@ -109,7 +109,7 @@ func SomeFunction() {}
 }
 
 func TestGenerateResourceFromModel(t *testing.T) {
-	result := generateResourceFromModel("User")
+	result := generateResourceFromModel("User", NoAuthConfig())
 
 	expectedStrings := []string{
 		"package resources",
@@ -141,7 +141,7 @@ func TestGenerateResourceFromModel(t *testing.T) {
 
 func TestGenerateResourceForStruct(t *testing.T) {
 	tempDir := t.TempDir()
-	generateResourceForStruct(tempDir, "TestModel")
+	generateResourceForStruct(tempDir, "TestModel", NoAuthConfig())
 
 	resourceFile := filepath.Join(tempDir, "testmodel.go")
 	if _, err := os.Stat(resourceFile); os.IsNotExist(err) {
@@ -167,7 +167,7 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables)
+	GenerateAPI(db, tables, NoAuthConfig())
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {

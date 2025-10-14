@@ -7,13 +7,14 @@ import (
 	"github.com/nicolasbonnici/gorest/internal/api/resources"
 )
 
-func RegisterGeneratedRoutes(app *fiber.App, db *pgxpool.Pool, tables map[string]internal.TableSchema) {
+func RegisterGeneratedRoutes(app *fiber.App, db *pgxpool.Pool, tables map[string]internal.TableSchema, jwtSecret string) {
+	// Register routes for each table
 	for tableName := range tables {
 		switch tableName {
 		case "users":
-			resources.RegisterUserRoutes(app, db)
+			resources.RegisterUserRoutes(app, db, jwtSecret)
 		case "todo":
-			resources.RegisterTodoRoutes(app, db)
+			resources.RegisterTodoRoutes(app, db, jwtSecret)
 		}
 	}
 }

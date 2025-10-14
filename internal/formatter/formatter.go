@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
-// ResponseFormatter defines the interface for formatting API responses
 type ResponseFormatter interface {
 	Format(data interface{}, path string) ([]byte, error)
 	ContentType() string
 }
 
-// GetFormatter returns the appropriate formatter based on the format string
 func GetFormatter(format string) ResponseFormatter {
 	switch format {
 	case "json":
@@ -25,7 +24,6 @@ func GetFormatter(format string) ResponseFormatter {
 	}
 }
 
-// JSONFormatter handles standard JSON serialization
 type JSONFormatter struct{}
 
 func (f *JSONFormatter) Format(data interface{}, path string) ([]byte, error) {
@@ -36,7 +34,6 @@ func (f *JSONFormatter) ContentType() string {
 	return "application/json"
 }
 
-// JSONLDFormatter handles JSON-LD serialization with schema.org context
 type JSONLDFormatter struct{}
 
 func (f *JSONLDFormatter) Format(data interface{}, path string) ([]byte, error) {
@@ -85,7 +82,14 @@ func (f *JSONLDFormatter) addTypeToItem(data interface{}, path string) map[strin
 	}
 
 	if id, ok := itemMap["id"]; ok && id != nil && id != "" {
-		itemMap["@id"] = fmt.Sprintf("%s/%v", path, id)
+		idStr := fmt.Sprintf("%v", id)
+		cleanPath := strings.TrimSuffix(path, "/")
+
+		if !strings.HasSuffix(cleanPath, idStr) {
+			itemMap["@id"] = fmt.Sprintf("%s/%s", cleanPath, idStr)
+		} else {
+			itemMap["@id"] = cleanPath
+		}
 	}
 
 	return itemMap

@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -138,6 +139,68 @@ func TestJSONLDFormatterCollection(t *testing.T) {
 	expectedIRI := "/testmodels/1"
 	if firstItem["@id"] != expectedIRI {
 		t.Errorf("Expected first item @id='%s', got %v", expectedIRI, firstItem["@id"])
+	}
+}
+
+func TestJSONLDFormatterWithIDInPath(t *testing.T) {
+	formatter := &JSONLDFormatter{}
+
+	data := TestModel{
+		ID:    "0199da00-8bde-7611-a4a6-1e3df90e95ce",
+		Title: "Test Item",
+	}
+
+	// Path already contains the ID (like when getting a single item by ID)
+	result, err := formatter.Format(data, "/todos/0199da00-8bde-7611-a4a6-1e3df90e95ce")
+	if err != nil {
+		t.Fatalf("JSON-LD formatting failed: %v", err)
+	}
+
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(result, &decoded); err != nil {
+		t.Fatalf("Failed to decode JSON-LD: %v", err)
+	}
+
+	// Check @id should not have duplicate ID
+	expectedIRI := "/todos/0199da00-8bde-7611-a4a6-1e3df90e95ce"
+	if decoded["@id"] != expectedIRI {
+		t.Errorf("Expected @id='%s', got %v", expectedIRI, decoded["@id"])
+	}
+
+	// Ensure ID is not duplicated
+	if strings.Contains(decoded["@id"].(string), "0199da00-8bde-7611-a4a6-1e3df90e95ce/0199da00-8bde-7611-a4a6-1e3df90e95ce") {
+		t.Errorf("IRI contains duplicate ID: %v", decoded["@id"])
+	}
+}
+
+func TestJSONLDFormatterWithTrailingSlash(t *testing.T) {
+	formatter := &JSONLDFormatter{}
+
+	data := TestModel{
+		ID:    "0199da00-8bde-7611-a4a6-1e3df90e95ce",
+		Title: "Test Item",
+	}
+
+	// Path with trailing slash (common issue)
+	result, err := formatter.Format(data, "/todos/")
+	if err != nil {
+		t.Fatalf("JSON-LD formatting failed: %v", err)
+	}
+
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(result, &decoded); err != nil {
+		t.Fatalf("Failed to decode JSON-LD: %v", err)
+	}
+
+	// Check @id should not have double slashes
+	expectedIRI := "/todos/0199da00-8bde-7611-a4a6-1e3df90e95ce"
+	if decoded["@id"] != expectedIRI {
+		t.Errorf("Expected @id='%s', got %v", expectedIRI, decoded["@id"])
+	}
+
+	// Ensure there are no double slashes
+	if strings.Contains(decoded["@id"].(string), "//") {
+		t.Errorf("IRI contains double slashes: %v", decoded["@id"])
 	}
 }
 

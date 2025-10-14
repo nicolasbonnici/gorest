@@ -7,7 +7,7 @@ DB_CONTAINER ?= gorest_db
 API_CONTAINER ?= gorest_api
 API_PORT ?= 3000
 DB_PORT ?= 5432
-DB_URL ?= postgres://postgres:postgres@db:$(DB_PORT)/mydb?sslmode=disable
+DB_URL ?= postgres://postgres:postgres@localhost:$(DB_PORT)/mydb?sslmode=disable
 DB_TEST_SERVICE=db_test
 DB_TEST_CONTAINER=gorest_db_test
 
@@ -20,7 +20,8 @@ help:
 	@echo "  make build           - Build the Go binary"
 	@echo "  make run             - Run the API locally"
 	@echo "  make modelgen        - Generate models from database schema"
-	@echo "  make resourcegen     - Generate API resources from models"
+	@echo "  make resourcegen     - Generate API resources from models (interactive)"
+	@echo "  make resourcegen ARGS=-y - Generate resources non-interactively (auto-yes)"
 	@echo "  make openapigen      - Generate OpenAPI schema"
 	@echo "  make generate        - Run all code generation (models + resources + openapi)"
 	@echo "  make docker          - Build and run Docker Compose"
@@ -65,7 +66,7 @@ modelgen:
 .PHONY: resourcegen
 resourcegen:
 	@echo "[INFO] Generating API resources from models..."
-	go run ./cmd/resourcegen/main.go
+	go run ./cmd/resourcegen/main.go $(ARGS)
 
 .PHONY: openapigen
 openapigen:
@@ -91,7 +92,7 @@ test-schema:
 
 test-generate:
 	@echo "[INFO] Code generation for tests..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen && $(MAKE) openapigen
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
 	@echo "[INFO] Code generation for tests completed"
 
 test: test-up test-schema test-generate
@@ -134,3 +135,11 @@ docker-stop:
 docker-clean:
 	@echo "[INFO] Stopping and removing Docker Compose containers and images..."
 	docker compose down --rmi all --volumes --remove-orphans
+
+# ----------------------------
+# Database targets
+# ----------------------------
+.PHONY: db-connect
+db-connect:
+	@echo "[INFO] Connecting to database..."
+	psql "$(DB_URL)"

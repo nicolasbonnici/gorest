@@ -10,25 +10,21 @@ import (
 	"github.com/nicolasbonnici/gorest/internal/api/models"
 )
 
-// UserResource defines REST endpoints for User model.
-// @Summary User resource
-// @Description CRUD operations for User
-// @Tags User
 type UserResource struct {
 	DB   *pgxpool.Pool
 	CRUD *crud.CRUD[models.User]
 }
 
-func RegisterUserRoutes(router fiber.Router, db *pgxpool.Pool) {
+func RegisterUserRoutes(router fiber.Router, db *pgxpool.Pool, jwtSecret string) {
 	res := &UserResource{
 		DB:   db,
 		CRUD: crud.New[models.User](db),
 	}
-	router.Get("/users", res.List)
-	router.Get("/users/:id", res.Get)
-	router.Post("/users", res.Create)
-	router.Put("/users/:id", res.Update)
-	router.Delete("/users/:id", res.Delete)
+	router.Get("/users", internal.RequireAuth(jwtSecret, res.List))
+	router.Get("/users/:id", internal.RequireAuth(jwtSecret, res.Get))
+	router.Post("/users", internal.RequireAuth(jwtSecret, res.Create))
+	router.Put("/users/:id", internal.RequireAuth(jwtSecret, res.Update))
+	router.Delete("/users/:id", internal.RequireAuth(jwtSecret, res.Delete))
 }
 
 // List User
