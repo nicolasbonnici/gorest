@@ -102,7 +102,7 @@ test: test-up test-schema test-generate
 .PHONY: ci-setup
 ci-setup: test-up test-schema
 	@echo "[INFO] Generating code for CI..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen && $(MAKE) openapigen
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
 	@echo "[INFO] CI setup complete - database and generated code ready"
 
 .PHONY: rebuild
