@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 )
 
+func FindProjectRoot() (string, error) {
+	return findProjectRoot()
+}
+
 func findProjectRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {

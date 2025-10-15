@@ -1,8 +1,6 @@
 module github.com/nicolasbonnici/gorest
 
-go 1.24.0
-
-toolchain go1.24.7
+go 1.25.1
 
 require (
 	github.com/gofiber/fiber/v2 v2.52.0

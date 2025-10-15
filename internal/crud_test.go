@@ -6,16 +6,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nicolasbonnici/gorest/gen/models"
 	"github.com/nicolasbonnici/gorest/internal/crud"
+	"github.com/nicolasbonnici/gorest/internal/api/models"
 )
 
 func TestCRUD_Create(t *testing.T) {
 	cleanupTestDB(t)
-	c := crud.New[models.Users](db)
+	c := crud.New[models.User](db)
 	ctx := context.Background()
 
-	user := models.Users{
+	user := models.User{
 		Firstname: "John",
 		Lastname:  "Doe",
 		Email:     "john.doe@example.com",
@@ -40,7 +40,7 @@ func TestCRUD_Create(t *testing.T) {
 
 func TestCRUD_GetAll(t *testing.T) {
 	cleanupTestDB(t)
-	c := crud.New[models.Users](db)
+	c := crud.New[models.User](db)
 	ctx := context.Background()
 
 	_, err := db.Exec(ctx, `
@@ -65,7 +65,7 @@ func TestCRUD_GetAll(t *testing.T) {
 
 func TestCRUD_GetByID(t *testing.T) {
 	cleanupTestDB(t)
-	c := crud.New[models.Users](db)
+	c := crud.New[models.User](db)
 	ctx := context.Background()
 
 	var userID string
@@ -90,7 +90,7 @@ func TestCRUD_GetByID(t *testing.T) {
 
 func TestCRUD_Update(t *testing.T) {
 	cleanupTestDB(t)
-	c := crud.New[models.Users](db)
+	c := crud.New[models.User](db)
 	ctx := context.Background()
 
 	// Insert test user
@@ -104,7 +104,7 @@ func TestCRUD_Update(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	updatedUser := models.Users{
+	updatedUser := models.User{
 		Firstname: "David",
 		Lastname:  "Wilson-Updated",
 		Email:     "david.updated@example.com",
@@ -129,7 +129,7 @@ func TestCRUD_Update(t *testing.T) {
 
 func TestCRUD_Delete(t *testing.T) {
 	cleanupTestDB(t)
-	c := crud.New[models.Users](db)
+	c := crud.New[models.User](db)
 	ctx := context.Background()
 
 	var userID string

@@ -1,5 +1,6 @@
 # Binaries
 /bin/
+gorest
 *.exe
 *.dll
 *.so
@@ -14,9 +15,6 @@
 # Go workspace file
 go.work
 
-# Generated code
-/gen/
-
 # IDE
 .vscode/
 .idea/
@@ -24,3 +22,17 @@ go.work
 # Environment variables
 .env
 .env.local
+
+# Models scaffolded from database schema
+internal/api/models/*
+!internal/api/models/.gitkeep
+
+# API resources scaffolded from models
+internal/api/resources/*
+!internal/api/resources/.gitkeep
+
+# Custom business logic hooks
+internal/hooks/*
+!internal/hooks/.gitkeep
+!internal/hooks/factory.go
+!internal/hooks/hooks.go

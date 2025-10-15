@@ -16,17 +16,21 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23'
+          go-version: '1.25.1'
+
+      - name: Create test environment file
+        run: |
+          cat > .env.test << EOF
+          DATABASE_URL=postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable
+          JWT_SECRET=test-secret-key
+          PORT=3000
+          EOF
 
       - name: CI setup (database + code generation)
         run: make ci-setup
 
       - name: Build
         run: make build
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable
-          JWT_SECRET: test-secret-key
-          PORT: 3000
 
       - name: Test
         run: make test
