@@ -21,3 +21,17 @@ go.work
 # Environment variables
 .env
 .env.local
+
+# Models scaffolded from bdd schema
+internal/models/*
+!internal/models/.gitkeep
+
+# API resources scaffolded from models
+internal/resources/*
+!internal/resources/.gitkeep
+
+# Custom business logic hooks
+internal/hooks/*
+!internal/hooks/.gitkeep
+!internal/hooks/factory.go
+!internal/hooks/hooks.go

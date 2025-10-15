@@ -11,6 +11,7 @@ import (
 
 	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/api"
+	"github.com/nicolasbonnici/gorest/internal/middleware"
 )
 
 type Config struct {
@@ -49,6 +50,8 @@ func Start(cfg Config) {
 	tables := internal.LoadSchema(db)
 
 	app := fiber.New()
+
+	app.Use(middleware.HTTPLogger())
 
 	internal.SetupAuth(app, db, cfg.JWTSecret)
 	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret)

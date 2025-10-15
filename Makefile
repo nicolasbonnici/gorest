@@ -98,6 +98,8 @@ test-generate:
 test: test-up test-schema test-generate
 	@echo "[INFO] Running Go tests..."
 	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -v ./...
+	@echo "[INFO] Restoring auth-enabled resources after tests..."
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen ARGS=-y
 
 .PHONY: generate-test
 generate-test: test-up test-schema
