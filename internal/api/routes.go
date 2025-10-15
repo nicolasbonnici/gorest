@@ -8,7 +8,6 @@ import (
 )
 
 func RegisterGeneratedRoutes(app *fiber.App, db *pgxpool.Pool, tables map[string]internal.TableSchema, jwtSecret string) {
-	// Register routes for each table
 	for tableName := range tables {
 		switch tableName {
 		case "users":

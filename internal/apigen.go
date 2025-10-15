@@ -42,7 +42,6 @@ func GenerateAPIWithSkip(_ interface{}, _ map[string]TableSchema, authCfg *AuthC
 		structs := parseStructs(filePath)
 
 		for _, s := range structs {
-			// Check if this resource should be skipped
 			resourceName := strings.ToLower(s)
 			if resourcesToSkip[resourceName] {
 				log.Printf("⏭️  Skipping resource: %s", resourceName)
@@ -92,16 +91,13 @@ func generateResourceForStruct(apiDir string, structName string, authCfg *AuthCo
 
 func generateResourceFromModel(structName string, authCfg *AuthConfig) string {
 	resourceName := strings.ToLower(structName)
-	// Pluralize the endpoint path
 	pluralResourceName := pluralize(resourceName)
 
-	// Determine if auth is required for each method
 	requireGetAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "GET")
 	requirePostAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "POST")
 	requirePutAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "PUT")
 	requireDeleteAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "DELETE")
 
-	// Helper function to wrap handler with auth decorator if needed
 	wrapHandler := func(handler string, requireAuth bool) string {
 		if requireAuth {
 			return fmt.Sprintf("internal.RequireAuth(jwtSecret, res.%s)", handler)
@@ -109,14 +105,12 @@ func generateResourceFromModel(structName string, authCfg *AuthConfig) string {
 		return fmt.Sprintf("res.%s", handler)
 	}
 
-	// Build route registration with conditional decorator
 	listRoute := fmt.Sprintf(`router.Get("/%s", %s)`, pluralResourceName, wrapHandler("List", requireGetAuth))
 	getRoute := fmt.Sprintf(`router.Get("/%s/:id", %s)`, pluralResourceName, wrapHandler("Get", requireGetAuth))
 	postRoute := fmt.Sprintf(`router.Post("/%s", %s)`, pluralResourceName, wrapHandler("Create", requirePostAuth))
 	putRoute := fmt.Sprintf(`router.Put("/%s/:id", %s)`, pluralResourceName, wrapHandler("Update", requirePutAuth))
 	deleteRoute := fmt.Sprintf(`router.Delete("/%s/:id", %s)`, pluralResourceName, wrapHandler("Delete", requireDeleteAuth))
 
-	// Determine if we need to pass jwtSecret parameter
 	needsAuth := requireGetAuth || requirePostAuth || requirePutAuth || requireDeleteAuth
 	routesSignature := "router fiber.Router, db *pgxpool.Pool"
 
@@ -250,28 +244,21 @@ func (r *%sResource) Delete(c *fiber.Ctx) error {
 		structName, structName, structName, pluralResourceName, structName)
 }
 
-// pluralize converts a singular word to plural
 func pluralize(word string) string {
-	// Handle common singular patterns
 	if strings.HasSuffix(word, "y") && !isVowel(word[len(word)-2]) {
-		// category -> categories, story -> stories
 		return word[:len(word)-1] + "ies"
 	}
 	if strings.HasSuffix(word, "fe") {
-		// knife -> knives, wolf -> wolves
 		return word[:len(word)-2] + "ves"
 	}
 	if strings.HasSuffix(word, "f") {
-		// shelf -> shelves
 		return word[:len(word)-1] + "ves"
 	}
 	if strings.HasSuffix(word, "s") || strings.HasSuffix(word, "x") ||
 		strings.HasSuffix(word, "z") || strings.HasSuffix(word, "ch") ||
 		strings.HasSuffix(word, "sh") {
-		// class -> classes, box -> boxes, church -> churches, dish -> dishes
 		return word + "es"
 	}
-	// Default: add 's'
 	return word + "s"
 }
 

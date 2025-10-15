@@ -51,9 +51,7 @@ run: build
 .PHONY: tidy
 tidy:
 	@echo "[INFO] Tidying Go modules..."
-	@mkdir -p gen/models && echo "package models" > gen/models/.build.go
 	@go mod tidy
-	@rm -f gen/models/.build.go
 
 # ----------------------------
 # Code generation targets
@@ -100,11 +98,6 @@ test: test-up test-schema test-generate
 	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -v ./...
 	@echo "[INFO] Restoring auth-enabled resources after tests..."
 	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen ARGS=-y
-
-.PHONY: generate-test
-generate-test: test-up test-schema
-	@echo "[INFO] Generating models from test database..."
-	DATABASE_URL=postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable go run ./cmd/genmodels
 
 .PHONY: ci-setup
 ci-setup: test-up test-schema

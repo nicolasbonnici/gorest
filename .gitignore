@@ -1,5 +1,6 @@
 # Binaries
 /bin/
+gorest
 *.exe
 *.dll
 *.so
@@ -22,13 +23,13 @@ go.work
 .env
 .env.local
 
-# Models scaffolded from bdd schema
-internal/models/*
-!internal/models/.gitkeep
+# Models scaffolded from database schema
+internal/api/models/*
+!internal/api/models/.gitkeep
 
 # API resources scaffolded from models
-internal/resources/*
-!internal/resources/.gitkeep
+internal/api/resources/*
+!internal/api/resources/.gitkeep
 
 # Custom business logic hooks
 internal/hooks/*

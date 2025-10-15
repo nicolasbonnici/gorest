@@ -227,38 +227,28 @@ func toCamelCase(s string) string {
 	return strings.Join(parts, "")
 }
 
-// singularize converts a plural word to singular
 func singularize(word string) string {
 	return SingularizeExported(word)
 }
 
-// SingularizeExported converts a plural word to singular (exported for use in other packages)
 func SingularizeExported(word string) string {
-	// Handle common plural patterns
 	if strings.HasSuffix(word, "ies") {
-		// categories -> category, stories -> story
 		return word[:len(word)-3] + "y"
 	}
 	if strings.HasSuffix(word, "ves") {
-		// knives -> knife, wolves -> wolf
-		// Check if it ends in "lves" (wolves, shelves) -> keep 'f'
 		if len(word) > 4 && word[len(word)-4] == 'l' {
 			return word[:len(word)-3] + "f"
 		}
 		return word[:len(word)-3] + "fe"
 	}
 	if strings.HasSuffix(word, "ses") {
-		// classes -> class, addresses -> address
 		return word[:len(word)-2]
 	}
 	if strings.HasSuffix(word, "xes") || strings.HasSuffix(word, "zes") ||
 	   strings.HasSuffix(word, "ches") || strings.HasSuffix(word, "shes") {
-		// boxes -> box, buzzes -> buzz, churches -> church, dishes -> dish
 		return word[:len(word)-2]
 	}
 	if strings.HasSuffix(word, "s") && !strings.HasSuffix(word, "ss") {
-		// users -> user, todos -> todo
-		// but keep "address", "process", etc.
 		return word[:len(word)-1]
 	}
 	return word
