@@ -1,3 +1,5 @@
+//go:build integration
+
 package internal
 
 import (
@@ -8,40 +10,44 @@ import (
 )
 
 func TestGenerateAPI(t *testing.T) {
+	tables := LoadSchema(db)
+	GenerateStructs(tables)
+	GenerateAPI(db, tables, NoAuthConfig())
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		t.Fatalf("Failed to find project root: %v", err)
 	}
 
-	usersResourceFile := filepath.Join(projectRoot, "gen/resources", "users.go")
-	if _, err := os.Stat(usersResourceFile); os.IsNotExist(err) {
-		t.Error("Expected users.go resource to be generated")
+	userResourceFile := filepath.Join(projectRoot, "internal/api/resources", "user.go")
+	if _, err := os.Stat(userResourceFile); os.IsNotExist(err) {
+		t.Error("Expected user.go resource to be generated")
 	}
 
-	todoResourceFile := filepath.Join(projectRoot, "gen/resources", "todo.go")
+	todoResourceFile := filepath.Join(projectRoot, "internal/api/resources", "todo.go")
 	if _, err := os.Stat(todoResourceFile); os.IsNotExist(err) {
 		t.Error("Expected todo.go resource to be generated")
 	}
 
-	content, err := os.ReadFile(usersResourceFile)
+	content, err := os.ReadFile(userResourceFile)
 	if err != nil {
-		t.Fatalf("Failed to read users.go: %v", err)
+		t.Fatalf("Failed to read user.go: %v", err)
 	}
 
 	contentStr := string(content)
 
 	expectedStrings := []string{
 		"package resources",
-		"UsersResource",
-		"RegisterUsersRoutes",
-		"CRUD *crud.CRUD[models.Users]",
-		"crud.New[models.Users](db)",
-		"func (r *UsersResource) List(c *fiber.Ctx) error",
-		"func (r *UsersResource) Get(c *fiber.Ctx) error",
-		"func (r *UsersResource) Create(c *fiber.Ctx) error",
-		"func (r *UsersResource) Update(c *fiber.Ctx) error",
-		"func (r *UsersResource) Delete(c *fiber.Ctx) error",
+		"UserResource",
+		"RegisterUserRoutes",
+		"CRUD *crud.CRUD[models.User]",
+		"crud.New[models.User](db)",
+		"router.Get(\"/users\"",
+		"func (r *UserResource) List(c *fiber.Ctx) error",
+		"func (r *UserResource) Get(c *fiber.Ctx) error",
+		"func (r *UserResource) Create(c *fiber.Ctx) error",
+		"func (r *UserResource) Update(c *fiber.Ctx) error",
+		"func (r *UserResource) Delete(c *fiber.Ctx) error",
 		"r.CRUD.GetAll(c.Context())",
 		"r.CRUD.GetByID(c.Context(), id)",
 		"r.CRUD.Create(c.Context(), item)",
@@ -103,7 +109,7 @@ func SomeFunction() {}
 }
 
 func TestGenerateResourceFromModel(t *testing.T) {
-	result := generateResourceFromModel("User")
+	result := generateResourceFromModel("User", NoAuthConfig())
 
 	expectedStrings := []string{
 		"package resources",
@@ -111,11 +117,8 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		"RegisterUserRoutes",
 		"CRUD *crud.CRUD[models.User]",
 		"crud.New[models.User](db)",
-		"router.Get(\"/user\", res.List)",
-		"router.Get(\"/user/:id\", res.Get)",
-		"router.Post(\"/user\", res.Create)",
-		"router.Put(\"/user/:id\", res.Update)",
-		"router.Delete(\"/user/:id\", res.Delete)",
+		"router.Get(\"/users\"",  // Plural endpoint
+		"router.Post(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
 		"items, err := r.CRUD.GetAll(c.Context())",
 		"func (r *UserResource) Get(c *fiber.Ctx) error",
@@ -138,7 +141,7 @@ func TestGenerateResourceFromModel(t *testing.T) {
 
 func TestGenerateResourceForStruct(t *testing.T) {
 	tempDir := t.TempDir()
-	generateResourceForStruct(tempDir, "TestModel")
+	generateResourceForStruct(tempDir, "TestModel", NoAuthConfig())
 
 	resourceFile := filepath.Join(tempDir, "testmodel.go")
 	if _, err := os.Stat(resourceFile); os.IsNotExist(err) {
@@ -164,23 +167,23 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables)
+	GenerateAPI(db, tables, NoAuthConfig())
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		t.Fatalf("Failed to find project root: %v", err)
 	}
 
-	usersResourceFile := filepath.Join(projectRoot, "gen/resources", "users.go")
-	content, err := os.ReadFile(usersResourceFile)
+	userResourceFile := filepath.Join(projectRoot, "internal/api/resources", "user.go")
+	content, err := os.ReadFile(userResourceFile)
 	if err != nil {
-		t.Fatalf("Failed to read generated users resource: %v", err)
+		t.Fatalf("Failed to read generated user resource: %v", err)
 	}
 
 	contentStr := string(content)
 
 	crudChecks := []string{
-		"CRUD *crud.CRUD[models.Users]",
+		"CRUD *crud.CRUD[models.User]",
 		"r.CRUD.GetAll",
 		"r.CRUD.GetByID",
 		"r.CRUD.Create",

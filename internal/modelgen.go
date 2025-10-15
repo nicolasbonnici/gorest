@@ -109,17 +109,18 @@ func GenerateStructs(tables map[string]TableSchema) {
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
-	modelsDir := fmt.Sprintf("%s/gen/models", projectRoot)
+	modelsDir := fmt.Sprintf("%s/internal/api/models", projectRoot)
 	os.MkdirAll(modelsDir, 0755)
 
 	for _, table := range tables {
-		structName := toCamelCase(table.TableName)
+		singularTable := singularize(table.TableName)
+		structName := toCamelCase(singularTable)
         switch structName {
         case "model":
             continue
         }
 
-		filePath := fmt.Sprintf("%s/gen/models/%s.go", projectRoot, strings.ToLower(structName))
+		filePath := fmt.Sprintf("%s/internal/api/models/%s.go", projectRoot, strings.ToLower(structName))
 
 		needsTime := false
 		for _, col := range table.Columns {
@@ -167,24 +168,23 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
-	apiDir := fmt.Sprintf("%s/gen/api", projectRoot)
+	apiDir := fmt.Sprintf("%s/internal/api/openapi", projectRoot)
 	os.MkdirAll(apiDir, 0755)
-	filePath := fmt.Sprintf("%s/gen/api/openapi_gen.go", projectRoot)
+	filePath := fmt.Sprintf("%s/internal/api/openapi/openapi_gen.go", projectRoot)
 
 	var b strings.Builder
 	b.WriteString("package api\n\n")
 	b.WriteString("// Auto-generated OpenAPI schema stubs\n\n")
 
 	for _, table := range tables {
-		resource := toCamelCase(table.TableName)
+		singularTable := singularize(table.TableName)
+		resource := toCamelCase(singularTable)
 		b.WriteString(fmt.Sprintf("// %sResource defines OpenAPI schema and endpoints for %s\n", resource, table.TableName))
 		b.WriteString(fmt.Sprintf("type %sResource struct {}\n\n", resource))
 	}
 
-	if err := os.WriteFile(filePath, []byte(b.String()), 0644); err != nil {
-		log.Fatalf("Failed to write file %s: %v", filePath, err)
-	}
-	fmt.Println("✅ Generated OpenAPI resource stubs → gen/api/openapi_gen.go")
+	os.WriteFile(filePath, []byte(b.String()), 0644)
+	fmt.Println("✅ Generated OpenAPI resource stubs → internal/api/openapi/openapi_gen.go")
 }
 
 func pgToGoType(pgType string, nullable bool) string {
@@ -227,9 +227,36 @@ func toCamelCase(s string) string {
 	return strings.Join(parts, "")
 }
 
+func singularize(word string) string {
+	return SingularizeExported(word)
+}
+
+func SingularizeExported(word string) string {
+	if strings.HasSuffix(word, "ies") {
+		return word[:len(word)-3] + "y"
+	}
+	if strings.HasSuffix(word, "ves") {
+		if len(word) > 4 && word[len(word)-4] == 'l' {
+			return word[:len(word)-3] + "f"
+		}
+		return word[:len(word)-3] + "fe"
+	}
+	if strings.HasSuffix(word, "ses") {
+		return word[:len(word)-2]
+	}
+	if strings.HasSuffix(word, "xes") || strings.HasSuffix(word, "zes") ||
+	   strings.HasSuffix(word, "ches") || strings.HasSuffix(word, "shes") {
+		return word[:len(word)-2]
+	}
+	if strings.HasSuffix(word, "s") && !strings.HasSuffix(word, "ss") {
+		return word[:len(word)-1]
+	}
+	return word
+}
+
 func ScaffoldAll(db *pgxpool.Pool) {
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables)
+	GenerateAPI(db, tables, NoAuthConfig())
 	GenerateOpenAPI(tables)
 }

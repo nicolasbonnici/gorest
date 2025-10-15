@@ -1,6 +1,8 @@
 DROP TABLE IF EXISTS todo CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     firstname TEXT NOT NULL,
@@ -23,3 +25,10 @@ CREATE TABLE todo (
 );
 
 CREATE INDEX idx_todo_title ON todo (title);
+
+
+-- Fixtures
+WITH gen AS (SELECT gen_random_uuid() AS uuid)
+INSERT INTO users (id, firstname, lastname, email, password)
+SELECT gen.uuid, 'Admin', 'User', 'admin@test.com', encode(digest('salt' || 'password' || gen.uuid::text, 'sha256'), 'hex')
+FROM gen;
