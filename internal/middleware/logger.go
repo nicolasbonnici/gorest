@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,8 +22,9 @@ func HTTPLogger() fiber.Handler {
 	}
 }
 
+
 func logRequest(c *fiber.Ctx, start time.Time) {
-	fmt.Printf("[%s] --> %s %s %s\n",
+	fmt.Fprintf(os.Stdout, "[%s] --> %s %s %s\n",
 		start.Format("2006-01-02 15:04:05"),
 		c.Method(),
 		c.Path(),
@@ -30,10 +32,11 @@ func logRequest(c *fiber.Ctx, start time.Time) {
 	)
 
 	if len(c.Queries()) > 0 {
-		fmt.Printf("    Query: %v\n", c.Queries())
+		fmt.Fprintf(os.Stdout, "    Query: %v\n", c.Queries())
 	}
 
-	fmt.Printf("    From: %s\n", c.IP())
+	fmt.Fprintf(os.Stdout, "    From: %s\n", c.IP())
+	os.Stdout.Sync()
 }
 
 func logResponse(c *fiber.Ctx, start time.Time) {
@@ -42,7 +45,7 @@ func logResponse(c *fiber.Ctx, start time.Time) {
 
 	symbol := getStatusSymbol(status)
 
-	fmt.Printf("[%s] <-- %s %s %s [%d] %s\n",
+	fmt.Fprintf(os.Stdout, "[%s] <-- %s %s %s [%d] %s\n",
 		time.Now().Format("2006-01-02 15:04:05"),
 		symbol,
 		c.Method(),
@@ -53,8 +56,9 @@ func logResponse(c *fiber.Ctx, start time.Time) {
 
 	bodySize := len(c.Response().Body())
 	if bodySize > 0 {
-		fmt.Printf("    Size: %s\n", formatBytes(bodySize))
+		fmt.Fprintf(os.Stdout, "    Size: %s\n", formatBytes(bodySize))
 	}
+	os.Stdout.Sync()
 }
 
 func getStatusSymbol(status int) string {

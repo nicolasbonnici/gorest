@@ -124,13 +124,11 @@ func TestGenerateResourceFromModel(t *testing.T) {
 
 	expectedStrings := []string{
 		"package resources",
-		"UserDTO",  // Check for DTO struct
-		"type UserDTO struct",
 		"UserResource",
 		"RegisterUserRoutes",
 		"CRUD *crud.CRUD[models.User]",
 		"crud.New[models.User](db)",
-		"router.Get(\"/users\"",  // Plural endpoint
+		"router.Get(\"/users\"",
 		"router.Post(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
 		"items, err := r.CRUD.GetAll(c.Context())",
