@@ -25,6 +25,7 @@ CREATE TABLE todo (
 );
 
 CREATE INDEX idx_todo_title ON todo (title);
+CREATE INDEX idx_todo_fk_user ON todo (user_id);
 
 
 -- Fixtures

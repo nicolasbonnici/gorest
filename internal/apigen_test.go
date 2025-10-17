@@ -109,10 +109,23 @@ func SomeFunction() {}
 }
 
 func TestGenerateResourceFromModel(t *testing.T) {
-	result := generateResourceFromModel("User", NoAuthConfig())
+	// Create test fields for User model
+	testFields := []StructField{
+		{Name: "Id", Type: "string", JSONTag: "id,omitempty", DBTag: "id", IsPointer: false},
+		{Name: "Email", Type: "string", JSONTag: "email", DBTag: "email", IsPointer: false},
+		{Name: "Firstname", Type: "string", JSONTag: "firstname", DBTag: "firstname", IsPointer: false},
+		{Name: "Lastname", Type: "string", JSONTag: "lastname", DBTag: "lastname", IsPointer: false},
+		{Name: "Password", Type: "string", JSONTag: "password,omitempty", DBTag: "password", IsPointer: true},
+		{Name: "UpdatedAt", Type: "time.Time", JSONTag: "updated_at,omitempty", DBTag: "updated_at", IsPointer: true},
+		{Name: "CreatedAt", Type: "time.Time", JSONTag: "created_at,omitempty", DBTag: "created_at", IsPointer: true},
+	}
+
+	result := generateResourceFromModel("User", testFields, NoAuthConfig())
 
 	expectedStrings := []string{
 		"package resources",
+		"UserDTO",  // Check for DTO struct
+		"type UserDTO struct",
 		"UserResource",
 		"RegisterUserRoutes",
 		"CRUD *crud.CRUD[models.User]",
