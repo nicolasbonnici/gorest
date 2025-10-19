@@ -59,5 +59,7 @@ func Start(cfg Config) {
 	internal.SetupOpenAPI(app, tables)
 
 	log.Printf("🚀 REST API running at http://localhost:%s", cfg.Port)
-	app.Listen(":" + cfg.Port)
+	if err := app.Listen(":" + cfg.Port); err != nil {
+		log.Fatalf("❌ Server failed: %v", err)
+	}
 }
