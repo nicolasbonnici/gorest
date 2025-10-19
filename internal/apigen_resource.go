@@ -207,24 +207,19 @@ func (r *%sResource) Delete(c *fiber.Ctx) error {
 		structName, structName, structName, pluralResourceName, structName)
 }
 
-// generateConversionFunctions generates DTO <-> Model conversion functions
 func generateConversionFunctions(structName string, fields []StructField) string {
-	// Generate modelToDTO - only includes fields that should be in response DTO
 	var modelToDTOFields strings.Builder
 	for _, field := range fields {
-		// Respect dto tag for read context
 		if field.DTOTag == "-" || field.DTOTag == "write" {
 			continue
 		}
 		modelToDTOFields.WriteString(fmt.Sprintf("\t\t%s: m.%s,\n", field.Name, field.Name))
 	}
 
-	// Generate createDTOToModel - only includes fields that can be written
 	var createDTOToModelFields strings.Builder
 	for _, field := range fields {
 		dbTag := strings.ToLower(field.DBTag)
 		if dbTag != FieldID && dbTag != FieldCreatedAt && dbTag != FieldUpdatedAt {
-			// Respect dto tag for write context
 			if field.DTOTag == "-" || field.DTOTag == "read" {
 				continue
 			}
@@ -232,12 +227,10 @@ func generateConversionFunctions(structName string, fields []StructField) string
 		}
 	}
 
-	// Generate updateDTOToModel - only includes fields that can be written
 	var updateDTOToModelFields strings.Builder
 	for _, field := range fields {
 		dbTag := strings.ToLower(field.DBTag)
 		if dbTag != FieldID && dbTag != FieldCreatedAt && dbTag != FieldUpdatedAt {
-			// Respect dto tag for write context
 			if field.DTOTag == "-" || field.DTOTag == "read" {
 				continue
 			}

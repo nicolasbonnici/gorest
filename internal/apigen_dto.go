@@ -8,20 +8,17 @@ import (
 	"strings"
 )
 
-// DTOSchema represents a DTO structure
 type DTOSchema struct {
 	Name   string
 	Fields []StructField
 }
 
-// ResourceDTOs represents DTOs for a resource
 type ResourceDTOs struct {
 	Name       string
 	PluralName string
 	DTOs       map[string]DTOSchema
 }
 
-// generateDTOForStruct generates DTO file for a struct
 func generateDTOForStruct(dtosDir string, structName string) {
 	dtoFile := filepath.Join(dtosDir, strings.ToLower(structName)+".go")
 
@@ -36,7 +33,6 @@ func generateDTOForStruct(dtosDir string, structName string) {
 	log.Printf("📝 Generated DTOs for model: %s → %s", structName, dtoFile)
 }
 
-// generateDTOsFromModel generates DTO code for a model
 func generateDTOsFromModel(structName string, fields []StructField) string {
 	needsTimeImport := false
 	for _, f := range fields {
@@ -70,32 +66,20 @@ type %sUpdateDTO struct {
 `, timeImport, structName, dtoFields, structName, createFields, structName, updateFields)
 }
 
-// generateDTOFields generates fields for response DTO
-// Respects the dto tag: only includes fields with dto:"read" or dto:"read,write" or no dto tag
 func generateDTOFields(fields []StructField) string {
 	var result strings.Builder
 	for _, field := range fields {
-		// Check dto tag to determine if field should be in read (response) DTO
-		// dto:"-" means exclude completely
-		// dto:"write" means only in create/update DTOs
-		// dto:"read" or dto:"read,write" or empty means include in response DTO
-		if field.DTOTag == "-" {
+		if field.DTOTag == "-" || field.DTOTag == "write" {
 			continue
 		}
-		if field.DTOTag == "write" {
-			continue // Only in create/update DTOs, not in response
-		}
 
-		// Build type string
 		typeStr := field.Type
 		if field.IsPointer {
 			typeStr = "*" + typeStr
 		}
 
-		// Build JSON tag from existing json tag
 		jsonTag := field.JSONTag
 		if jsonTag == "" {
-			// If no json tag exists, use field name in lowercase
 			jsonTag = strings.ToLower(field.Name)
 		}
 
@@ -104,26 +88,16 @@ func generateDTOFields(fields []StructField) string {
 	return result.String()
 }
 
-// generateCreateDTOFields generates fields for Create DTO (excludes auto-generated fields)
-// Respects the dto tag: only includes fields with dto:"write" or dto:"read,write" or no dto tag
 func generateCreateDTOFields(fields []StructField) string {
 	var result strings.Builder
 	for _, field := range fields {
-		// Exclude auto-generated fields from Create DTO
 		dbTag := strings.ToLower(field.DBTag)
 		if dbTag == FieldID || dbTag == FieldCreatedAt || dbTag == FieldUpdatedAt {
 			continue
 		}
 
-		// Check dto tag to determine if field should be in write (create) DTO
-		// dto:"-" means exclude completely
-		// dto:"read" means only in response DTO
-		// dto:"write" or dto:"read,write" or empty means include in create DTO
-		if field.DTOTag == "-" {
+		if field.DTOTag == "-" || field.DTOTag == "read" {
 			continue
-		}
-		if field.DTOTag == "read" {
-			continue // Only in response DTO, not in create/update
 		}
 
 		typeStr := field.Type
@@ -141,26 +115,16 @@ func generateCreateDTOFields(fields []StructField) string {
 	return result.String()
 }
 
-// generateUpdateDTOFields generates fields for Update DTO (excludes auto-generated fields)
-// Respects the dto tag: only includes fields with dto:"write" or dto:"read,write" or no dto tag
 func generateUpdateDTOFields(fields []StructField) string {
 	var result strings.Builder
 	for _, field := range fields {
-		// Exclude auto-generated fields from Update DTO
 		dbTag := strings.ToLower(field.DBTag)
 		if dbTag == FieldID || dbTag == FieldCreatedAt || dbTag == FieldUpdatedAt {
 			continue
 		}
 
-		// Check dto tag to determine if field should be in write (update) DTO
-		// dto:"-" means exclude completely
-		// dto:"read" means only in response DTO
-		// dto:"write" or dto:"read,write" or empty means include in update DTO
-		if field.DTOTag == "-" {
+		if field.DTOTag == "-" || field.DTOTag == "read" {
 			continue
-		}
-		if field.DTOTag == "read" {
-			continue // Only in response DTO, not in create/update
 		}
 
 		typeStr := field.Type
@@ -178,7 +142,6 @@ func generateUpdateDTOFields(fields []StructField) string {
 	return result.String()
 }
 
-// LoadResourceDTOs loads all DTOs from the dtos directory
 func LoadResourceDTOs() map[string]ResourceDTOs {
 	projectRoot, err := findProjectRoot()
 	if err != nil {
@@ -218,7 +181,6 @@ func LoadResourceDTOs() map[string]ResourceDTOs {
 	return resources
 }
 
-// GetMainDTO returns the main DTO (not Create or Update)
 func (r *ResourceDTOs) GetMainDTO() *DTOSchema {
 	for name, dto := range r.DTOs {
 		if !strings.Contains(name, "Create") && !strings.Contains(name, "Update") {

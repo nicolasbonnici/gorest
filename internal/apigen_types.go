@@ -2,7 +2,6 @@ package internal
 
 import "strings"
 
-// GoTypeToOpenAPIType converts Go types to OpenAPI types
 func GoTypeToOpenAPIType(goType string) (string, string) {
 	goType = strings.TrimPrefix(goType, "*")
 
@@ -25,7 +24,6 @@ func GoTypeToOpenAPIType(goType string) (string, string) {
 	return "string", ""
 }
 
-// pluralize converts a singular word to plural
 func pluralize(word string) string {
 	if strings.HasSuffix(word, "y") && !isVowel(word[len(word)-2]) {
 		return word[:len(word)-1] + "ies"
@@ -44,7 +42,6 @@ func pluralize(word string) string {
 	return word + "s"
 }
 
-// isVowel checks if a character is a vowel
 func isVowel(c byte) bool {
 	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
 }

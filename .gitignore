@@ -31,10 +31,12 @@ internal/api/models/*
 internal/api/resources/*
 !internal/api/resources/.gitkeep
 
-
 # API resources DTOs scaffolded from resources
 internal/api/dtos/*
 !internal/api/dtos/.gitkeep
+
+# Route registration scaffolded from resources
+internal/api/routes.go
 
 # Custom business logic hooks
 internal/hooks/*

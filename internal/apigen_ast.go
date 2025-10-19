@@ -8,17 +8,15 @@ import (
 	"strings"
 )
 
-// StructField represents a field in a Go struct
 type StructField struct {
 	Name      string
 	Type      string
 	JSONTag   string
 	DBTag     string
-	DTOTag    string // Controls field inclusion in DTOs: "read", "write", "read,write", or "-"
+	DTOTag    string
 	IsPointer bool
 }
 
-// parseStructs extracts struct names from a Go source file
 func parseStructs(path string) []string {
 	fs := token.NewFileSet()
 	node, err := parser.ParseFile(fs, path, nil, parser.AllErrors)
@@ -46,7 +44,6 @@ func parseStructs(path string) []string {
 	return structs
 }
 
-// extractStructFields extracts field information from a struct definition
 func extractStructFields(path string, structName string) []StructField {
 	fs := token.NewFileSet()
 	node, err := parser.ParseFile(fs, path, nil, parser.AllErrors)
@@ -120,7 +117,6 @@ func extractStructFields(path string, structName string) []StructField {
 	return fields
 }
 
-// extractTag extracts a tag value from a struct tag string
 func extractTag(tagString, key string) string {
 	tagString = strings.Trim(tagString, "`")
 	for _, tag := range strings.Fields(tagString) {
@@ -133,7 +129,6 @@ func extractTag(tagString, key string) string {
 	return ""
 }
 
-// extractStructFieldsFromAST extracts fields from an AST StructType
 func extractStructFieldsFromAST(st *ast.StructType) []StructField {
 	var fields []StructField
 
@@ -188,7 +183,6 @@ func extractStructFieldsFromAST(st *ast.StructType) []StructField {
 	return fields
 }
 
-// extractDTOsFromResourceFile extracts DTO schemas from a resource file
 func extractDTOsFromResourceFile(path string) map[string]DTOSchema {
 	fs := token.NewFileSet()
 	node, err := parser.ParseFile(fs, path, nil, parser.AllErrors)
