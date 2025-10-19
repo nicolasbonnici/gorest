@@ -6,7 +6,7 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 ## ✨ Features
 - 🔎 Auto-discovery of tables, columns & types
 - 🛠 Generated CRUD endpoints for each table
-- 🔐 Full DTO support with automatic sensitive field exclusion
+- 🔐 Full DTO support with manual field visibility control
 - 🔑 JWT authentication with decorator pattern
 - 📜 OpenAPI 3.0 spec generation
 - 🐳 Docker support
@@ -205,7 +205,7 @@ For complete documentation, see [HOOKS.md](HOOKS.md)
 
 ---
 
-## 🔐 DTOs & Security
+## 🔐 DTOs & Field Control
 
 gorest automatically generates Data Transfer Objects (DTOs) for enhanced security and API clarity:
 
@@ -220,15 +220,16 @@ gorest automatically generates Data Transfer Objects (DTOs) for enhanced securit
    - Used when updating existing resources
 
 3. **ResponseDTO** - For all responses
-   - Automatically excludes sensitive fields
-   - Protects passwords, tokens, and API keys
+   - Can be configured to exclude specific fields using DTO tags
 
-### Automatic Sensitive Field Exclusion
+### Controlling Field Visibility
 
-Sensitive fields are automatically detected and excluded from responses:
-- `password`, `hashed_password`, `password_hash`
-- `token`, `refresh_token`, `access_token`, `api_key`
-- `secret`, and any field containing these keywords
+Use the `dto` struct tag to control which fields appear in different contexts:
+
+- `dto:"-"` - Exclude field completely from all DTOs
+- `dto:"read"` - Only in response DTOs (GET requests)
+- `dto:"write"` - Only in create/update DTOs (POST/PUT requests)
+- `dto:"read,write"` or no tag - Include in all DTOs (default)
 
 ### Example
 
@@ -237,7 +238,8 @@ Sensitive fields are automatically detected and excluded from responses:
 type User struct {
     Id        string     `json:"id" db:"id"`
     Email     string     `json:"email" db:"email"`
-    Password  *string    `json:"password" db:"password"`
+    Password  *string    `json:"password" db:"password" dto:"write"`
+    ApiKey    *string    `json:"api_key" db:"api_key" dto:"-"`
     CreatedAt *time.Time `json:"created_at" db:"created_at"`
 }
 ```
@@ -247,16 +249,17 @@ type User struct {
 // For creating users (POST /users)
 type UserCreateDTO struct {
     Email    string  `json:"email"`
-    Password *string `json:"password"`
-    // id, created_at excluded
+    Password *string `json:"password"`  // Included (dto:"write")
+    // id, created_at, api_key excluded
 }
 
 // For responses (GET /users)
 type UserDTO struct {
     Id        string     `json:"id"`
     Email     string     `json:"email"`
-    // Password automatically excluded (security)
     CreatedAt *time.Time `json:"created_at"`
+    // Password excluded (dto:"write" - write-only)
+    // ApiKey excluded (dto:"-" - completely hidden)
 }
 ```
 
@@ -268,7 +271,7 @@ func (r *UserResource) Create(c *fiber.Ctx) error {
     c.BodyParser(&createDTO)
 
     // Convert to model
-    user := createDTOToModel(createDTO)
+    user := userCreateDTOToModel(createDTO)
     r.CRUD.Create(c.Context(), user)
 
     // Convert to response DTO (password excluded)

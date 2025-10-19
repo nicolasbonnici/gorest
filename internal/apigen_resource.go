@@ -143,7 +143,7 @@ func (r *%sResource) Create(c *fiber.Ctx) error {
 	}
 
 	// Convert DTO to model
-	item := createDTOToModel(createDTO)
+	item := %sCreateDTOToModel(createDTO)
 
 	if err := r.CRUD.Create(c.Context(), item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -171,7 +171,7 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 	}
 
 	// Convert DTO to model
-	item := updateDTOToModel(updateDTO)
+	item := %sUpdateDTOToModel(updateDTO)
 
 	if err := r.CRUD.Update(c.Context(), id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -202,57 +202,68 @@ func (r *%sResource) Delete(c *fiber.Ctx) error {
 		conversionFuncs,
 		structName, structName, structName, structName, pluralResourceName, structName, structName, structName,
 		structName, structName, structName, structName, pluralResourceName, structName, structName,
-		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, structName,
-		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, structName,
+		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, resourceName, structName,
+		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, resourceName, structName,
 		structName, structName, structName, pluralResourceName, structName)
 }
 
 // generateConversionFunctions generates DTO <-> Model conversion functions
 func generateConversionFunctions(structName string, fields []StructField) string {
-	// Generate modelToDTO
+	// Generate modelToDTO - only includes fields that should be in response DTO
 	var modelToDTOFields strings.Builder
 	for _, field := range fields {
-		if !isSensitiveField(field.Name) {
-			modelToDTOFields.WriteString(fmt.Sprintf("\t\t%s: m.%s,\n", field.Name, field.Name))
+		// Respect dto tag for read context
+		if field.DTOTag == "-" || field.DTOTag == "write" {
+			continue
 		}
+		modelToDTOFields.WriteString(fmt.Sprintf("\t\t%s: m.%s,\n", field.Name, field.Name))
 	}
 
-	// Generate createDTOToModel
+	// Generate createDTOToModel - only includes fields that can be written
 	var createDTOToModelFields strings.Builder
 	for _, field := range fields {
 		dbTag := strings.ToLower(field.DBTag)
 		if dbTag != FieldID && dbTag != FieldCreatedAt && dbTag != FieldUpdatedAt {
+			// Respect dto tag for write context
+			if field.DTOTag == "-" || field.DTOTag == "read" {
+				continue
+			}
 			createDTOToModelFields.WriteString(fmt.Sprintf("\t\t%s: dto.%s,\n", field.Name, field.Name))
 		}
 	}
 
-	// Generate updateDTOToModel
+	// Generate updateDTOToModel - only includes fields that can be written
 	var updateDTOToModelFields strings.Builder
 	for _, field := range fields {
 		dbTag := strings.ToLower(field.DBTag)
 		if dbTag != FieldID && dbTag != FieldCreatedAt && dbTag != FieldUpdatedAt {
+			// Respect dto tag for write context
+			if field.DTOTag == "-" || field.DTOTag == "read" {
+				continue
+			}
 			updateDTOToModelFields.WriteString(fmt.Sprintf("\t\t%s: dto.%s,\n", field.Name, field.Name))
 		}
 	}
 
+	lowerStructName := strings.ToLower(structName)
 	return fmt.Sprintf(`// modelTo%sDTO converts a model to a response DTO
 func modelTo%sDTO(m models.%s) dtos.%sDTO {
 	return dtos.%sDTO{
 %s	}
 }
 
-// createDTOToModel converts a CreateDTO to a model
-func createDTOToModel(dto dtos.%sCreateDTO) models.%s {
+// %sCreateDTOToModel converts a CreateDTO to a model
+func %sCreateDTOToModel(dto dtos.%sCreateDTO) models.%s {
 	return models.%s{
 %s	}
 }
 
-// updateDTOToModel converts an UpdateDTO to a model
-func updateDTOToModel(dto dtos.%sUpdateDTO) models.%s {
+// %sUpdateDTOToModel converts an UpdateDTO to a model
+func %sUpdateDTOToModel(dto dtos.%sUpdateDTO) models.%s {
 	return models.%s{
 %s	}
 }
 `, structName, structName, structName, structName, structName, modelToDTOFields.String(),
-		structName, structName, structName, createDTOToModelFields.String(),
-		structName, structName, structName, updateDTOToModelFields.String())
+		lowerStructName, lowerStructName, structName, structName, structName, createDTOToModelFields.String(),
+		lowerStructName, lowerStructName, structName, structName, structName, updateDTOToModelFields.String())
 }

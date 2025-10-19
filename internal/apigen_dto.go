@@ -70,13 +70,20 @@ type %sUpdateDTO struct {
 `, timeImport, structName, dtoFields, structName, createFields, structName, updateFields)
 }
 
-// generateDTOFields generates fields for response DTO (excludes sensitive fields)
+// generateDTOFields generates fields for response DTO
+// Respects the dto tag: only includes fields with dto:"read" or dto:"read,write" or no dto tag
 func generateDTOFields(fields []StructField) string {
 	var result strings.Builder
 	for _, field := range fields {
-		// Skip sensitive fields in Response DTO
-		if isSensitiveField(field.Name) {
+		// Check dto tag to determine if field should be in read (response) DTO
+		// dto:"-" means exclude completely
+		// dto:"write" means only in create/update DTOs
+		// dto:"read" or dto:"read,write" or empty means include in response DTO
+		if field.DTOTag == "-" {
 			continue
+		}
+		if field.DTOTag == "write" {
+			continue // Only in create/update DTOs, not in response
 		}
 
 		// Build type string
@@ -98,6 +105,7 @@ func generateDTOFields(fields []StructField) string {
 }
 
 // generateCreateDTOFields generates fields for Create DTO (excludes auto-generated fields)
+// Respects the dto tag: only includes fields with dto:"write" or dto:"read,write" or no dto tag
 func generateCreateDTOFields(fields []StructField) string {
 	var result strings.Builder
 	for _, field := range fields {
@@ -105,6 +113,17 @@ func generateCreateDTOFields(fields []StructField) string {
 		dbTag := strings.ToLower(field.DBTag)
 		if dbTag == FieldID || dbTag == FieldCreatedAt || dbTag == FieldUpdatedAt {
 			continue
+		}
+
+		// Check dto tag to determine if field should be in write (create) DTO
+		// dto:"-" means exclude completely
+		// dto:"read" means only in response DTO
+		// dto:"write" or dto:"read,write" or empty means include in create DTO
+		if field.DTOTag == "-" {
+			continue
+		}
+		if field.DTOTag == "read" {
+			continue // Only in response DTO, not in create/update
 		}
 
 		typeStr := field.Type
@@ -123,6 +142,7 @@ func generateCreateDTOFields(fields []StructField) string {
 }
 
 // generateUpdateDTOFields generates fields for Update DTO (excludes auto-generated fields)
+// Respects the dto tag: only includes fields with dto:"write" or dto:"read,write" or no dto tag
 func generateUpdateDTOFields(fields []StructField) string {
 	var result strings.Builder
 	for _, field := range fields {
@@ -130,6 +150,17 @@ func generateUpdateDTOFields(fields []StructField) string {
 		dbTag := strings.ToLower(field.DBTag)
 		if dbTag == FieldID || dbTag == FieldCreatedAt || dbTag == FieldUpdatedAt {
 			continue
+		}
+
+		// Check dto tag to determine if field should be in write (update) DTO
+		// dto:"-" means exclude completely
+		// dto:"read" means only in response DTO
+		// dto:"write" or dto:"read,write" or empty means include in update DTO
+		if field.DTOTag == "-" {
+			continue
+		}
+		if field.DTOTag == "read" {
+			continue // Only in response DTO, not in create/update
 		}
 
 		typeStr := field.Type

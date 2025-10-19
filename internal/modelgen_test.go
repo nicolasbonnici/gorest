@@ -262,6 +262,11 @@ func TestScaffoldAll(t *testing.T) {
 func setupModelGenTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
+	testDBURL := os.Getenv("DATABASE_URL_TEST")
+	if testDBURL == "" {
+		testDBURL = defaultTestDBURL
+	}
+
 	db, err := pgxpool.New(context.Background(), testDBURL)
 	if err != nil {
 		t.Fatalf("Failed to connect to test database: %v", err)

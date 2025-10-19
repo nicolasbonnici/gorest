@@ -7,18 +7,6 @@ const (
 	FieldUpdatedAt = "updated_at"
 )
 
-// Sensitive field patterns that should be excluded from Response DTOs
-var SensitiveFieldPatterns = []string{
-	"password",
-	"hashed_password",
-	"password_hash",
-	"secret",
-	"api_key",
-	"token",
-	"refresh_token",
-	"access_token",
-}
-
 // Table names
 const (
 	UsersTable = "users"

@@ -14,6 +14,7 @@ type StructField struct {
 	Type      string
 	JSONTag   string
 	DBTag     string
+	DTOTag    string // Controls field inclusion in DTOs: "read", "write", "read,write", or "-"
 	IsPointer bool
 }
 
@@ -97,10 +98,12 @@ func extractStructFields(path string, structName string) []StructField {
 
 				jsonTag := ""
 				dbTag := ""
+				dtoTag := ""
 				if field.Tag != nil {
 					tag := field.Tag.Value
 					jsonTag = extractTag(tag, "json")
 					dbTag = extractTag(tag, "db")
+					dtoTag = extractTag(tag, "dto")
 				}
 
 				fields = append(fields, StructField{
@@ -108,6 +111,7 @@ func extractStructFields(path string, structName string) []StructField {
 					Type:      fieldType,
 					JSONTag:   jsonTag,
 					DBTag:     dbTag,
+					DTOTag:    dtoTag,
 					IsPointer: isPointer,
 				})
 			}
@@ -161,16 +165,22 @@ func extractStructFieldsFromAST(st *ast.StructType) []StructField {
 		}
 
 		jsonTag := ""
+		dbTag := ""
+		dtoTag := ""
 		if field.Tag != nil {
 			tag := field.Tag.Value
 			jsonTag = extractTag(tag, "json")
 			jsonTag = strings.Split(jsonTag, ",")[0]
+			dbTag = extractTag(tag, "db")
+			dtoTag = extractTag(tag, "dto")
 		}
 
 		fields = append(fields, StructField{
 			Name:      fieldName,
 			Type:      fieldType,
 			JSONTag:   jsonTag,
+			DBTag:     dbTag,
+			DTOTag:    dtoTag,
 			IsPointer: isPointer,
 		})
 	}

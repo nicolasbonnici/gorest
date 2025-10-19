@@ -7,137 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0-RC] - 2025-10-19
 
-### Added
-- **Full DTO Support**: Implemented separate DTOs for Create, Update, and Response operations
-  - `CreateDTO`: Used for POST requests, excludes auto-generated fields (id, created_at, updated_at)
-  - `UpdateDTO`: Used for PUT requests, excludes auto-generated fields
-  - `ResponseDTO`: Used for all responses, excludes sensitive fields (passwords, tokens, secrets)
-- **Sensitive Field Exclusion**: Automatic exclusion of sensitive fields from response DTOs
-  - Auto-detects patterns: `password*`, `*token`, `*secret`, `*api_key`
-  - Prevents accidental exposure of sensitive data
-- **Health Check Endpoint**: Added `/health` endpoint with database connectivity check
-  - Returns 200 OK when healthy
-  - Returns 503 Service Unavailable when database is down
-  - Includes detailed status information
-- **Graceful Shutdown**: Implemented proper shutdown handling
-  - Listens for SIGTERM and SIGINT signals
-  - 30-second timeout for graceful shutdown
-  - Cleanly closes database connections
-- **Auto-Generated Route Registration**: Route registration now fully automated
-  - No more manual updates to `routes.go`
-  - Automatically generates route registration based on discovered models
-  - Handles auth requirements per resource
-- **Configurable Test Database**: Test DB URL now configurable via `DATABASE_URL_TEST` environment variable
-- **Enhanced Error Handling**:
-  - Added logging for type casting failures in CRUD operations
-  - Added database connection validation in generators (ping test)
-  - Improved bounds checking in Accept header parsing
-- **Code Organization**: Split large `apigen.go` (650 LOC) into 4 focused files:
-  - `apigen.go`: Main orchestration (58 LOC)
-  - `apigen_ast.go`: AST parsing functions
-  - `apigen_dto.go`: DTO generation logic
-  - `apigen_resource.go`: Resource generation logic
-  - `apigen_types.go`: Type conversion utilities
-- **Constants**: Created `constants.go` for magic strings and configuration values
-  - Field name constants (id, created_at, updated_at)
-  - Sensitive field patterns
-  - Table name constants
-  - Pagination constants
+### Initial Release
 
-### Changed
-- **Breaking**: API responses now use DTOs instead of raw models
-  - Sensitive fields (passwords) are automatically excluded from responses
-  - Response structure remains compatible for non-sensitive fields
-- **Breaking**: POST requests now accept CreateDTO (excludes id, timestamps)
-- **Breaking**: PUT requests now accept UpdateDTO (excludes id, timestamps)
-- **Server Startup**: Now displays health check endpoint URL on startup
-- **Resource Generation**: Resources now include automatic model ↔ DTO conversion functions
-- **Route Registration**: Moved from hardcoded switch statement to auto-generated code
-- **Test Configuration**: Test database URL defaults to standard test URL if env var not set
-- **Table References**: Auth queries now use constants instead of hardcoded table names
+**gorest** is a PostgreSQL REST API code generator for Go that automatically generates type-safe CRUD endpoints from your database schema.
 
-### Removed
-- **Dead Code**: Removed unused `JWTMiddleware` function (internal/auth.go:66-82)
-  - Replaced by `RequireAuth` decorator pattern
-- **Hardcoded Route Switch**: Removed manual route registration switch statement
+### Features
 
-### Fixed
-- Type casting in CRUD operations now logs warnings instead of silent failures
-- Accept header parsing now handles malformed headers gracefully
-- Database connection validation in generators prevents confusing errors
+- **Schema Introspection**: Automatic discovery of tables, columns, and types from PostgreSQL
+- **Model Generation**: Type-safe Go structs with proper tags
+- **DTO Support**: Separate DTOs for Create, Update, and Response operations with field visibility control
+- **Field Visibility Control**: Manual annotation system using `dto` struct tags
+  - `dto:"-"` - Exclude field completely
+  - `dto:"read"` - Only in response DTOs
+  - `dto:"write"` - Only in create/update DTOs
+  - `dto:"read,write"` or no tag - Include in all DTOs (default)
+- **REST API Generation**: CRUD endpoints with Fiber handlers
+- **Auto-Generated Routes**: Automatic route registration
+- **JWT Authentication**: Decorator pattern for endpoint protection
+- **OpenAPI 3.0**: Automatic API documentation generation
+- **Hooks System**: Extensible business logic integration
+- **Health Check**: `/health` endpoint with database connectivity check
+- **Graceful Shutdown**: Proper SIGTERM/SIGINT handling with 30s timeout
+- **Type-Safe CRUD**: Generic CRUD operations with PostgreSQL support
+- **Content Negotiation**: JSON and JSON-LD response formats
+- **Full Test Coverage**: Automated testing for all components
 
-### Security
-- **Automatic Sensitive Field Protection**: Passwords and tokens automatically excluded from API responses
-- **No Breaking Password Hashing**: Existing password authentication remains compatible
+### Project Structure
 
----
-
-## Implementation Details
-
-### DTO Architecture
-
-**Request DTOs (Input)**:
-```go
-type UserCreateDTO struct {
-    Firstname string  `json:"firstname"`
-    Lastname  string  `json:"lastname"`
-    Email     string  `json:"email"`
-    Password  *string `json:"password"`
-    // id, created_at, updated_at automatically excluded
-}
+```
+gorest/
+├── cmd/                      # CLI tools
+│   ├── modelgen/            # Model generator
+│   ├── resourcegen/         # Resource generator
+│   └── openapigen/          # OpenAPI generator
+├── pkg/gorest/              # API server
+├── internal/                # Core logic
+│   ├── api/                 # Generated code (models, DTOs, resources)
+│   ├── crud/                # Generic CRUD operations
+│   ├── hooks/               # Business logic hooks
+│   ├── middleware/          # HTTP middleware
+│   └── formatter/           # Response formatters
+├── test/                    # Test utilities and schemas
+└── config/                  # Configuration files
 ```
 
-**Response DTOs (Output)**:
-```go
-type UserDTO struct {
-    Id        string     `json:"id"`
-    Firstname string     `json:"firstname"`
-    Lastname  string     `json:"lastname"`
-    Email     string     `json:"email"`
-    // Password automatically excluded (sensitive field)
-    CreatedAt *time.Time `json:"created_at"`
-    UpdatedAt *time.Time `json:"updated_at"`
-}
-```
+### Getting Started
 
-### Migration Guide
+1. Configure database connection in `.env`
+2. Run `make test-up && make test-schema` to start test database
+3. Run `make generate` to generate all code
+4. Run `make build && ./bin/gorest` to start the API
 
-**For API Consumers**:
-- No action required for GET requests if you're not relying on sensitive fields
-- If you were reading password hashes from responses, this will now fail (security improvement)
-- POST/PUT request bodies remain compatible
-
-**For Developers**:
-- Run `make generate` to regenerate all code with new DTO support
-- Review generated DTOs in `internal/api/dtos/`
-- Check generated resources in `internal/api/resources/` for conversion functions
-
-### Breaking Changes Summary
-
-1. **Response Format**: Models → DTOs (sensitive fields removed)
-2. **Route Registration**: Auto-generated (no manual intervention needed)
-3. **Request Validation**: DTOs enforce field restrictions at type level
-
----
-
-## Testing
-
-All changes have been tested with:
-- ✅ Compilation verification (`go build ./...`)
-- ✅ Code generation workflow
-- ✅ Database connection validation
-- ✅ Dependencies cleanup (`go mod tidy`)
+See [README.md](README.md) for complete documentation.
 
 ---
 
 ## Contributors
 
-- Claude Code (AI Assistant)
 - Nicolas Bonnici (@nicolasbonnici)
 
 ---
 
 ## Notes
 
-This is a release candidate. Please report any issues at:
+This is the first release candidate. Please report any issues at:
 https://github.com/nicolasbonnici/gorest/issues

@@ -48,14 +48,3 @@ func pluralize(word string) string {
 func isVowel(c byte) bool {
 	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
 }
-
-// isSensitiveField checks if a field name matches sensitive patterns
-func isSensitiveField(fieldName string) bool {
-	lowerField := strings.ToLower(fieldName)
-	for _, pattern := range SensitiveFieldPatterns {
-		if strings.Contains(lowerField, pattern) {
-			return true
-		}
-	}
-	return false
-}
