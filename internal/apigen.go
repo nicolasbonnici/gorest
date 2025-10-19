@@ -23,9 +23,14 @@ func GenerateAPIWithSkip(_ interface{}, _ map[string]TableSchema, authCfg *AuthC
 
 	modelsDir := filepath.Join(projectRoot, "internal", "api", "models")
 	apiDir := filepath.Join(projectRoot, "internal", "api", "resources")
+	dtosDir := filepath.Join(projectRoot, "internal", "api", "dtos")
 
 	if err := os.MkdirAll(apiDir, 0755); err != nil {
 		log.Fatalf("failed to create api/resources dir: %v", err)
+	}
+
+	if err := os.MkdirAll(dtosDir, 0755); err != nil {
+		log.Fatalf("failed to create api/dtos dir: %v", err)
 	}
 
 	files, err := os.ReadDir(modelsDir)
@@ -47,6 +52,7 @@ func GenerateAPIWithSkip(_ interface{}, _ map[string]TableSchema, authCfg *AuthC
 				log.Printf("⏭️  Skipping resource: %s", resourceName)
 				continue
 			}
+			generateDTOForStruct(dtosDir, s)
 			generateResourceForStruct(apiDir, s, authCfg)
 		}
 	}
@@ -79,17 +85,223 @@ func parseStructs(path string) []string {
 	return structs
 }
 
+type StructField struct {
+	Name     string
+	Type     string
+	JSONTag  string
+	DBTag    string
+	IsPointer bool
+}
+
+func extractStructFields(path string, structName string) []StructField {
+	fs := token.NewFileSet()
+	node, err := parser.ParseFile(fs, path, nil, parser.AllErrors)
+	if err != nil {
+		log.Printf("parse error in %s: %v", path, err)
+		return nil
+	}
+
+	var fields []StructField
+	for _, decl := range node.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			ts, ok := spec.(*ast.TypeSpec)
+			if !ok || ts.Name.Name != structName {
+				continue
+			}
+			st, ok := ts.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+			for _, field := range st.Fields.List {
+				if len(field.Names) == 0 {
+					continue
+				}
+				fieldName := field.Names[0].Name
+				fieldType := ""
+				isPointer := false
+
+				switch t := field.Type.(type) {
+				case *ast.Ident:
+					fieldType = t.Name
+				case *ast.StarExpr:
+					isPointer = true
+					if ident, ok := t.X.(*ast.Ident); ok {
+						fieldType = ident.Name
+					} else if sel, ok := t.X.(*ast.SelectorExpr); ok {
+						if pkg, ok := sel.X.(*ast.Ident); ok {
+							fieldType = pkg.Name + "." + sel.Sel.Name
+						}
+					}
+				case *ast.SelectorExpr:
+					if pkg, ok := t.X.(*ast.Ident); ok {
+						fieldType = pkg.Name + "." + t.Sel.Name
+					}
+				}
+
+				jsonTag := ""
+				dbTag := ""
+				if field.Tag != nil {
+					tag := field.Tag.Value
+					jsonTag = extractTag(tag, "json")
+					dbTag = extractTag(tag, "db")
+				}
+
+				fields = append(fields, StructField{
+					Name:      fieldName,
+					Type:      fieldType,
+					JSONTag:   jsonTag,
+					DBTag:     dbTag,
+					IsPointer: isPointer,
+				})
+			}
+		}
+	}
+	return fields
+}
+
+func extractTag(tagString, key string) string {
+	tagString = strings.Trim(tagString, "`")
+	for _, tag := range strings.Fields(tagString) {
+		if strings.HasPrefix(tag, key+":") {
+			value := strings.TrimPrefix(tag, key+":")
+			value = strings.Trim(value, `"`)
+			return value
+		}
+	}
+	return ""
+}
+
+func generateDTOFields(fields []StructField) string {
+	var result strings.Builder
+	for _, field := range fields {
+		// Build type string
+		typeStr := field.Type
+		if field.IsPointer {
+			typeStr = "*" + typeStr
+		}
+
+		// Build JSON tag from existing json tag
+		jsonTag := field.JSONTag
+		if jsonTag == "" {
+			// If no json tag exists, use field name in lowercase
+			jsonTag = strings.ToLower(field.Name)
+		}
+
+		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))
+	}
+	return result.String()
+}
+
+func generateDTOForStruct(dtosDir string, structName string) {
+	dtoFile := filepath.Join(dtosDir, strings.ToLower(structName)+".go")
+
+	projectRoot, _ := findProjectRoot()
+	modelPath := filepath.Join(projectRoot, "internal", "api", "models", strings.ToLower(structName)+".go")
+	fields := extractStructFields(modelPath, structName)
+
+	code := generateDTOsFromModel(structName, fields)
+	if err := os.WriteFile(dtoFile, []byte(code), 0644); err != nil {
+		log.Fatalf("failed to write DTOs for %s: %v", structName, err)
+	}
+	log.Printf("📝 Generated DTOs for model: %s → %s", structName, dtoFile)
+}
+
+func generateDTOsFromModel(structName string, fields []StructField) string {
+	needsTimeImport := false
+	for _, f := range fields {
+		if f.Type == "time.Time" {
+			needsTimeImport = true
+			break
+		}
+	}
+
+	timeImport := ""
+	if needsTimeImport {
+		timeImport = `import "time"`
+	}
+
+	dtoFields := generateDTOFields(fields)
+	createFields := generateCreateDTOFields(fields)
+	updateFields := generateUpdateDTOFields(fields)
+
+	return fmt.Sprintf(`package dtos
+
+%s
+
+type %sDTO struct {
+%s}
+
+type %sCreateDTO struct {
+%s}
+
+type %sUpdateDTO struct {
+%s}
+`, timeImport, structName, dtoFields, structName, createFields, structName, updateFields)
+}
+
+func generateCreateDTOFields(fields []StructField) string {
+	var result strings.Builder
+	for _, field := range fields {
+		if field.Name == "Id" || field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
+			continue
+		}
+
+		typeStr := field.Type
+		if field.IsPointer {
+			typeStr = "*" + typeStr
+		}
+
+		jsonTag := field.JSONTag
+		if jsonTag == "" {
+			jsonTag = strings.ToLower(field.Name)
+		}
+
+		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))
+	}
+	return result.String()
+}
+
+func generateUpdateDTOFields(fields []StructField) string {
+	var result strings.Builder
+	for _, field := range fields {
+		if field.Name == "Id" || field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
+			continue
+		}
+
+		typeStr := field.Type
+		if field.IsPointer {
+			typeStr = "*" + typeStr
+		}
+
+		jsonTag := field.JSONTag
+		if jsonTag == "" {
+			jsonTag = strings.ToLower(field.Name)
+		}
+
+		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))
+	}
+	return result.String()
+}
+
 func generateResourceForStruct(apiDir string, structName string, authCfg *AuthConfig) {
 	resourceFile := filepath.Join(apiDir, strings.ToLower(structName)+".go")
 
-	code := generateResourceFromModel(structName, authCfg)
+	projectRoot, _ := findProjectRoot()
+	modelPath := filepath.Join(projectRoot, "internal", "api", "models", strings.ToLower(structName)+".go")
+	fields := extractStructFields(modelPath, structName)
+
+	code := generateResourceFromModel(structName, fields, authCfg)
 	if err := os.WriteFile(resourceFile, []byte(code), 0644); err != nil {
 		log.Fatalf("failed to write resource for %s: %v", structName, err)
 	}
 	log.Printf("🧩 Generated API resource for model: %s → %s", structName, resourceFile)
 }
 
-func generateResourceFromModel(structName string, authCfg *AuthConfig) string {
+func generateResourceFromModel(structName string, fields []StructField, authCfg *AuthConfig) string {
 	resourceName := strings.ToLower(structName)
 	pluralResourceName := pluralize(resourceName)
 
@@ -264,4 +476,175 @@ func pluralize(word string) string {
 
 func isVowel(c byte) bool {
 	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
+}
+
+type DTOSchema struct {
+	Name   string
+	Fields []StructField
+}
+
+type ResourceDTOs struct {
+	Name       string
+	PluralName string
+	DTOs       map[string]DTOSchema
+}
+
+func LoadResourceDTOs() map[string]ResourceDTOs {
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		log.Fatalf("failed to find project root: %v", err)
+	}
+
+	dtosDir := filepath.Join(projectRoot, "internal", "api", "dtos")
+	if _, err := os.Stat(dtosDir); os.IsNotExist(err) {
+		log.Fatal("❌ DTOs directory not found. Run 'make resourcegen' first.")
+	}
+
+	files, err := os.ReadDir(dtosDir)
+	if err != nil {
+		log.Fatalf("❌ Failed to read dtos directory: %v", err)
+	}
+
+	resources := make(map[string]ResourceDTOs)
+
+	for _, file := range files {
+		if !strings.HasSuffix(file.Name(), ".go") {
+			continue
+		}
+
+		filePath := filepath.Join(dtosDir, file.Name())
+		resourceName := strings.TrimSuffix(file.Name(), ".go")
+
+		dtos := extractDTOsFromResourceFile(filePath)
+		if len(dtos) > 0 {
+			resources[resourceName] = ResourceDTOs{
+				Name:       resourceName,
+				PluralName: pluralize(resourceName),
+				DTOs:       dtos,
+			}
+		}
+	}
+
+	return resources
+}
+
+func extractDTOsFromResourceFile(path string) map[string]DTOSchema {
+	fs := token.NewFileSet()
+	node, err := parser.ParseFile(fs, path, nil, parser.AllErrors)
+	if err != nil {
+		log.Printf("parse error in %s: %v", path, err)
+		return nil
+	}
+
+	dtos := make(map[string]DTOSchema)
+
+	for _, decl := range node.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+
+		for _, spec := range gen.Specs {
+			ts, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+
+			if !strings.HasSuffix(ts.Name.Name, "DTO") {
+				continue
+			}
+
+			st, ok := ts.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+
+			fields := extractStructFieldsFromAST(st)
+			dtos[ts.Name.Name] = DTOSchema{
+				Name:   ts.Name.Name,
+				Fields: fields,
+			}
+		}
+	}
+
+	return dtos
+}
+
+func extractStructFieldsFromAST(st *ast.StructType) []StructField {
+	var fields []StructField
+
+	for _, field := range st.Fields.List {
+		if len(field.Names) == 0 {
+			continue
+		}
+
+		fieldName := field.Names[0].Name
+		fieldType := ""
+		isPointer := false
+
+		switch t := field.Type.(type) {
+		case *ast.Ident:
+			fieldType = t.Name
+		case *ast.StarExpr:
+			isPointer = true
+			if ident, ok := t.X.(*ast.Ident); ok {
+				fieldType = ident.Name
+			} else if sel, ok := t.X.(*ast.SelectorExpr); ok {
+				if pkg, ok := sel.X.(*ast.Ident); ok {
+					fieldType = pkg.Name + "." + sel.Sel.Name
+				}
+			}
+		case *ast.SelectorExpr:
+			if pkg, ok := t.X.(*ast.Ident); ok {
+				fieldType = pkg.Name + "." + t.Sel.Name
+			}
+		}
+
+		jsonTag := ""
+		if field.Tag != nil {
+			tag := field.Tag.Value
+			jsonTag = extractTag(tag, "json")
+			jsonTag = strings.Split(jsonTag, ",")[0]
+		}
+
+		fields = append(fields, StructField{
+			Name:      fieldName,
+			Type:      fieldType,
+			JSONTag:   jsonTag,
+			IsPointer: isPointer,
+		})
+	}
+
+	return fields
+}
+
+func (r *ResourceDTOs) GetMainDTO() *DTOSchema {
+	for name, dto := range r.DTOs {
+		if !strings.Contains(name, "Create") && !strings.Contains(name, "Update") {
+			return &dto
+		}
+	}
+	return nil
+}
+
+func GoTypeToOpenAPIType(goType string) (string, string) {
+	goType = strings.TrimPrefix(goType, "*")
+
+	typeMap := map[string]struct{ typ, format string }{
+		"int":        {"integer", "int32"},
+		"int32":      {"integer", "int32"},
+		"int64":      {"integer", "int64"},
+		"int16":      {"integer", "int32"},
+		"float32":    {"number", "float"},
+		"float64":    {"number", "double"},
+		"string":     {"string", ""},
+		"bool":       {"boolean", ""},
+		"time.Time":  {"string", "date-time"},
+		"interface{}": {"object", ""},
+	}
+
+	if mapping, ok := typeMap[goType]; ok {
+		return mapping.typ, mapping.format
+	}
+	return "string", ""
 }
