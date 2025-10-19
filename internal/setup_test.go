@@ -12,13 +12,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const testDBURL = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
+const defaultTestDBURL = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
 
 var db *pgxpool.Pool
 
 func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	// Try to get test DB URL from environment, fallback to default
+	testDBURL := os.Getenv("DATABASE_URL_TEST")
+	if testDBURL == "" {
+		testDBURL = defaultTestDBURL
+		log.Printf("DATABASE_URL_TEST not set, using default: %s", testDBURL)
+	}
 
 	var err error
 	db, err = pgxpool.New(ctx, testDBURL)

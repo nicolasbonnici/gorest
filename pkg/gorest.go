@@ -4,7 +4,10 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -53,13 +56,38 @@ func Start(cfg Config) {
 
 	app.Use(middleware.HTTPLogger())
 
+	internal.SetupHealthCheck(app, db)
 	internal.SetupAuth(app, db, cfg.JWTSecret)
 	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret)
 
 	internal.SetupOpenAPI(app, tables)
 
-	log.Printf("🚀 REST API running at http://localhost:%s", cfg.Port)
-	if err := app.Listen(":" + cfg.Port); err != nil {
-		log.Fatalf("❌ Server failed: %v", err)
+	// Channel to listen for shutdown signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	// Start server in a goroutine
+	go func() {
+		log.Printf("🚀 REST API running at http://localhost:%s", cfg.Port)
+		log.Printf("📊 Health check available at http://localhost:%s/health", cfg.Port)
+		if err := app.Listen(":" + cfg.Port); err != nil {
+			log.Fatalf("❌ Server failed: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	<-quit
+	log.Println("🛑 Shutting down server gracefully...")
+
+	// Graceful shutdown with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := app.ShutdownWithContext(ctx); err != nil {
+		log.Printf("⚠️  Server forced to shutdown: %v", err)
 	}
+
+	// Close database connection
+	db.Close()
+	log.Println("✅ Server shutdown complete")
 }

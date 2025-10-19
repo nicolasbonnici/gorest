@@ -3,6 +3,7 @@ package crud
 import (
 	"context"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
@@ -95,11 +96,19 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 					case reflect.String:
 						if s, ok := createdID.(string); ok {
 							fieldValue.SetString(s)
+						} else {
+							log.Printf("warning: failed to cast ID to string, got type %T", createdID)
 						}
 					case reflect.Int, reflect.Int64:
 						if n, ok := createdID.(int64); ok {
 							fieldValue.SetInt(n)
+						} else if n, ok := createdID.(int); ok {
+							fieldValue.SetInt(int64(n))
+						} else {
+							log.Printf("warning: failed to cast ID to int64, got type %T", createdID)
 						}
+					default:
+						log.Printf("warning: unsupported ID field type: %v", fieldValue.Kind())
 					}
 				}
 				break

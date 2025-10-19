@@ -47,6 +47,12 @@ func main() {
 		db.Close()
 	}()
 
+	// Test connection with a simple query
+	if err := db.Ping(ctx); err != nil {
+		log.Fatalf("❌ DB ping failed: %v", err)
+	}
+	log.Println("✅ Database connection verified")
+
 	log.Println("🔄 Generating OpenAPI schema...")
 	tables := internal.LoadSchema(db)
 	internal.GenerateOpenAPI(tables)

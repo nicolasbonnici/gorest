@@ -45,8 +45,15 @@ func parseAcceptHeader(accept string) []string {
 	contentTypes := make([]string, 0, len(parts))
 
 	for _, part := range parts {
-		ct := strings.Split(strings.TrimSpace(part), ";")[0]
-		contentTypes = append(contentTypes, ct)
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		// Split on semicolon and take first part (media type)
+		mediaTypeParts := strings.Split(trimmed, ";")
+		if len(mediaTypeParts) > 0 && mediaTypeParts[0] != "" {
+			contentTypes = append(contentTypes, mediaTypeParts[0])
+		}
 	}
 
 	return contentTypes

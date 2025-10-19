@@ -6,11 +6,14 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 ## ✨ Features
 - 🔎 Auto-discovery of tables, columns & types
 - 🛠 Generated CRUD endpoints for each table
-- 🔑 JWT authentication
+- 🔐 Full DTO support with automatic sensitive field exclusion
+- 🔑 JWT authentication with decorator pattern
 - 📜 OpenAPI 3.0 spec generation
 - 🐳 Docker support
 - ⚡ Type-safe generic CRUD operations
 - 🧪 Full test coverage with automated testing
+- 💚 Health check endpoint (`/health`)
+- 🛡️ Graceful shutdown handling
 
 ---
 
@@ -59,7 +62,9 @@ make openapigen    # Generate OpenAPI schema
 
 This generates:
 - `internal/api/models/*.go` - Type-safe model structs
-- `internal/api/resources/*.go` - REST API endpoints
+- `internal/api/dtos/*.go` - Data Transfer Objects (Create/Update/Response)
+- `internal/api/resources/*.go` - REST API endpoints with DTO conversion
+- `internal/api/routes.go` - Auto-generated route registration
 - `internal/api/openapi/*.go` - OpenAPI schema stubs
 
 ### 4. Build & Run
@@ -69,6 +74,7 @@ make build
 ```
 
 API available at: **http://localhost:3000**
+Health check: **http://localhost:3000/health**
 OpenAPI API specs: **http://localhost:3000/openapi.json**
 
 ---
@@ -93,15 +99,14 @@ gorest/
 │   │   └── model.go          # Model interface
 │   ├── hooks/                # Business logic hooks
 │   │   ├── hooks.go          # Hook interfaces
-│   │   ├── factory.go        # Hook registry
-│   │   ├── todo.go           # Todo hooks (local)
-│   │   └── user.go           # User hooks (local)
+│   │   └── factory.go        # Hook registry
 │   ├── middleware/           # HTTP middleware
 │   │   └── logger.go         # Request/response logging
 │   ├── formatter/            # Response formatters
 │   │   └── formatter.go      # JSON/JSON-LD formatters
 │   └── api/                  # Generated code (gitignored)
 │       ├── models/           # Database models
+│       ├── dtos/             # Data Transfer Objects
 │       ├── resources/        # REST endpoints
 │       ├── openapi/          # OpenAPI schema stubs
 │       └── routes.go         # Route registration
@@ -197,6 +202,127 @@ func (h *TodoHooks) StateProcessor(ctx context.Context, operation hooks.Operatio
 ```
 
 For complete documentation, see [HOOKS.md](HOOKS.md)
+
+---
+
+## 🔐 DTOs & Security
+
+gorest automatically generates Data Transfer Objects (DTOs) for enhanced security and API clarity:
+
+### DTO Types
+
+1. **CreateDTO** - For POST requests
+   - Excludes auto-generated fields (id, created_at, updated_at)
+   - Used when creating new resources
+
+2. **UpdateDTO** - For PUT requests
+   - Excludes auto-generated fields (id, created_at, updated_at)
+   - Used when updating existing resources
+
+3. **ResponseDTO** - For all responses
+   - Automatically excludes sensitive fields
+   - Protects passwords, tokens, and API keys
+
+### Automatic Sensitive Field Exclusion
+
+Sensitive fields are automatically detected and excluded from responses:
+- `password`, `hashed_password`, `password_hash`
+- `token`, `refresh_token`, `access_token`, `api_key`
+- `secret`, and any field containing these keywords
+
+### Example
+
+**Model** (internal/api/models/user.go):
+```go
+type User struct {
+    Id        string     `json:"id" db:"id"`
+    Email     string     `json:"email" db:"email"`
+    Password  *string    `json:"password" db:"password"`
+    CreatedAt *time.Time `json:"created_at" db:"created_at"`
+}
+```
+
+**Generated DTOs** (internal/api/dtos/user.go):
+```go
+// For creating users (POST /users)
+type UserCreateDTO struct {
+    Email    string  `json:"email"`
+    Password *string `json:"password"`
+    // id, created_at excluded
+}
+
+// For responses (GET /users)
+type UserDTO struct {
+    Id        string     `json:"id"`
+    Email     string     `json:"email"`
+    // Password automatically excluded (security)
+    CreatedAt *time.Time `json:"created_at"`
+}
+```
+
+**Conversion** (automatic in generated resources):
+```go
+// POST /users - accepts UserCreateDTO
+func (r *UserResource) Create(c *fiber.Ctx) error {
+    var createDTO dtos.UserCreateDTO
+    c.BodyParser(&createDTO)
+
+    // Convert to model
+    user := createDTOToModel(createDTO)
+    r.CRUD.Create(c.Context(), user)
+
+    // Convert to response DTO (password excluded)
+    dto := modelToUserDTO(user)
+    return c.JSON(dto)
+}
+```
+
+---
+
+## 💚 Health Check
+
+The `/health` endpoint provides real-time health status:
+
+```bash
+curl http://localhost:3000/health
+```
+
+**Healthy Response** (200 OK):
+```json
+{
+  "status": "healthy",
+  "database": {
+    "status": "up"
+  }
+}
+```
+
+**Unhealthy Response** (503 Service Unavailable):
+```json
+{
+  "status": "unhealthy",
+  "database": {
+    "status": "down",
+    "error": "connection refused"
+  }
+}
+```
+
+---
+
+## 🛡️ Graceful Shutdown
+
+gorest handles shutdown signals gracefully:
+- Listens for `SIGTERM` and `SIGINT` (Ctrl+C)
+- 30-second timeout for in-flight requests
+- Cleanly closes database connections
+- Prevents data corruption during shutdown
+
+---
+
+## 📋 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history and migration guides.
 
 ---
 

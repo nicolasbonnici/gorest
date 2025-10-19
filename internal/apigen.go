@@ -1,14 +1,11 @@
 package internal
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"fmt"
 )
 
 func GenerateAPI(_ interface{}, _ map[string]TableSchema, authCfg *AuthConfig) {
@@ -38,6 +35,9 @@ func GenerateAPIWithSkip(_ interface{}, _ map[string]TableSchema, authCfg *AuthC
 		log.Fatalf("failed to read models dir: %v", err)
 	}
 
+	// Track generated resources for route registration
+	var generatedResources []string
+
 	for _, file := range files {
 		if !strings.HasSuffix(file.Name(), ".go") {
 			continue
@@ -54,597 +54,63 @@ func GenerateAPIWithSkip(_ interface{}, _ map[string]TableSchema, authCfg *AuthC
 			}
 			generateDTOForStruct(dtosDir, s)
 			generateResourceForStruct(apiDir, s, authCfg)
+			generatedResources = append(generatedResources, s)
 		}
 	}
+
+	// Generate routes.go
+	generateRoutesFile(projectRoot, generatedResources, authCfg)
 }
 
-func parseStructs(path string) []string {
-	fs := token.NewFileSet()
-	node, err := parser.ParseFile(fs, path, nil, parser.AllErrors)
-	if err != nil {
-		log.Printf("parse error in %s: %v", path, err)
-		return nil
-	}
+// generateRoutesFile generates the routes.go file with auto-registered routes
+func generateRoutesFile(projectRoot string, resources []string, authCfg *AuthConfig) {
+	routesPath := filepath.Join(projectRoot, "internal", "api", "routes.go")
 
-	structs := []string{}
-	for _, decl := range node.Decls {
-		gen, ok := decl.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
-		for _, spec := range gen.Specs {
-			ts, ok := spec.(*ast.TypeSpec)
-			if !ok {
-				continue
-			}
-			if _, ok := ts.Type.(*ast.StructType); ok {
-				structs = append(structs, ts.Name.Name)
-			}
-		}
-	}
-	return structs
-}
+	var registrations strings.Builder
+	for _, resource := range resources {
+		resourceName := strings.ToLower(resource)
+		pluralName := pluralize(resourceName)
 
-type StructField struct {
-	Name     string
-	Type     string
-	JSONTag  string
-	DBTag    string
-	IsPointer bool
-}
-
-func extractStructFields(path string, structName string) []StructField {
-	fs := token.NewFileSet()
-	node, err := parser.ParseFile(fs, path, nil, parser.AllErrors)
-	if err != nil {
-		log.Printf("parse error in %s: %v", path, err)
-		return nil
-	}
-
-	var fields []StructField
-	for _, decl := range node.Decls {
-		gen, ok := decl.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
-		for _, spec := range gen.Specs {
-			ts, ok := spec.(*ast.TypeSpec)
-			if !ok || ts.Name.Name != structName {
-				continue
-			}
-			st, ok := ts.Type.(*ast.StructType)
-			if !ok {
-				continue
-			}
-			for _, field := range st.Fields.List {
-				if len(field.Names) == 0 {
-					continue
-				}
-				fieldName := field.Names[0].Name
-				fieldType := ""
-				isPointer := false
-
-				switch t := field.Type.(type) {
-				case *ast.Ident:
-					fieldType = t.Name
-				case *ast.StarExpr:
-					isPointer = true
-					if ident, ok := t.X.(*ast.Ident); ok {
-						fieldType = ident.Name
-					} else if sel, ok := t.X.(*ast.SelectorExpr); ok {
-						if pkg, ok := sel.X.(*ast.Ident); ok {
-							fieldType = pkg.Name + "." + sel.Sel.Name
-						}
-					}
-				case *ast.SelectorExpr:
-					if pkg, ok := t.X.(*ast.Ident); ok {
-						fieldType = pkg.Name + "." + t.Sel.Name
-					}
-				}
-
-				jsonTag := ""
-				dbTag := ""
-				if field.Tag != nil {
-					tag := field.Tag.Value
-					jsonTag = extractTag(tag, "json")
-					dbTag = extractTag(tag, "db")
-				}
-
-				fields = append(fields, StructField{
-					Name:      fieldName,
-					Type:      fieldType,
-					JSONTag:   jsonTag,
-					DBTag:     dbTag,
-					IsPointer: isPointer,
-				})
-			}
-		}
-	}
-	return fields
-}
-
-func extractTag(tagString, key string) string {
-	tagString = strings.Trim(tagString, "`")
-	for _, tag := range strings.Fields(tagString) {
-		if strings.HasPrefix(tag, key+":") {
-			value := strings.TrimPrefix(tag, key+":")
-			value = strings.Trim(value, `"`)
-			return value
-		}
-	}
-	return ""
-}
-
-func generateDTOFields(fields []StructField) string {
-	var result strings.Builder
-	for _, field := range fields {
-		// Build type string
-		typeStr := field.Type
-		if field.IsPointer {
-			typeStr = "*" + typeStr
+		// Check if any endpoint requires auth
+		requiresAuth := false
+		if authCfg != nil {
+			requiresAuth = authCfg.RequiresAuth(pluralName, "GET") ||
+				authCfg.RequiresAuth(pluralName, "POST") ||
+				authCfg.RequiresAuth(pluralName, "PUT") ||
+				authCfg.RequiresAuth(pluralName, "DELETE")
 		}
 
-		// Build JSON tag from existing json tag
-		jsonTag := field.JSONTag
-		if jsonTag == "" {
-			// If no json tag exists, use field name in lowercase
-			jsonTag = strings.ToLower(field.Name)
-		}
-
-		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))
-	}
-	return result.String()
-}
-
-func generateDTOForStruct(dtosDir string, structName string) {
-	dtoFile := filepath.Join(dtosDir, strings.ToLower(structName)+".go")
-
-	projectRoot, _ := findProjectRoot()
-	modelPath := filepath.Join(projectRoot, "internal", "api", "models", strings.ToLower(structName)+".go")
-	fields := extractStructFields(modelPath, structName)
-
-	code := generateDTOsFromModel(structName, fields)
-	if err := os.WriteFile(dtoFile, []byte(code), 0644); err != nil {
-		log.Fatalf("failed to write DTOs for %s: %v", structName, err)
-	}
-	log.Printf("📝 Generated DTOs for model: %s → %s", structName, dtoFile)
-}
-
-func generateDTOsFromModel(structName string, fields []StructField) string {
-	needsTimeImport := false
-	for _, f := range fields {
-		if f.Type == "time.Time" {
-			needsTimeImport = true
-			break
+		if requiresAuth {
+			registrations.WriteString(fmt.Sprintf("\t\tresources.Register%sRoutes(app, db, jwtSecret)\n", resource))
+		} else {
+			registrations.WriteString(fmt.Sprintf("\t\tresources.Register%sRoutes(app, db)\n", resource))
 		}
 	}
 
-	timeImport := ""
-	if needsTimeImport {
-		timeImport = `import "time"`
-	}
+	code := fmt.Sprintf(`// Code generated by gorest. DO NOT EDIT.
 
-	dtoFields := generateDTOFields(fields)
-	createFields := generateCreateDTOFields(fields)
-	updateFields := generateUpdateDTOFields(fields)
-
-	return fmt.Sprintf(`package dtos
-
-%s
-
-type %sDTO struct {
-%s}
-
-type %sCreateDTO struct {
-%s}
-
-type %sUpdateDTO struct {
-%s}
-`, timeImport, structName, dtoFields, structName, createFields, structName, updateFields)
-}
-
-func generateCreateDTOFields(fields []StructField) string {
-	var result strings.Builder
-	for _, field := range fields {
-		if field.Name == "Id" || field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
-			continue
-		}
-
-		typeStr := field.Type
-		if field.IsPointer {
-			typeStr = "*" + typeStr
-		}
-
-		jsonTag := field.JSONTag
-		if jsonTag == "" {
-			jsonTag = strings.ToLower(field.Name)
-		}
-
-		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))
-	}
-	return result.String()
-}
-
-func generateUpdateDTOFields(fields []StructField) string {
-	var result strings.Builder
-	for _, field := range fields {
-		if field.Name == "Id" || field.Name == "CreatedAt" || field.Name == "UpdatedAt" {
-			continue
-		}
-
-		typeStr := field.Type
-		if field.IsPointer {
-			typeStr = "*" + typeStr
-		}
-
-		jsonTag := field.JSONTag
-		if jsonTag == "" {
-			jsonTag = strings.ToLower(field.Name)
-		}
-
-		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))
-	}
-	return result.String()
-}
-
-func generateResourceForStruct(apiDir string, structName string, authCfg *AuthConfig) {
-	resourceFile := filepath.Join(apiDir, strings.ToLower(structName)+".go")
-
-	projectRoot, _ := findProjectRoot()
-	modelPath := filepath.Join(projectRoot, "internal", "api", "models", strings.ToLower(structName)+".go")
-	fields := extractStructFields(modelPath, structName)
-
-	code := generateResourceFromModel(structName, fields, authCfg)
-	if err := os.WriteFile(resourceFile, []byte(code), 0644); err != nil {
-		log.Fatalf("failed to write resource for %s: %v", structName, err)
-	}
-	log.Printf("🧩 Generated API resource for model: %s → %s", structName, resourceFile)
-}
-
-func generateResourceFromModel(structName string, fields []StructField, authCfg *AuthConfig) string {
-	resourceName := strings.ToLower(structName)
-	pluralResourceName := pluralize(resourceName)
-
-	requireGetAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "GET")
-	requirePostAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "POST")
-	requirePutAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "PUT")
-	requireDeleteAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "DELETE")
-
-	wrapHandler := func(handler string, requireAuth bool) string {
-		if requireAuth {
-			return fmt.Sprintf("internal.RequireAuth(jwtSecret, res.%s)", handler)
-		}
-		return fmt.Sprintf("res.%s", handler)
-	}
-
-	listRoute := fmt.Sprintf(`router.Get("/%s", %s)`, pluralResourceName, wrapHandler("List", requireGetAuth))
-	getRoute := fmt.Sprintf(`router.Get("/%s/:id", %s)`, pluralResourceName, wrapHandler("Get", requireGetAuth))
-	postRoute := fmt.Sprintf(`router.Post("/%s", %s)`, pluralResourceName, wrapHandler("Create", requirePostAuth))
-	putRoute := fmt.Sprintf(`router.Put("/%s/:id", %s)`, pluralResourceName, wrapHandler("Update", requirePutAuth))
-	deleteRoute := fmt.Sprintf(`router.Delete("/%s/:id", %s)`, pluralResourceName, wrapHandler("Delete", requireDeleteAuth))
-
-	needsAuth := requireGetAuth || requirePostAuth || requirePutAuth || requireDeleteAuth
-	routesSignature := "router fiber.Router, db *pgxpool.Pool"
-
-	if needsAuth {
-		routesSignature = "router fiber.Router, db *pgxpool.Pool, jwtSecret string"
-	}
-
-	return fmt.Sprintf(`// Code generated by gorest. DO NOT EDIT.
-
-package resources
+package api
 
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal"
-	"github.com/nicolasbonnici/gorest/internal/crud"
-	"github.com/nicolasbonnici/gorest/internal/api/models"
+	"github.com/nicolasbonnici/gorest/internal/api/resources"
 )
 
-type %sResource struct {
-	DB   *pgxpool.Pool
-	CRUD *crud.CRUD[models.%s]
+// RegisterGeneratedRoutes registers all generated resource routes
+func RegisterGeneratedRoutes(app *fiber.App, db *pgxpool.Pool, tables map[string]internal.TableSchema, jwtSecret string) {
+%s}
+`, registrations.String())
+
+	if err := os.WriteFile(routesPath, []byte(code), 0644); err != nil {
+		log.Fatalf("failed to write routes.go: %v", err)
+	}
+	log.Printf("🔀 Generated route registration → %s", routesPath)
 }
 
-func Register%sRoutes(%s) {
-	res := &%sResource{
-		DB:   db,
-		CRUD: crud.New[models.%s](db),
-	}
-	%s
-	%s
-	%s
-	%s
-	%s
-}
-
-// List %s
-// @Summary List %s
-// @Tags %s
-// @Produce json,application/ld+json
-// @Success 200 {array} models.%s
-// @Router /%s [get]
-func (r *%sResource) List(c *fiber.Ctx) error {
-	items, err := r.CRUD.GetAll(c.Context())
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-	if items == nil {
-		items = []models.%s{}
-	}
-	return internal.SendFormatted(c, 200, items)
-}
-
-// Get %s by ID
-// @Summary Get %s
-// @Tags %s
-// @Produce json,application/ld+json
-// @Param id path int true "ID"
-// @Success 200 {object} models.%s
-// @Router /%s/{id} [get]
-func (r *%sResource) Get(c *fiber.Ctx) error {
-	id := c.Params("id")
-	item, err := r.CRUD.GetByID(c.Context(), id)
-	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
-	}
-	return internal.SendFormatted(c, 200, item)
-}
-
-// Create %s
-// @Summary Create %s
-// @Tags %s
-// @Accept json
-// @Produce json,application/ld+json
-// @Param input body models.%s true "New %s"
-// @Success 201 {object} models.%s
-// @Router /%s [post]
-func (r *%sResource) Create(c *fiber.Ctx) error {
-	var item models.%s
-	if err := c.BodyParser(&item); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body", "details": err.Error()})
-	}
-	if err := r.CRUD.Create(c.Context(), item); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-	return internal.SendFormatted(c, 201, item)
-}
-
-// Update %s
-// @Summary Update %s
-// @Tags %s
-// @Accept json
-// @Produce json,application/ld+json
-// @Param id path int true "ID"
-// @Param input body models.%s true "Updated %s"
-// @Success 200 {object} models.%s
-// @Router /%s/{id} [put]
-func (r *%sResource) Update(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var item models.%s
-	if err := c.BodyParser(&item); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
-	}
-	if err := r.CRUD.Update(c.Context(), id, item); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-	return internal.SendFormatted(c, 200, item)
-}
-
-// Delete %s
-// @Summary Delete %s
-// @Tags %s
-// @Param id path int true "ID"
-// @Success 204
-// @Router /%s/{id} [delete]
-func (r *%sResource) Delete(c *fiber.Ctx) error {
-	id := c.Params("id")
-	if err := r.CRUD.Delete(c.Context(), id); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-	return c.SendStatus(204)
-}
-`,
-		structName, structName,
-		structName, routesSignature, structName, structName,
-		listRoute, getRoute, postRoute, putRoute, deleteRoute,
-		structName, structName, structName, structName, pluralResourceName, structName, structName,
-		structName, structName, structName, structName, pluralResourceName, structName,
-		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName,
-		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName,
-		structName, structName, structName, pluralResourceName, structName)
-}
-
-func pluralize(word string) string {
-	if strings.HasSuffix(word, "y") && !isVowel(word[len(word)-2]) {
-		return word[:len(word)-1] + "ies"
-	}
-	if strings.HasSuffix(word, "fe") {
-		return word[:len(word)-2] + "ves"
-	}
-	if strings.HasSuffix(word, "f") {
-		return word[:len(word)-1] + "ves"
-	}
-	if strings.HasSuffix(word, "s") || strings.HasSuffix(word, "x") ||
-		strings.HasSuffix(word, "z") || strings.HasSuffix(word, "ch") ||
-		strings.HasSuffix(word, "sh") {
-		return word + "es"
-	}
-	return word + "s"
-}
-
-func isVowel(c byte) bool {
-	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
-}
-
-type DTOSchema struct {
-	Name   string
-	Fields []StructField
-}
-
-type ResourceDTOs struct {
-	Name       string
-	PluralName string
-	DTOs       map[string]DTOSchema
-}
-
-func LoadResourceDTOs() map[string]ResourceDTOs {
-	projectRoot, err := findProjectRoot()
-	if err != nil {
-		log.Fatalf("failed to find project root: %v", err)
-	}
-
-	dtosDir := filepath.Join(projectRoot, "internal", "api", "dtos")
-	if _, err := os.Stat(dtosDir); os.IsNotExist(err) {
-		log.Fatal("❌ DTOs directory not found. Run 'make resourcegen' first.")
-	}
-
-	files, err := os.ReadDir(dtosDir)
-	if err != nil {
-		log.Fatalf("❌ Failed to read dtos directory: %v", err)
-	}
-
-	resources := make(map[string]ResourceDTOs)
-
-	for _, file := range files {
-		if !strings.HasSuffix(file.Name(), ".go") {
-			continue
-		}
-
-		filePath := filepath.Join(dtosDir, file.Name())
-		resourceName := strings.TrimSuffix(file.Name(), ".go")
-
-		dtos := extractDTOsFromResourceFile(filePath)
-		if len(dtos) > 0 {
-			resources[resourceName] = ResourceDTOs{
-				Name:       resourceName,
-				PluralName: pluralize(resourceName),
-				DTOs:       dtos,
-			}
-		}
-	}
-
-	return resources
-}
-
-func extractDTOsFromResourceFile(path string) map[string]DTOSchema {
-	fs := token.NewFileSet()
-	node, err := parser.ParseFile(fs, path, nil, parser.AllErrors)
-	if err != nil {
-		log.Printf("parse error in %s: %v", path, err)
-		return nil
-	}
-
-	dtos := make(map[string]DTOSchema)
-
-	for _, decl := range node.Decls {
-		gen, ok := decl.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
-
-		for _, spec := range gen.Specs {
-			ts, ok := spec.(*ast.TypeSpec)
-			if !ok {
-				continue
-			}
-
-			if !strings.HasSuffix(ts.Name.Name, "DTO") {
-				continue
-			}
-
-			st, ok := ts.Type.(*ast.StructType)
-			if !ok {
-				continue
-			}
-
-			fields := extractStructFieldsFromAST(st)
-			dtos[ts.Name.Name] = DTOSchema{
-				Name:   ts.Name.Name,
-				Fields: fields,
-			}
-		}
-	}
-
-	return dtos
-}
-
-func extractStructFieldsFromAST(st *ast.StructType) []StructField {
-	var fields []StructField
-
-	for _, field := range st.Fields.List {
-		if len(field.Names) == 0 {
-			continue
-		}
-
-		fieldName := field.Names[0].Name
-		fieldType := ""
-		isPointer := false
-
-		switch t := field.Type.(type) {
-		case *ast.Ident:
-			fieldType = t.Name
-		case *ast.StarExpr:
-			isPointer = true
-			if ident, ok := t.X.(*ast.Ident); ok {
-				fieldType = ident.Name
-			} else if sel, ok := t.X.(*ast.SelectorExpr); ok {
-				if pkg, ok := sel.X.(*ast.Ident); ok {
-					fieldType = pkg.Name + "." + sel.Sel.Name
-				}
-			}
-		case *ast.SelectorExpr:
-			if pkg, ok := t.X.(*ast.Ident); ok {
-				fieldType = pkg.Name + "." + t.Sel.Name
-			}
-		}
-
-		jsonTag := ""
-		if field.Tag != nil {
-			tag := field.Tag.Value
-			jsonTag = extractTag(tag, "json")
-			jsonTag = strings.Split(jsonTag, ",")[0]
-		}
-
-		fields = append(fields, StructField{
-			Name:      fieldName,
-			Type:      fieldType,
-			JSONTag:   jsonTag,
-			IsPointer: isPointer,
-		})
-	}
-
-	return fields
-}
-
-func (r *ResourceDTOs) GetMainDTO() *DTOSchema {
-	for name, dto := range r.DTOs {
-		if !strings.Contains(name, "Create") && !strings.Contains(name, "Update") {
-			return &dto
-		}
-	}
-	return nil
-}
-
-func GoTypeToOpenAPIType(goType string) (string, string) {
-	goType = strings.TrimPrefix(goType, "*")
-
-	typeMap := map[string]struct{ typ, format string }{
-		"int":        {"integer", "int32"},
-		"int32":      {"integer", "int32"},
-		"int64":      {"integer", "int64"},
-		"int16":      {"integer", "int32"},
-		"float32":    {"number", "float"},
-		"float64":    {"number", "double"},
-		"string":     {"string", ""},
-		"bool":       {"boolean", ""},
-		"time.Time":  {"string", "date-time"},
-		"interface{}": {"object", ""},
-	}
-
-	if mapping, ok := typeMap[goType]; ok {
-		return mapping.typ, mapping.format
-	}
-	return "string", ""
-}
+// All functions moved to separate files:
+// - apigen_ast.go: AST parsing functions
+// - apigen_dto.go: DTO generation functions
+// - apigen_resource.go: Resource generation functions
+// - apigen_types.go: Type conversion and utility functions
