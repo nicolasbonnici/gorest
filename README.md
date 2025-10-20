@@ -323,6 +323,134 @@ gorest handles shutdown signals gracefully:
 
 ---
 
+## 🤝 Contributing
+
+GoRESTWe welcome contributions from developers of all experience levels! Whether you're fixing bugs, adding features, improving documentation, or sharing ideas, your input helps make **gorest** better for everyone.
+
+### 🌟 Why Contribute?
+
+- **Learn & Grow**: Get hands-on experience with Go, SQL, code generation, and REST API design
+- **Real Impact**: Your code will help teams build APIs faster and more reliably
+- **Community**: Join a growing community of developers passionate about developer tooling
+- **Free Software**: Contribute to the free software philosophy
+
+### 🚀 Quick Contribution Guide
+
+#### 1. **Fork & Clone**
+```bash
+# Fork the repository on GitHub, then:
+git clone https://github.com/YOUR_USERNAME/gorest.git
+cd gorest
+git checkout -b feature/your-awesome-feature
+```
+
+#### 2. **Set Up Development Environment**
+```bash
+# Install dependencies and start test database
+make test-up
+make test-schema
+
+# Run tests to ensure everything works
+make test
+```
+
+#### 3. **Make Your Changes**
+- Write clean, well-documented code
+- Follow existing code style and patterns
+- Add tests for new features or bug fixes
+- Update documentation if needed
+
+#### 4. **Test Your Changes**
+```bash
+# Run all tests
+make test
+
+# Test code generation
+make generate
+
+# Test the API server
+make build
+./bin/gorest
+```
+
+#### 5. **Submit a Pull Request**
+```bash
+git add .
+git commit -m "feat: your awesome feature description"
+git push origin feature/your-awesome-feature
+```
+
+Then open a PR on GitHub with:
+- Clear description of what you changed and why
+- Screenshots/examples if applicable
+- Reference to any related issues
+
+### 💡 Contribution Ideas
+
+Not sure where to start? Here are some ideas:
+
+#### 🐛 **Bug Fixes**
+- Fix edge cases in code generation
+- Improve error handling and messages
+- Resolve issues from the [issue tracker](https://github.com/nicolasbonnici/gorest/issues)
+
+#### ✨ **New Features**
+- Add support for more SQL types (arrays, JSONB, enums)
+- Implement filtering, sorting, and pagination
+- Create relationship/join support for nested resources
+- Add support for other databases (MySQL, SQLite)
+- Implement rate limiting middleware
+
+#### 📚 **Documentation**
+- Write tutorials and examples
+- Create video guides or blog posts
+- Improve inline code comments
+- Add architecture diagrams
+- Translate documentation
+
+#### 🧪 **Testing**
+- Increase test coverage
+- Add integration tests
+- Create benchmarks
+- Test with different PostgreSQL versions
+
+#### 🎨 **Developer Experience**
+- Improve CLI output and formatting
+- Add progress indicators for generators
+- Create interactive setup wizard
+- Build web UI for managing generated APIs
+
+### 📝 Contribution Guidelines
+
+- **Code Style**: Follow standard Go conventions (use `gofmt`, `golint`)
+- **Commit Messages**: Use [conventional commits](https://www.conventionalcommits.org/) format
+  - `feat:` for new features
+  - `fix:` for bug fixes
+  - `docs:` for documentation
+  - `test:` for tests
+  - `refactor:` for code improvements
+  - `chore:` for chore tasks
+- **Testing**: All new code should include tests
+- **Documentation**: Update README/docs for user-facing changes
+- **Breaking Changes**: Clearly document any breaking changes in your PR
+
+### 🤔 Questions or Ideas?
+
+- 💬 **Open an Issue**: Share your ideas or ask questions
+- 🐛 **Report Bugs**: Help us improve by reporting issues you encounter
+- 💡 **Propose Features**: Suggest new features via GitHub Discussions
+- 📧 **Contact**: Reach out to maintainers for major contributions
+
+### 🏆 Contributors
+
+Thanks to all our amazing contributors! Your contributions make this project possible.
+
+<!-- Contributors list will be auto-generated -->
+
+**Ready to contribute?** [Fork the repo](https://github.com/nicolasbonnici/gorest/fork) and make your first PR today! 🎉
+
+---
+
 ## 📋 Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for release history and migration guides.
