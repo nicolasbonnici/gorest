@@ -4,16 +4,16 @@
 It introspects your database schema and generates type-safe **CRUD endpoints automatically**.
 
 ## ✨ Features
-- 🔎 Auto-discovery of tables, columns & types
+- 🔎 Auto-discovery of tables, relations, columns & types
 - 🛠 Generated CRUD endpoints for each table
-- 🔐 Full DTO support with manual field visibility control
+- 🔐 Full DTO support with customizable serialization
 - 🔑 JWT authentication with decorator pattern
-- 📜 OpenAPI 3.0 spec generation
-- 🐳 Docker support
 - ⚡ Type-safe generic CRUD operations
+- 🐳 Docker support
 - 🧪 Full test coverage with automated testing
-- 💚 Health check endpoint (`/health`)
 - 🛡️ Graceful shutdown handling
+- 💚 Health check endpoint (`/health`)
+- 📜 OpenAPI 3.0 spec generation
 
 ---
 
