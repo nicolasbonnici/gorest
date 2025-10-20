@@ -99,6 +99,7 @@ func extractStructFields(path string, structName string) []StructField {
 				if field.Tag != nil {
 					tag := field.Tag.Value
 					jsonTag = extractTag(tag, "json")
+					jsonTag = strings.Split(jsonTag, ",")[0]
 					dbTag = extractTag(tag, "db")
 					dtoTag = extractTag(tag, "dto")
 				}
