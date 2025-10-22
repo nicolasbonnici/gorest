@@ -5,13 +5,13 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 
 ## ✨ Features
 - 🔎 Auto-discovery of tables, relations, columns & types
-- 🛠 Generated CRUD endpoints for each table
+- 🛠 Scaffold REST endpoints for each table
 - 🔐 Full DTO support with customizable serialization
 - 🔑 JWT authentication with decorator pattern
 - ⚡ Type-safe generic CRUD operations
 - 🐳 Docker support
+- 🛡️ Production grade errors and processes management 
 - 🧪 Full test coverage with automated testing
-- 🛡️ Graceful shutdown handling
 - 💚 Health check endpoint (`/health`)
 - 📜 OpenAPI 3.0 spec generation
 
@@ -395,11 +395,7 @@ Not sure where to start? Here are some ideas:
 - Resolve issues from the [issue tracker](https://github.com/nicolasbonnici/gorest/issues)
 
 #### ✨ **New Features**
-- Add support for more SQL types (arrays, JSONB, enums)
-- Implement filtering, sorting, and pagination
-- Create relationship/join support for nested resources
-- Add support for other databases (MySQL, SQLite)
-- Implement rate limiting middleware
+- Bring a new feature to the table, let's discuss it arround a merge request
 
 #### 📚 **Documentation**
 - Write tutorials and examples
@@ -415,10 +411,9 @@ Not sure where to start? Here are some ideas:
 - Test with different PostgreSQL versions
 
 #### 🎨 **Developer Experience**
-- Improve CLI output and formatting
+- Improve CLI
 - Add progress indicators for generators
 - Create interactive setup wizard
-- Build web UI for managing generated APIs
 
 ### 📝 Contribution Guidelines
 
@@ -430,7 +425,7 @@ Not sure where to start? Here are some ideas:
   - `test:` for tests
   - `refactor:` for code improvements
   - `chore:` for chore tasks
-- **Testing**: All new code should include tests
+- **Testing**: All new code behavior should include tests
 - **Documentation**: Update README/docs for user-facing changes
 - **Breaking Changes**: Clearly document any breaking changes in your PR
 
