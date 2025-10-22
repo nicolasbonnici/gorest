@@ -383,16 +383,6 @@ const (
 └── user.go          # User resource hooks
 ```
 
-## Migration from Old System
-
-**Changes made:**
-1. Moved hooks from `/internal/crud/` to `/internal/hooks/`
-2. Renamed `ProcessCreate/ProcessUpdate` → `StateProcessor` (single method)
-3. Added `StateProcessor` support for Delete operation
-4. Renamed `Override{Create,GetAll,GetByID,Update,Delete}` → `OverrideQuery` (single method)
-5. Renamed `NormalizeOne/NormalizeMany` → `SerializeOne/SerializeMany`
-6. All hook methods now receive `operation` parameter for context
-
 ## Testing
 
 ```go
