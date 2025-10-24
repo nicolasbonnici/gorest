@@ -33,14 +33,18 @@ internal/api/openapi/*
 # Models scaffolded from database schema
 internal/api/models/*
 !internal/api/models/.gitkeep
+!internal/api/models/user.go
 
 # API resources scaffolded from models
 internal/api/resources/*
 !internal/api/resources/.gitkeep
+!internal/api/resources/user.go
+
 
 # API resources DTOs scaffolded from resources
 internal/api/dtos/*
 !internal/api/dtos/.gitkeep
+!internal/api/dtos/user.go
 
 # Route registration scaffolded from resources
 internal/api/routes.go
@@ -49,4 +53,5 @@ internal/api/routes.go
 internal/hooks/*
 !internal/hooks/.gitkeep
 !internal/hooks/factory.go
-!internal/hooks/hooks.go
+!internal/hooks.go
+!internal/hooks/user.go
