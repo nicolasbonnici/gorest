@@ -6,9 +6,8 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nicolasbonnici/gorest/pkg/database"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -32,72 +31,38 @@ type Relation struct {
 	ParentColumn string
 }
 
-func LoadSchema(db *pgxpool.Pool) map[string]TableSchema {
-	tables := map[string]TableSchema{}
-
-	colQuery := `
-	SELECT table_name, column_name, is_nullable, data_type
-	FROM information_schema.columns
-	WHERE table_schema='public'
-	ORDER BY table_name, ordinal_position;
-	`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	rows, err := db.Query(ctx, colQuery)
+func LoadSchema(db database.Database) map[string]TableSchema {
+	schemaSlice, err := db.Introspector().LoadSchema(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to query database columns: %v", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var table, col, nullable, dataType string
-		if err := rows.Scan(&table, &col, &nullable, &dataType); err != nil {
-			log.Fatal(err)
-		}
-		if _, ok := tables[table]; !ok {
-			tables[table] = TableSchema{TableName: table, Columns: []Column{}, Relations: []Relation{}}
-		}
-		ts := tables[table]
-		ts.Columns = append(ts.Columns, Column{
-			Name:       col,
-			Type:       dataType,
-			IsNullable: nullable == "YES",
-		})
-		tables[table] = ts
+		log.Fatalf("Failed to load schema: %v", err)
 	}
 
-	relQuery := `
-	SELECT
-		kcu.table_name AS child_table,
-		kcu.column_name AS child_column,
-		ccu.table_name AS parent_table,
-		ccu.column_name AS parent_column
-	FROM
-		information_schema.key_column_usage kcu
-	JOIN information_schema.constraint_column_usage ccu
-		ON kcu.constraint_name = ccu.constraint_name
-	WHERE kcu.table_schema='public';
-	`
-
-	relCtx, relCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer relCancel()
-
-	relRows, err := db.Query(relCtx, relQuery)
-	if err != nil {
-		log.Fatalf("Failed to query table relations: %v", err)
-	}
-	defer relRows.Close()
-
-	for relRows.Next() {
-		var r Relation
-		if err := relRows.Scan(&r.ChildTable, &r.ChildColumn, &r.ParentTable, &r.ParentColumn); err != nil {
-			log.Fatal(err)
+	tables := make(map[string]TableSchema)
+	for _, t := range schemaSlice {
+		columns := make([]Column, len(t.Columns))
+		for i, c := range t.Columns {
+			columns[i] = Column{
+				Name:       c.Name,
+				Type:       c.Type,
+				IsNullable: c.IsNullable,
+			}
 		}
-		ts := tables[r.ChildTable]
-		ts.Relations = append(ts.Relations, r)
-		tables[r.ChildTable] = ts
+
+		relations := make([]Relation, len(t.Relations))
+		for i, r := range t.Relations {
+			relations[i] = Relation{
+				ChildTable:   r.ChildTable,
+				ChildColumn:  r.ChildColumn,
+				ParentTable:  r.ParentTable,
+				ParentColumn: r.ParentColumn,
+			}
+		}
+
+		tables[t.TableName] = TableSchema{
+			TableName: t.TableName,
+			Columns:   columns,
+			Relations: relations,
+		}
 	}
 
 	return tables
@@ -254,7 +219,7 @@ func SingularizeExported(word string) string {
 	return word
 }
 
-func ScaffoldAll(db *pgxpool.Pool) {
+func ScaffoldAll(db database.Database) {
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
 	GenerateAPI(db, tables, NoAuthConfig())

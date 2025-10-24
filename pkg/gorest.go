@@ -10,14 +10,18 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/api"
 	"github.com/nicolasbonnici/gorest/internal/middleware"
+	"github.com/nicolasbonnici/gorest/pkg/database"
+	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
+	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
+	_ "github.com/nicolasbonnici/gorest/pkg/database/sqlite"
 )
 
 type Config struct {
+	DBDriver  string
 	DBUrl     string
 	JWTSecret string
 	Port      string
@@ -44,13 +48,25 @@ func Start(cfg Config) {
 		log.Fatal("❌ OpenAPI schema not found. Run 'make openapigen' first to generate OpenAPI schema.")
 	}
 
-	db, err := pgxpool.New(context.Background(), cfg.DBUrl)
+	db, err := database.Open(cfg.DBDriver, cfg.DBUrl)
 	if err != nil {
 		log.Fatalf("❌ DB connection failed: %v", err)
 	}
 	defer db.Close()
 
-	tables := internal.LoadSchema(db)
+	schemaSlice, err := db.Introspector().LoadSchema(context.Background())
+	if err != nil {
+		log.Fatalf("❌ Failed to load schema: %v", err)
+	}
+
+	tables := make(map[string]internal.TableSchema)
+	for _, t := range schemaSlice {
+		tables[t.TableName] = internal.TableSchema{
+			TableName: t.TableName,
+			Columns:   convertColumns(t.Columns),
+			Relations: convertRelations(t.Relations),
+		}
+	}
 
 	app := fiber.New()
 
@@ -90,4 +106,29 @@ func Start(cfg Config) {
 	// Close database connection
 	db.Close()
 	log.Println("✅ Server shutdown complete")
+}
+
+func convertColumns(dbCols []database.Column) []internal.Column {
+	cols := make([]internal.Column, len(dbCols))
+	for i, c := range dbCols {
+		cols[i] = internal.Column{
+			Name:       c.Name,
+			Type:       c.Type,
+			IsNullable: c.IsNullable,
+		}
+	}
+	return cols
+}
+
+func convertRelations(dbRels []database.Relation) []internal.Relation {
+	rels := make([]internal.Relation, len(dbRels))
+	for i, r := range dbRels {
+		rels[i] = internal.Relation{
+			ChildTable:   r.ChildTable,
+			ChildColumn:  r.ChildColumn,
+			ParentTable:  r.ParentTable,
+			ParentColumn: r.ParentColumn,
+		}
+	}
+	return rels
 }

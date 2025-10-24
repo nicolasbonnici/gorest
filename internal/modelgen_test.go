@@ -3,13 +3,10 @@
 package internal
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestLoadSchema(t *testing.T) {
@@ -258,19 +255,3 @@ func TestScaffoldAll(t *testing.T) {
 	}
 }
 
-// Helper function for tests that need a database
-func setupModelGenTestDB(t *testing.T) *pgxpool.Pool {
-	t.Helper()
-
-	testDBURL := os.Getenv("DATABASE_URL_TEST")
-	if testDBURL == "" {
-		testDBURL = defaultTestDBURL
-	}
-
-	db, err := pgxpool.New(context.Background(), testDBURL)
-	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
-	}
-
-	return db
-}

@@ -47,10 +47,10 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	deleteRoute := fmt.Sprintf(`router.Delete("/%s/:id", %s)`, pluralResourceName, wrapHandler("Delete", requireDeleteAuth))
 
 	needsAuth := requireGetAuth || requirePostAuth || requirePutAuth || requireDeleteAuth
-	routesSignature := "router fiber.Router, db *pgxpool.Pool"
+	routesSignature := "router fiber.Router, db database.Database"
 
 	if needsAuth {
-		routesSignature = "router fiber.Router, db *pgxpool.Pool, jwtSecret string"
+		routesSignature = "router fiber.Router, db database.Database, jwtSecret string"
 	}
 
 	// Generate conversion functions
@@ -62,15 +62,15 @@ package resources
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/internal/api/models"
 	"github.com/nicolasbonnici/gorest/internal/api/dtos"
+	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 
 type %sResource struct {
-	DB   *pgxpool.Pool
+	DB   database.Database
 	CRUD *crud.CRUD[models.%s]
 }
 

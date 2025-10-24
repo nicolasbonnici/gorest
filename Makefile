@@ -59,17 +59,17 @@ tidy:
 .PHONY: modelgen
 modelgen:
 	@echo "[INFO] Generating models from database schema..."
-	go run ./cmd/modelgen/main.go
+	DATABASE_URL=$(DB_URL) go run ./cmd/modelgen/main.go
 
 .PHONY: resourcegen
 resourcegen:
 	@echo "[INFO] Generating API resources from models..."
-	go run ./cmd/resourcegen/main.go $(ARGS)
+	DATABASE_URL=$(DB_URL) go run ./cmd/resourcegen/main.go $(ARGS)
 
 .PHONY: openapigen
 openapigen:
 	@echo "[INFO] Generating OpenAPI schema..."
-	go run ./cmd/openapigen/main.go
+	DATABASE_URL=$(DB_URL) go run ./cmd/openapigen/main.go
 
 .PHONY: generate
 generate: modelgen resourcegen openapigen

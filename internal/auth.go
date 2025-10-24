@@ -2,13 +2,15 @@ package internal
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 
-func SetupAuth(app *fiber.App, db *pgxpool.Pool, jwtSecret string) {
+func SetupAuth(app *fiber.App, db database.Database, jwtSecret string) {
 	app.Post("/login", func(c *fiber.Ctx) error {
 		var body struct {
 			Email    string `json:"email"`
@@ -22,19 +24,17 @@ func SetupAuth(app *fiber.App, db *pgxpool.Pool, jwtSecret string) {
 			return c.Status(400).JSON(fiber.Map{"error": "Email and password are required"})
 		}
 
-		var userId string
-		var firstname, lastname string
+		var userId, storedPassword, firstname, lastname string
 
-		err := db.QueryRow(context.Background(),
-			`SELECT id, firstname, lastname
-			FROM `+UsersTable+`
-			WHERE email = $1
-			AND password = encode(digest('salt' || $2 || id::text, 'sha256'), 'hex')`,
-			body.Email,
-			body.Password,
-		).Scan(&userId, &firstname, &lastname)
+		query := `SELECT id, password, firstname, lastname FROM ` + UsersTable + ` WHERE email = ` + db.Dialect().Placeholder(1)
+		err := db.QueryRow(context.Background(), query, body.Email).Scan(&userId, &storedPassword, &firstname, &lastname)
 
 		if err != nil {
+			return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
+		}
+
+		passwordHash := hashPassword(body.Password, userId)
+		if passwordHash != storedPassword {
 			return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 		}
 
@@ -60,4 +60,9 @@ func SetupAuth(app *fiber.App, db *pgxpool.Pool, jwtSecret string) {
 			},
 		})
 	})
+}
+
+func hashPassword(password, userId string) string {
+	hash := sha256.Sum256([]byte("salt" + password + userId))
+	return hex.EncodeToString(hash[:])
 }

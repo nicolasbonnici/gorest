@@ -93,13 +93,12 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/api/resources"
+	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 
-// RegisterGeneratedRoutes registers all generated resource routes
-func RegisterGeneratedRoutes(app *fiber.App, db *pgxpool.Pool, tables map[string]internal.TableSchema, jwtSecret string) {
+func RegisterGeneratedRoutes(app *fiber.App, db database.Database, tables map[string]internal.TableSchema, jwtSecret string) {
 %s}
 `, registrations.String())
 

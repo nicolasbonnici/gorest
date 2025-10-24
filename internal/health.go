@@ -5,11 +5,10 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 
-// SetupHealthCheck registers the health check endpoint
-func SetupHealthCheck(app *fiber.App, db *pgxpool.Pool) {
+func SetupHealthCheck(app *fiber.App, db database.Database) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 		defer cancel()
