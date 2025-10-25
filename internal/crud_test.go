@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/nicolasbonnici/gorest/internal/crud"
-	"github.com/nicolasbonnici/gorest/internal/api/models"
+	"github.com/nicolasbonnici/gorest/internal/models"
 )
 
 func TestCRUD_Create(t *testing.T) {

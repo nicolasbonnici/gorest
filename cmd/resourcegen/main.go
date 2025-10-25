@@ -38,7 +38,7 @@ func main() {
 		log.Fatalf("❌ Failed to find project root: %v", err)
 	}
 
-	modelsDir := filepath.Join(projectRoot, "internal", "api", "models")
+	modelsDir := filepath.Join(projectRoot, "internal", "models")
 	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
 		log.Fatal("❌ Models directory not found. Run 'make modelgen' first to generate models.")
 	}

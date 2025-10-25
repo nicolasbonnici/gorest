@@ -88,15 +88,8 @@ func TestMySQL_Insert(t *testing.T) {
 		t.Fatalf("Failed to insert: %v", err)
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
-		t.Fatalf("Failed to get last insert ID: %v", err)
-	}
-
-	if id == 0 {
-		t.Error("Expected non-zero insert ID")
-	}
-
+	// MySQL UUID() doesn't provide an integer LastInsertId, so we skip that check
+	// Just verify the insert worked by checking rows affected
 	affected, err := res.RowsAffected()
 	if err != nil {
 		t.Fatalf("Failed to get rows affected: %v", err)
@@ -104,6 +97,17 @@ func TestMySQL_Insert(t *testing.T) {
 
 	if affected != 1 {
 		t.Errorf("Expected 1 row affected, got %d", affected)
+	}
+
+	// Verify the insert by querying for the inserted record
+	var count int
+	row := db.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE email = ?", "john@example.com")
+	if err := row.Scan(&count); err != nil {
+		t.Fatalf("Failed to verify insert: %v", err)
+	}
+
+	if count != 1 {
+		t.Errorf("Expected 1 inserted row, got %d", count)
 	}
 }
 
@@ -166,9 +170,24 @@ func TestMySQL_Update(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, err := db.Exec(ctx, "INSERT INTO users (firstname, lastname, email) VALUES (?, ?, ?)", "Charlie", "Brown", "charlie@example.com")
+	insertRes, err := db.Exec(ctx, "INSERT INTO users (firstname, lastname, email) VALUES (?, ?, ?)", "Charlie", "Brown", "charlie@example.com")
 	if err != nil {
 		t.Fatalf("Failed to insert test data: %v", err)
+	}
+
+	// Verify insert succeeded
+	insertAffected, _ := insertRes.RowsAffected()
+	if insertAffected != 1 {
+		t.Fatalf("Insert failed, expected 1 row affected, got %d", insertAffected)
+	}
+
+	// Verify the row exists before update
+	var countBefore int
+	if err := db.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE email = ?", "charlie@example.com").Scan(&countBefore); err != nil {
+		t.Fatalf("Failed to verify insert: %v", err)
+	}
+	if countBefore != 1 {
+		t.Fatalf("Row not found after insert, count: %d", countBefore)
 	}
 
 	res, err := db.Exec(ctx, "UPDATE users SET lastname = ? WHERE email = ?", "Wilson", "charlie@example.com")
@@ -182,13 +201,13 @@ func TestMySQL_Update(t *testing.T) {
 	}
 
 	if affected != 1 {
-		t.Errorf("Expected 1 row affected, got %d", affected)
+		t.Errorf("Expected 1 row affected by update, got %d", affected)
 	}
 
 	var lastname string
 	row := db.QueryRow(ctx, "SELECT lastname FROM users WHERE email = ?", "charlie@example.com")
 	if err := row.Scan(&lastname); err != nil {
-		t.Fatalf("Failed to scan: %v", err)
+		t.Fatalf("Failed to scan lastname: %v", err)
 	}
 
 	if lastname != "Wilson" {

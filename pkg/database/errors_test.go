@@ -1,11 +1,14 @@
 //go:build integration
 
-package database
+package database_test
 
 import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/nicolasbonnici/gorest/pkg/database"
+	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
 )
 
 func TestErrors_InvalidDSN(t *testing.T) {
@@ -21,7 +24,7 @@ func TestErrors_InvalidDSN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			db, err := Open(tt.driver, tt.dsn)
+			db, err := database.Open(tt.driver, tt.dsn)
 			if err == nil {
 				db.Close()
 				t.Error("Expected error for invalid DSN, got none")
@@ -41,7 +44,7 @@ func TestErrors_ConnectionRefused(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			db, err := Open("", tt.dsn)
+			db, err := database.Open("", tt.dsn)
 			if err == nil {
 				ctx := context.Background()
 				if pingErr := db.Ping(ctx); pingErr == nil {

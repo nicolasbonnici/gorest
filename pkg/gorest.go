@@ -33,17 +33,17 @@ func Start(cfg Config) {
 		log.Fatalf("❌ Failed to find project root: %v", err)
 	}
 
-	modelsDir := filepath.Join(projectRoot, "internal", "api", "models")
+	modelsDir := filepath.Join(projectRoot, "internal", "models")
 	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
 		log.Fatal("❌ Models not found. Run 'make modelgen' first to generate models from database schema.")
 	}
 
-	resourcesDir := filepath.Join(projectRoot, "internal", "api", "resources")
+	resourcesDir := filepath.Join(projectRoot, "internal", "resources")
 	if _, err := os.Stat(resourcesDir); os.IsNotExist(err) {
 		log.Fatal("❌ Resources not found. Run 'make resourcegen' first to generate API resources.")
 	}
 
-	openapiDir := filepath.Join(projectRoot, "internal", "api", "openapi")
+	openapiDir := filepath.Join(projectRoot, "internal", "openapi")
 	if _, err := os.Stat(openapiDir); os.IsNotExist(err) {
 		log.Fatal("❌ OpenAPI schema not found. Run 'make openapigen' first to generate OpenAPI schema.")
 	}

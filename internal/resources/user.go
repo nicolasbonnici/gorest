@@ -4,9 +4,9 @@ package resources
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/crud"
-	"github.com/nicolasbonnici/gorest/internal/api/models"
+	"github.com/nicolasbonnici/gorest/internal/helpers"
+	"github.com/nicolasbonnici/gorest/internal/models"
 	"github.com/nicolasbonnici/gorest/internal/api/dtos"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 )
@@ -16,16 +16,16 @@ type UserResource struct {
 	CRUD *crud.CRUD[models.User]
 }
 
-func RegisterUserRoutes(router fiber.Router, db database.Database) {
+func RegisterUserRoutes(router fiber.Router, db database.Database, jwtSecret string) {
 	res := &UserResource{
 		DB:   db,
 		CRUD: crud.New[models.User](db),
 	}
-	router.Get("/users", res.List)
-	router.Get("/users/:id", res.Get)
-	router.Post("/users", res.Create)
-	router.Put("/users/:id", res.Update)
-	router.Delete("/users/:id", res.Delete)
+	router.Get("/users", helpers.RequireAuth(jwtSecret, res.List))
+	router.Get("/users/:id", helpers.RequireAuth(jwtSecret, res.Get))
+	router.Post("/users", helpers.RequireAuth(jwtSecret, res.Create))
+	router.Put("/users/:id", helpers.RequireAuth(jwtSecret, res.Update))
+	router.Delete("/users/:id", helpers.RequireAuth(jwtSecret, res.Delete))
 }
 
 // modelToUserDTO converts a model to a response DTO
@@ -35,6 +35,7 @@ func modelToUserDTO(m models.User) dtos.UserDTO {
 		Firstname: m.Firstname,
 		Lastname: m.Lastname,
 		Email: m.Email,
+		Password: m.Password,
 		UpdatedAt: m.UpdatedAt,
 		CreatedAt: m.CreatedAt,
 	}
@@ -79,7 +80,7 @@ func (r *UserResource) List(c *fiber.Ctx) error {
 		dtoItems[i] = modelToUserDTO(item)
 	}
 
-	return internal.SendFormatted(c, 200, dtoItems)
+	return helpers.SendFormatted(c, 200, dtoItems)
 }
 
 // Get User by ID
@@ -98,7 +99,7 @@ func (r *UserResource) Get(c *fiber.Ctx) error {
 
 	// Convert model to DTO
 	dto := modelToUserDTO(*item)
-	return internal.SendFormatted(c, 200, dto)
+	return helpers.SendFormatted(c,200, dto)
 }
 
 // Create User
@@ -124,7 +125,7 @@ func (r *UserResource) Create(c *fiber.Ctx) error {
 
 	// Convert model to response DTO
 	dto := modelToUserDTO(item)
-	return internal.SendFormatted(c, 201, dto)
+	return helpers.SendFormatted(c,201, dto)
 }
 
 // Update User
@@ -152,7 +153,7 @@ func (r *UserResource) Update(c *fiber.Ctx) error {
 
 	// Convert model to response DTO
 	dto := modelToUserDTO(item)
-	return internal.SendFormatted(c, 200, dto)
+	return helpers.SendFormatted(c,200, dto)
 }
 
 // Delete User

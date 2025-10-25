@@ -28,6 +28,7 @@ help:
 	@echo "  make docker-stop     - Stop Docker Compose"
 	@echo "  make docker-clean    - Stop and remove containers/images"
 	@echo "  make test            - Run Go tests"
+	@echo "  make test-coverage   - Run Go tests with coverage report"
 	@echo "  make tidy            - Run go mod tidy"
 	@echo "  make rebuild         - Clean + build binary"
 	@echo ""
@@ -80,13 +81,15 @@ generate: modelgen resourcegen openapigen
 # ----------------------------
 .PHONY: test test-up test-schema test-generate
 test-up:
-	docker compose -f compose.yml -f compose.override.test.yml up -d $(DB_TEST_SERVICE)
-	@echo "Waiting 2s for DB to be ready..."
-	sleep 2
+	docker compose -f compose.yml -f compose.override.test.yml up -d db_test mysql_test
+	@echo "Waiting 5s for DBs to be ready..."
+	sleep 5
 
 test-schema:
-	@echo "[INFO] Loading test database schema..."
+	@echo "[INFO] Loading PostgreSQL test schema..."
 	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
+	@echo "[INFO] Loading MySQL test schema..."
+	docker exec -i gorest_mysql_test mysql -utestuser -ptestpass mydb_test < test/sql/schema_mysql.sql
 
 test-generate:
 	@echo "[INFO] Code generation for tests..."
@@ -95,9 +98,24 @@ test-generate:
 
 test: test-up test-schema test-generate
 	@echo "[INFO] Running Go tests..."
-	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -v ./...
+	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -v -timeout=5m ./...
 	@echo "[INFO] Restoring auth-enabled resources after tests..."
 	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen ARGS=-y
+
+.PHONY: test-coverage
+test-coverage: test-up test-schema test-generate
+	@echo "[INFO] Running Go tests with coverage..."
+	@mkdir -p coverage
+	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -timeout=5m -coverprofile=coverage/coverage.out -covermode=atomic ./... 2>&1 | grep -v "go: no such tool"
+	@echo ""
+	@echo "========================================="
+	@echo "         COVERAGE REPORT"
+	@echo "========================================="
+	@go tool cover -func=coverage/coverage.out | tail -20
+	@echo "========================================="
+	@go tool cover -func=coverage/coverage.out | grep total | awk '{print "\n📊 Total Coverage: " $$3 "\n"}'
+	@echo "[INFO] Restoring auth-enabled resources after tests..."
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen ARGS=-y >/dev/null 2>&1
 
 .PHONY: ci-setup
 ci-setup: test-up test-schema

@@ -178,7 +178,7 @@ package hooks
 import (
     "context"
     "fmt"
-    "github.com/nicolasbonnici/gorest/internal/api/models"
+    "github.com/nicolasbonnici/gorest/internal/models"
 )
 
 type TodoHooks struct {

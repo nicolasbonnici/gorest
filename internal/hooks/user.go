@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nicolasbonnici/gorest/internal/api/models"
+	"github.com/nicolasbonnici/gorest/internal/models"
 )
 
 type UserHooks struct {

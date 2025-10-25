@@ -1,12 +1,15 @@
 //go:build integration
 
-package database
+package database_test
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/nicolasbonnici/gorest/pkg/database"
 	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/pkg/database/sqlite"
@@ -30,7 +33,7 @@ func TestTransaction_CommitSQLite(t *testing.T) {
 	testTransactionCommit(t, db)
 }
 
-func testTransactionCommit(t *testing.T, db Database) {
+func testTransactionCommit(t *testing.T, db database.Database) {
 	ctx := context.Background()
 	cleanupDB(t, db)
 
@@ -84,7 +87,7 @@ func TestTransaction_RollbackSQLite(t *testing.T) {
 	testTransactionRollback(t, db)
 }
 
-func testTransactionRollback(t *testing.T, db Database) {
+func testTransactionRollback(t *testing.T, db database.Database) {
 	ctx := context.Background()
 	cleanupDB(t, db)
 
@@ -138,7 +141,7 @@ func TestTransaction_RollbackOnErrorSQLite(t *testing.T) {
 	testTransactionRollbackOnError(t, db)
 }
 
-func testTransactionRollbackOnError(t *testing.T, db Database) {
+func testTransactionRollbackOnError(t *testing.T, db database.Database) {
 	ctx := context.Background()
 	cleanupDB(t, db)
 
@@ -197,7 +200,7 @@ func TestTransaction_MultipleOperationsSQLite(t *testing.T) {
 	testTransactionMultipleOperations(t, db)
 }
 
-func testTransactionMultipleOperations(t *testing.T, db Database) {
+func testTransactionMultipleOperations(t *testing.T, db database.Database) {
 	ctx := context.Background()
 	cleanupDB(t, db)
 
@@ -252,10 +255,10 @@ func testTransactionMultipleOperations(t *testing.T, db Database) {
 	}
 }
 
-func setupTestDB(t *testing.T, dsn string) Database {
+func setupTestDB(t *testing.T, dsn string) database.Database {
 	t.Helper()
 
-	db, err := Open("", dsn)
+	db, err := database.Open("", dsn)
 	if err != nil {
 		t.Skipf("Database not available: %v", err)
 	}
@@ -272,13 +275,26 @@ func setupTestDB(t *testing.T, dsn string) Database {
 	return db
 }
 
-func setupSQLiteTestDB(t *testing.T) Database {
+func setupSQLiteTestDB(t *testing.T) database.Database {
 	t.Helper()
 
-	db, err := Open("sqlite", ":memory:")
+	// Use file-based database with a unique name for this test to avoid concurrent access issues
+	// SQLite :memory: databases are connection-specific, causing failures in concurrent tests
+	dbPath := fmt.Sprintf("/tmp/gorest_test_%s.db", t.Name())
+
+	// Clean up any existing database
+	_ = os.Remove(dbPath)
+
+	db, err := database.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatalf("Failed to open SQLite: %v", err)
 	}
+
+	// Clean up database file when test completes
+	t.Cleanup(func() {
+		db.Close()
+		_ = os.Remove(dbPath)
+	})
 
 	ctx := context.Background()
 	schema := `
@@ -308,10 +324,14 @@ CREATE TABLE todo (
 		t.Fatalf("Failed to create schema: %v", err)
 	}
 
+	// Enable WAL mode for better concurrency and set busy timeout
+	_, _ = db.Exec(ctx, "PRAGMA journal_mode=WAL")
+	_, _ = db.Exec(ctx, "PRAGMA busy_timeout=5000")
+
 	return db
 }
 
-func cleanupDB(t *testing.T, db Database) {
+func cleanupDB(t *testing.T, db database.Database) {
 	t.Helper()
 	ctx := context.Background()
 

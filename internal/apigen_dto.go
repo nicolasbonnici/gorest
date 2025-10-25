@@ -23,7 +23,7 @@ func generateDTOForStruct(dtosDir string, structName string) {
 	dtoFile := filepath.Join(dtosDir, strings.ToLower(structName)+".go")
 
 	projectRoot, _ := findProjectRoot()
-	modelPath := filepath.Join(projectRoot, "internal", "api", "models", strings.ToLower(structName)+".go")
+	modelPath := filepath.Join(projectRoot, "internal", "models", strings.ToLower(structName)+".go")
 	fields := extractStructFields(modelPath, structName)
 
 	code := generateDTOsFromModel(structName, fields)

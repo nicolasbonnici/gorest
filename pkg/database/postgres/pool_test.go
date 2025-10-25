@@ -4,6 +4,8 @@ package postgres
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -49,14 +51,14 @@ func TestPool_ConcurrentQueries(t *testing.T) {
 			defer wg.Done()
 
 			var result int
-			row := db.QueryRow(ctx, "SELECT $1", id)
+			row := db.QueryRow(ctx, "SELECT $1::integer", id)
 			if err := row.Scan(&result); err != nil {
 				errChan <- err
 				return
 			}
 
 			if result != id {
-				errChan <- err
+				errChan <- fmt.Errorf("expected %d, got %d", id, result)
 			}
 		}(i)
 	}
@@ -107,9 +109,15 @@ func TestPool_ConnectionTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	_, err = db.Query(ctx, "SELECT pg_sleep(10)")
+	var result int
+	row := db.QueryRow(ctx, "SELECT pg_sleep(10)")
+	err = row.Scan(&result)
 	if err == nil {
 		t.Error("Expected timeout error, got none")
+	}
+
+	if err != nil && !strings.Contains(err.Error(), "context") && !strings.Contains(err.Error(), "cancel") {
+		t.Logf("Got error (expected context timeout): %v", err)
 	}
 }
 
@@ -167,7 +175,7 @@ func TestPool_TransactionPooling(t *testing.T) {
 			}
 
 			var result int
-			row := tx.QueryRow(ctx, "SELECT $1", id)
+			row := tx.QueryRow(ctx, "SELECT $1::integer", id)
 			if err := row.Scan(&result); err != nil {
 				tx.Rollback(ctx)
 				t.Errorf("Query failed in transaction %d: %v", id, err)

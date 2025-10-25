@@ -18,12 +18,12 @@ func GenerateAPIWithSkip(_ interface{}, _ map[string]TableSchema, authCfg *AuthC
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
-	modelsDir := filepath.Join(projectRoot, "internal", "api", "models")
-	apiDir := filepath.Join(projectRoot, "internal", "api", "resources")
+	modelsDir := filepath.Join(projectRoot, "internal", "models")
+	apiDir := filepath.Join(projectRoot, "internal", "resources")
 	dtosDir := filepath.Join(projectRoot, "internal", "api", "dtos")
 
 	if err := os.MkdirAll(apiDir, 0755); err != nil {
-		log.Fatalf("failed to create api/resources dir: %v", err)
+		log.Fatalf("failed to create resources dir: %v", err)
 	}
 
 	if err := os.MkdirAll(dtosDir, 0755); err != nil {
@@ -94,7 +94,7 @@ package api
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/internal"
-	"github.com/nicolasbonnici/gorest/internal/api/resources"
+	"github.com/nicolasbonnici/gorest/internal/resources"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 

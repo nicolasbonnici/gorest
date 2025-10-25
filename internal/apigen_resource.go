@@ -13,7 +13,7 @@ func generateResourceForStruct(apiDir string, structName string, authCfg *AuthCo
 	resourceFile := filepath.Join(apiDir, strings.ToLower(structName)+".go")
 
 	projectRoot, _ := findProjectRoot()
-	modelPath := filepath.Join(projectRoot, "internal", "api", "models", strings.ToLower(structName)+".go")
+	modelPath := filepath.Join(projectRoot, "internal", "models", strings.ToLower(structName)+".go")
 	fields := extractStructFields(modelPath, structName)
 
 	code := generateResourceFromModel(structName, fields, authCfg)
@@ -35,7 +35,7 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 
 	wrapHandler := func(handler string, requireAuth bool) string {
 		if requireAuth {
-			return fmt.Sprintf("internal.RequireAuth(jwtSecret, res.%s)", handler)
+			return fmt.Sprintf("helpers.RequireAuth(jwtSecret, res.%s)", handler)
 		}
 		return fmt.Sprintf("res.%s", handler)
 	}
@@ -62,9 +62,9 @@ package resources
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/crud"
-	"github.com/nicolasbonnici/gorest/internal/api/models"
+	"github.com/nicolasbonnici/gorest/internal/helpers"
+	"github.com/nicolasbonnici/gorest/internal/models"
 	"github.com/nicolasbonnici/gorest/internal/api/dtos"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 )
@@ -106,7 +106,7 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 		dtoItems[i] = modelTo%sDTO(item)
 	}
 
-	return internal.SendFormatted(c, 200, dtoItems)
+	return helpers.SendFormatted(c, 200, dtoItems)
 }
 
 // Get %s by ID
@@ -125,7 +125,7 @@ func (r *%sResource) Get(c *fiber.Ctx) error {
 
 	// Convert model to DTO
 	dto := modelTo%sDTO(*item)
-	return internal.SendFormatted(c, 200, dto)
+	return helpers.SendFormatted(c,200, dto)
 }
 
 // Create %s
@@ -151,7 +151,7 @@ func (r *%sResource) Create(c *fiber.Ctx) error {
 
 	// Convert model to response DTO
 	dto := modelTo%sDTO(item)
-	return internal.SendFormatted(c, 201, dto)
+	return helpers.SendFormatted(c,201, dto)
 }
 
 // Update %s
@@ -179,7 +179,7 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 
 	// Convert model to response DTO
 	dto := modelTo%sDTO(item)
-	return internal.SendFormatted(c, 200, dto)
+	return helpers.SendFormatted(c,200, dto)
 }
 
 // Delete %s
