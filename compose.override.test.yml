@@ -31,14 +31,13 @@ services:
       - "3307:3306"
     volumes:
       - mysql_test_data:/var/lib/mysql
-    tmpfs:
-      - /var/run/mysqld
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-utestuser", "-ptestpass"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
 volumes:
   db_test_data:
