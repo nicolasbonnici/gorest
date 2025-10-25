@@ -26,11 +26,50 @@ jobs:
           PORT=3000
           EOF
 
-      - name: CI setup (database + code generation)
-        run: make ci-setup
+      - name: Start databases
+        run: docker compose -f compose.yml -f compose.override.test.yml up -d db_test mysql_test
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if docker exec gorest_db_test pg_isready -U postgres > /dev/null 2>&1; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Attempt $i/30: PostgreSQL not ready yet..."
+            sleep 2
+          done
+          docker exec gorest_db_test pg_isready -U postgres
+
+      - name: Wait for MySQL to be ready
+        run: |
+          echo "Waiting for MySQL..."
+          for i in {1..30}; do
+            if docker exec gorest_mysql_test mysqladmin ping -h localhost -utestuser -ptestpass > /dev/null 2>&1; then
+              echo "MySQL is ready!"
+              break
+            fi
+            echo "Attempt $i/30: MySQL not ready yet..."
+            sleep 2
+          done
+          docker exec gorest_mysql_test mysqladmin ping -h localhost -utestuser -ptestpass
+
+      - name: Load database schemas
+        run: make test-schema
+
+      - name: Generate code
+        run: make test-generate
 
       - name: Build
         run: make build
 
-      - name: Test
-        run: make test
+      - name: Test with coverage
+        run: make test-coverage
+
+      - name: Upload coverage to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/coverage.out
+          retention-days: 30
