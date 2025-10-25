@@ -89,7 +89,7 @@ test-schema:
 	@echo "[INFO] Loading PostgreSQL test schema..."
 	docker exec -i $(DB_TEST_CONTAINER) psql -U postgres -d mydb_test < test/sql/schema.sql
 	@echo "[INFO] Loading MySQL test schema..."
-	docker exec -i gorest_mysql_test mysql -utestuser -ptestpass mydb_test < test/sql/schema_mysql.sql
+	docker exec -i gorest_mysql_test mysql -h 127.0.0.1 -utestuser -ptestpass mydb_test < test/sql/schema_mysql.sql
 
 test-generate:
 	@echo "[INFO] Code generation for tests..."
