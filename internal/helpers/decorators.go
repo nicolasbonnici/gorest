@@ -66,9 +66,8 @@ func GetAuthenticatedUser(c *fiber.Ctx) *AuthenticatedUser {
 	return nil
 }
 
-// ContextWithUser creates a new context with user_id from Fiber context
-// This allows hooks to access the authenticated user via ctx.Value("user_id")
-func ContextWithUser(c *fiber.Ctx) context.Context {
+// Context creates a new context with user_id from Fiber context
+func Context(c *fiber.Ctx) context.Context {
 	ctx := c.Context()
 	if user := GetAuthenticatedUser(c); user != nil {
 		return context.WithValue(ctx, "user_id", user.UserID)

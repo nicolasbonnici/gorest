@@ -26,6 +26,7 @@ func generateResourceForStruct(apiDir string, structName string, authCfg *AuthCo
 // generateResourceFromModel generates the resource code from model
 func generateResourceFromModel(structName string, fields []StructField, authCfg *AuthConfig) string {
 	resourceName := strings.ToLower(structName)
+	lowerStructName := strings.ToLower(structName)
 	pluralResourceName := pluralize(resourceName)
 
 	requireGetAuth := authCfg != nil && authCfg.RequiresAuth(pluralResourceName, "GET")
@@ -53,6 +54,26 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 		routesSignature = "router fiber.Router, db database.Database, jwtSecret string"
 	}
 
+	// Check if model has UserId field
+	hasUserIdField := false
+	for _, field := range fields {
+		if field.Name == "UserId" {
+			hasUserIdField = true
+			break
+		}
+	}
+
+	// Generate user_id auto-population code if the field exists
+	userIdAutoPopulate := ""
+	if hasUserIdField {
+		userIdAutoPopulate = `
+	// Auto-populate user_id from authenticated user
+	if user := helpers.GetAuthenticatedUser(c); user != nil {
+		item.UserId = &user.UserID
+	}
+`
+	}
+
 	// Generate conversion functions
 	conversionFuncs := generateConversionFunctions(structName, fields)
 
@@ -64,7 +85,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/internal/helpers"
-	"github.com/nicolasbonnici/gorest/internal/hooks"
 	"github.com/nicolasbonnici/gorest/internal/models"
 	"github.com/nicolasbonnici/gorest/internal/api/dtos"
 	"github.com/nicolasbonnici/gorest/pkg/database"
@@ -78,7 +98,7 @@ type %sResource struct {
 func Register%sRoutes(%s) {
 	res := &%sResource{
 		DB:   db,
-		CRUD: crud.NewWithHooks[models.%s](db, &hooks.%sHooks{}),
+		CRUD: crud.New[models.%s](db),
 	}
 	%s
 	%s
@@ -96,7 +116,7 @@ func Register%sRoutes(%s) {
 // @Success 200 {array} dtos.%sDTO
 // @Router /%s [get]
 func (r *%sResource) List(c *fiber.Ctx) error {
-	items, err := r.CRUD.GetAll(helpers.ContextWithUser(c))
+	items, err := r.CRUD.GetAll(helpers.Context(c))
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -118,7 +138,7 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 // @Router /%s/{id} [get]
 func (r *%sResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
-	item, err := r.CRUD.GetByID(helpers.ContextWithUser(c), id)
+	item, err := r.CRUD.GetByID(helpers.Context(c), id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
 	}
@@ -142,8 +162,8 @@ func (r *%sResource) Create(c *fiber.Ctx) error {
 	}
 
 	item := %sCreateDTOToModel(createDTO)
-
-	ctx := helpers.ContextWithUser(c)
+%s
+	ctx := helpers.Context(c)
 	if err := r.CRUD.Create(ctx, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -175,8 +195,8 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 	}
 
 	item := %sUpdateDTOToModel(updateDTO)
-
-	if err := r.CRUD.Update(helpers.ContextWithUser(c), id, item); err != nil {
+%s
+	if err := r.CRUD.Update(helpers.Context(c), id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -192,20 +212,30 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 // @Router /%s/{id} [delete]
 func (r *%sResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
-	if err := r.CRUD.Delete(helpers.ContextWithUser(c), id); err != nil {
+	if err := r.CRUD.Delete(helpers.Context(c), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(204)
 }
 `,
 		structName, structName,
-		structName, routesSignature, structName, structName, structName,
+		structName, routesSignature, structName, structName,
 		listRoute, getRoute, postRoute, putRoute, deleteRoute,
 		conversionFuncs,
-		structName, structName, structName, structName, pluralResourceName, structName, structName, structName,
-		structName, structName, structName, structName, pluralResourceName, structName, structName,
-		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, resourceName, structName, structName,
-		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, resourceName, structName,
+		structName, structName, structName, structName, pluralResourceName, structName,
+		structName, structName,
+		structName, structName, structName, structName, pluralResourceName, structName,
+		structName,
+		structName, structName, structName, structName, structName, structName, pluralResourceName, structName,
+		structName,
+		lowerStructName,
+		userIdAutoPopulate,
+		structName, structName,
+		structName, structName, structName, structName, structName, structName, pluralResourceName, structName,
+		structName,
+		lowerStructName,
+		userIdAutoPopulate,
+		structName,
 		structName, structName, structName, pluralResourceName, structName)
 }
 

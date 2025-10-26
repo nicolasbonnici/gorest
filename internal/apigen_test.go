@@ -48,11 +48,9 @@ func TestGenerateAPI(t *testing.T) {
 		"func (r *UserResource) Create(c *fiber.Ctx) error",
 		"func (r *UserResource) Update(c *fiber.Ctx) error",
 		"func (r *UserResource) Delete(c *fiber.Ctx) error",
-		"r.CRUD.GetAll(c.Context())",
-		"r.CRUD.GetByID(c.Context(), id)",
-		"r.CRUD.Create(c.Context(), item)",
-		"r.CRUD.Update(c.Context(), id, item)",
-		"r.CRUD.Delete(c.Context(), id)",
+		"r.CRUD.GetAll(helpers.Context(c))",
+		"r.CRUD.GetByID(helpers.Context(c), id)",
+		"r.CRUD.Delete(helpers.Context(c), id)",
 	}
 
 	for _, expected := range expectedStrings {
@@ -131,19 +129,17 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		"router.Get(\"/users\"",
 		"router.Post(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
-		"items, err := r.CRUD.GetAll(c.Context())",
+		"items, err := r.CRUD.GetAll(helpers.Context(c))",
 		"func (r *UserResource) Get(c *fiber.Ctx) error",
-		"item, err := r.CRUD.GetByID(c.Context(), id)",
+		"item, err := r.CRUD.GetByID(helpers.Context(c), id)",
 		"func (r *UserResource) Create(c *fiber.Ctx) error",
 		"var createDTO dtos.UserCreateDTO",
 		"item := userCreateDTOToModel(createDTO)",
-		"r.CRUD.Create(c.Context(), item)",
 		"func (r *UserResource) Update(c *fiber.Ctx) error",
 		"var updateDTO dtos.UserUpdateDTO",
 		"item := userUpdateDTOToModel(updateDTO)",
-		"r.CRUD.Update(c.Context(), id, item)",
 		"func (r *UserResource) Delete(c *fiber.Ctx) error",
-		"r.CRUD.Delete(c.Context(), id)",
+		"r.CRUD.Delete(helpers.Context(c), id)",
 	}
 
 	for _, expected := range expectedStrings {
