@@ -17,16 +17,16 @@ type UserResource struct {
 	CRUD *crud.CRUD[models.User]
 }
 
-func RegisterUserRoutes(router fiber.Router, db database.Database, jwtSecret string) {
+func RegisterUserRoutes(router fiber.Router, db database.Database) {
 	res := &UserResource{
 		DB:   db,
 		CRUD: crud.NewWithHooks[models.User](db, &hooks.UserHooks{}),
 	}
-	router.Get("/users", helpers.RequireAuth(jwtSecret, res.List))
-	router.Get("/users/:id", helpers.RequireAuth(jwtSecret, res.Get))
-	router.Post("/users", helpers.RequireAuth(jwtSecret, res.Create))
-	router.Put("/users/:id", helpers.RequireAuth(jwtSecret, res.Update))
-	router.Delete("/users/:id", helpers.RequireAuth(jwtSecret, res.Delete))
+	router.Get("/users", res.List)
+	router.Get("/users/:id", res.Get)
+	router.Post("/users", res.Create)
+	router.Put("/users/:id", res.Update)
+	router.Delete("/users/:id", res.Delete)
 }
 
 func modelToUserDTO(m models.User) dtos.UserDTO {

@@ -1,11 +1,13 @@
-package database
+package database_test
 
 import (
 	"testing"
+
+	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 
 func TestBaseDialect_LimitOffset(t *testing.T) {
-	dialect := &BaseDialect{}
+	dialect := &database.BaseDialect{}
 
 	tests := []struct {
 		name     string
