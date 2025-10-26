@@ -348,3 +348,131 @@ func cleanupDB(t *testing.T, db database.Database) {
 		_, _ = db.Exec(ctx, "DELETE FROM users")
 	}
 }
+
+func TestTransaction_QueryPostgreSQL(t *testing.T) {
+	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	defer db.Close()
+	testTransactionQuery(t, db)
+}
+
+func TestTransaction_QueryMySQL(t *testing.T) {
+	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
+	defer db.Close()
+	testTransactionQuery(t, db)
+}
+
+func TestTransaction_QuerySQLite(t *testing.T) {
+	db := setupSQLiteTestDB(t)
+	defer db.Close()
+	testTransactionQuery(t, db)
+}
+
+func testTransactionQuery(t *testing.T, db database.Database) {
+	ctx := context.Background()
+	cleanupDB(t, db)
+
+	// Insert test data
+	insertQuery := "INSERT INTO users (firstname, lastname, email) VALUES (" +
+		db.Dialect().Placeholder(1) + ", " +
+		db.Dialect().Placeholder(2) + ", " +
+		db.Dialect().Placeholder(3) + ")"
+	_, err := db.Exec(ctx, insertQuery, "Alice", "Query", "alice.query@example.com")
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
+	}
+	_, err = db.Exec(ctx, insertQuery, "Bob", "Query", "bob.query@example.com")
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
+	}
+
+	// Begin transaction and use Query
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatalf("Failed to begin transaction: %v", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := "SELECT firstname, email FROM users WHERE lastname = " + db.Dialect().Placeholder(1) + " ORDER BY email"
+	rows, err := tx.Query(ctx, query, "Query")
+	if err != nil {
+		t.Fatalf("Transaction Query failed: %v", err)
+	}
+	defer rows.Close()
+
+	var count int
+	for rows.Next() {
+		var firstname, email string
+		if err := rows.Scan(&firstname, &email); err != nil {
+			t.Fatalf("Failed to scan row: %v", err)
+		}
+		count++
+	}
+
+	if err := rows.Err(); err != nil {
+		t.Fatalf("Rows iteration error: %v", err)
+	}
+
+	if count != 2 {
+		t.Errorf("Expected 2 rows, got %d", count)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+}
+
+func TestTransaction_QueryRowPostgreSQL(t *testing.T) {
+	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	defer db.Close()
+	testTransactionQueryRow(t, db)
+}
+
+func TestTransaction_QueryRowMySQL(t *testing.T) {
+	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
+	defer db.Close()
+	testTransactionQueryRow(t, db)
+}
+
+func TestTransaction_QueryRowSQLite(t *testing.T) {
+	db := setupSQLiteTestDB(t)
+	defer db.Close()
+	testTransactionQueryRow(t, db)
+}
+
+func testTransactionQueryRow(t *testing.T, db database.Database) {
+	ctx := context.Background()
+	cleanupDB(t, db)
+
+	// Insert test data
+	insertQuery := "INSERT INTO users (firstname, lastname, email) VALUES (" +
+		db.Dialect().Placeholder(1) + ", " +
+		db.Dialect().Placeholder(2) + ", " +
+		db.Dialect().Placeholder(3) + ")"
+	_, err := db.Exec(ctx, insertQuery, "Charlie", "QueryRow", "charlie.queryrow@example.com")
+	if err != nil {
+		t.Fatalf("Failed to insert test data: %v", err)
+	}
+
+	// Begin transaction and use QueryRow
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatalf("Failed to begin transaction: %v", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := "SELECT firstname, lastname FROM users WHERE email = " + db.Dialect().Placeholder(1)
+	row := tx.QueryRow(ctx, query, "charlie.queryrow@example.com")
+
+	var firstname, lastname string
+	if err := row.Scan(&firstname, &lastname); err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+
+	if firstname != "Charlie" || lastname != "QueryRow" {
+		t.Errorf("Expected Charlie QueryRow, got %s %s", firstname, lastname)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+}
