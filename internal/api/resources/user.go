@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/internal/helpers"
+	"github.com/nicolasbonnici/gorest/internal/hooks"
 	"github.com/nicolasbonnici/gorest/internal/models"
 	"github.com/nicolasbonnici/gorest/internal/api/dtos"
 	"github.com/nicolasbonnici/gorest/pkg/database"
@@ -19,7 +20,7 @@ type UserResource struct {
 func RegisterUserRoutes(router fiber.Router, db database.Database, jwtSecret string) {
 	res := &UserResource{
 		DB:   db,
-		CRUD: crud.New[models.User](db),
+		CRUD: crud.NewWithHooks[models.User](db, &hooks.UserHooks{}),
 	}
 	router.Get("/users", helpers.RequireAuth(jwtSecret, res.List))
 	router.Get("/users/:id", helpers.RequireAuth(jwtSecret, res.Get))
@@ -28,7 +29,6 @@ func RegisterUserRoutes(router fiber.Router, db database.Database, jwtSecret str
 	router.Delete("/users/:id", helpers.RequireAuth(jwtSecret, res.Delete))
 }
 
-// modelToUserDTO converts a model to a response DTO
 func modelToUserDTO(m models.User) dtos.UserDTO {
 	return dtos.UserDTO{
 		Id: m.Id,
@@ -41,7 +41,6 @@ func modelToUserDTO(m models.User) dtos.UserDTO {
 	}
 }
 
-// userCreateDTOToModel converts a CreateDTO to a model
 func userCreateDTOToModel(dto dtos.UserCreateDTO) models.User {
 	return models.User{
 		Firstname: dto.Firstname,
@@ -51,7 +50,6 @@ func userCreateDTOToModel(dto dtos.UserCreateDTO) models.User {
 	}
 }
 
-// userUpdateDTOToModel converts an UpdateDTO to a model
 func userUpdateDTOToModel(dto dtos.UserUpdateDTO) models.User {
 	return models.User{
 		Firstname: dto.Firstname,
@@ -69,12 +67,11 @@ func userUpdateDTOToModel(dto dtos.UserUpdateDTO) models.User {
 // @Success 200 {array} dtos.UserDTO
 // @Router /users [get]
 func (r *UserResource) List(c *fiber.Ctx) error {
-	items, err := r.CRUD.GetAll(c.Context())
+	items, err := r.CRUD.GetAll(helpers.ContextWithUser(c))
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Convert models to DTOs
 	dtoItems := make([]dtos.UserDTO, len(items))
 	for i, item := range items {
 		dtoItems[i] = modelToUserDTO(item)
@@ -92,12 +89,11 @@ func (r *UserResource) List(c *fiber.Ctx) error {
 // @Router /users/{id} [get]
 func (r *UserResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
-	item, err := r.CRUD.GetByID(c.Context(), id)
+	item, err := r.CRUD.GetByID(helpers.ContextWithUser(c), id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
 	}
 
-	// Convert model to DTO
 	dto := modelToUserDTO(*item)
 	return helpers.SendFormatted(c,200, dto)
 }
@@ -116,15 +112,20 @@ func (r *UserResource) Create(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body", "details": err.Error()})
 	}
 
-	// Convert DTO to model
 	item := userCreateDTOToModel(createDTO)
 
-	if err := r.CRUD.Create(c.Context(), item); err != nil {
+	ctx := helpers.ContextWithUser(c)
+	if err := r.CRUD.Create(ctx, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Convert model to response DTO
-	dto := modelToUserDTO(item)
+	created, err := r.CRUD.GetByID(ctx, item.Id)
+	if err != nil {
+		dto := modelToUserDTO(item)
+		return helpers.SendFormatted(c,201, dto)
+	}
+
+	dto := modelToUserDTO(*created)
 	return helpers.SendFormatted(c,201, dto)
 }
 
@@ -144,14 +145,12 @@ func (r *UserResource) Update(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	// Convert DTO to model
 	item := userUpdateDTOToModel(updateDTO)
 
-	if err := r.CRUD.Update(c.Context(), id, item); err != nil {
+	if err := r.CRUD.Update(helpers.ContextWithUser(c), id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Convert model to response DTO
 	dto := modelToUserDTO(item)
 	return helpers.SendFormatted(c,200, dto)
 }
@@ -164,7 +163,7 @@ func (r *UserResource) Update(c *fiber.Ctx) error {
 // @Router /users/{id} [delete]
 func (r *UserResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
-	if err := r.CRUD.Delete(c.Context(), id); err != nil {
+	if err := r.CRUD.Delete(helpers.ContextWithUser(c), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(204)

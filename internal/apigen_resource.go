@@ -64,6 +64,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/internal/helpers"
+	"github.com/nicolasbonnici/gorest/internal/hooks"
 	"github.com/nicolasbonnici/gorest/internal/models"
 	"github.com/nicolasbonnici/gorest/internal/api/dtos"
 	"github.com/nicolasbonnici/gorest/pkg/database"
@@ -77,7 +78,7 @@ type %sResource struct {
 func Register%sRoutes(%s) {
 	res := &%sResource{
 		DB:   db,
-		CRUD: crud.New[models.%s](db),
+		CRUD: crud.NewWithHooks[models.%s](db, &hooks.%sHooks{}),
 	}
 	%s
 	%s
@@ -95,12 +96,11 @@ func Register%sRoutes(%s) {
 // @Success 200 {array} dtos.%sDTO
 // @Router /%s [get]
 func (r *%sResource) List(c *fiber.Ctx) error {
-	items, err := r.CRUD.GetAll(c.Context())
+	items, err := r.CRUD.GetAll(helpers.ContextWithUser(c))
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Convert models to DTOs
 	dtoItems := make([]dtos.%sDTO, len(items))
 	for i, item := range items {
 		dtoItems[i] = modelTo%sDTO(item)
@@ -118,12 +118,11 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 // @Router /%s/{id} [get]
 func (r *%sResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
-	item, err := r.CRUD.GetByID(c.Context(), id)
+	item, err := r.CRUD.GetByID(helpers.ContextWithUser(c), id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
 	}
 
-	// Convert model to DTO
 	dto := modelTo%sDTO(*item)
 	return helpers.SendFormatted(c,200, dto)
 }
@@ -142,15 +141,20 @@ func (r *%sResource) Create(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body", "details": err.Error()})
 	}
 
-	// Convert DTO to model
 	item := %sCreateDTOToModel(createDTO)
 
-	if err := r.CRUD.Create(c.Context(), item); err != nil {
+	ctx := helpers.ContextWithUser(c)
+	if err := r.CRUD.Create(ctx, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Convert model to response DTO
-	dto := modelTo%sDTO(item)
+	created, err := r.CRUD.GetByID(ctx, item.Id)
+	if err != nil {
+		dto := modelTo%sDTO(item)
+		return helpers.SendFormatted(c,201, dto)
+	}
+
+	dto := modelTo%sDTO(*created)
 	return helpers.SendFormatted(c,201, dto)
 }
 
@@ -170,14 +174,12 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	// Convert DTO to model
 	item := %sUpdateDTOToModel(updateDTO)
 
-	if err := r.CRUD.Update(c.Context(), id, item); err != nil {
+	if err := r.CRUD.Update(helpers.ContextWithUser(c), id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Convert model to response DTO
 	dto := modelTo%sDTO(item)
 	return helpers.SendFormatted(c,200, dto)
 }
@@ -190,19 +192,19 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 // @Router /%s/{id} [delete]
 func (r *%sResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
-	if err := r.CRUD.Delete(c.Context(), id); err != nil {
+	if err := r.CRUD.Delete(helpers.ContextWithUser(c), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(204)
 }
 `,
 		structName, structName,
-		structName, routesSignature, structName, structName,
+		structName, routesSignature, structName, structName, structName,
 		listRoute, getRoute, postRoute, putRoute, deleteRoute,
 		conversionFuncs,
 		structName, structName, structName, structName, pluralResourceName, structName, structName, structName,
 		structName, structName, structName, structName, pluralResourceName, structName, structName,
-		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, resourceName, structName,
+		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, resourceName, structName, structName,
 		structName, structName, structName, structName, structName, structName, pluralResourceName, structName, structName, resourceName, structName,
 		structName, structName, structName, pluralResourceName, structName)
 }
@@ -239,24 +241,21 @@ func generateConversionFunctions(structName string, fields []StructField) string
 	}
 
 	lowerStructName := strings.ToLower(structName)
-	return fmt.Sprintf(`// modelTo%sDTO converts a model to a response DTO
-func modelTo%sDTO(m models.%s) dtos.%sDTO {
+	return fmt.Sprintf(`func modelTo%sDTO(m models.%s) dtos.%sDTO {
 	return dtos.%sDTO{
 %s	}
 }
 
-// %sCreateDTOToModel converts a CreateDTO to a model
 func %sCreateDTOToModel(dto dtos.%sCreateDTO) models.%s {
 	return models.%s{
 %s	}
 }
 
-// %sUpdateDTOToModel converts an UpdateDTO to a model
 func %sUpdateDTOToModel(dto dtos.%sUpdateDTO) models.%s {
 	return models.%s{
 %s	}
 }
-`, structName, structName, structName, structName, structName, modelToDTOFields.String(),
-		lowerStructName, lowerStructName, structName, structName, structName, createDTOToModelFields.String(),
-		lowerStructName, lowerStructName, structName, structName, structName, updateDTOToModelFields.String())
+`, structName, structName, structName, structName, modelToDTOFields.String(),
+		lowerStructName, structName, structName, structName, createDTOToModelFields.String(),
+		lowerStructName, structName, structName, structName, updateDTOToModelFields.String())
 }

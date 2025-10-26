@@ -1,11 +1,23 @@
 package helpers
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+type contextKey string
+
+const UserContextKey contextKey = "authenticated_user"
+
+type AuthenticatedUser struct {
+	UserID    string
+	Email     string
+	Firstname string
+	Lastname  string
+}
 
 // RequireAuth is a decorator that wraps a handler with JWT authentication
 func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
@@ -23,6 +35,43 @@ func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
 			return c.Status(401).JSON(fiber.Map{"error": "invalid token"})
 		}
 
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			user := &AuthenticatedUser{}
+
+			if userID, ok := claims["user_id"].(string); ok {
+				user.UserID = userID
+			}
+			if email, ok := claims["email"].(string); ok {
+				user.Email = email
+			}
+			if firstname, ok := claims["firstname"].(string); ok {
+				user.Firstname = firstname
+			}
+			if lastname, ok := claims["lastname"].(string); ok {
+				user.Lastname = lastname
+			}
+
+			c.Locals(UserContextKey, user)
+		}
+
 		return handler(c)
 	}
+}
+
+// GetAuthenticatedUser extracts the authenticated user from Fiber context
+func GetAuthenticatedUser(c *fiber.Ctx) *AuthenticatedUser {
+	if user, ok := c.Locals(UserContextKey).(*AuthenticatedUser); ok {
+		return user
+	}
+	return nil
+}
+
+// ContextWithUser creates a new context with user_id from Fiber context
+// This allows hooks to access the authenticated user via ctx.Value("user_id")
+func ContextWithUser(c *fiber.Ctx) context.Context {
+	ctx := c.Context()
+	if user := GetAuthenticatedUser(c); user != nil {
+		return context.WithValue(ctx, "user_id", user.UserID)
+	}
+	return ctx
 }

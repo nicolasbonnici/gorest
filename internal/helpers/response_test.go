@@ -192,7 +192,6 @@ func TestSendFormatted(t *testing.T) {
 				}
 			}
 
-			// Verify response can be decoded
 			var result map[string]interface{}
 			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 				t.Errorf("Failed to decode response: %v", err)
