@@ -12,19 +12,19 @@ import (
 func TestGenerateAPI(t *testing.T) {
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables, NoAuthConfig())
+	GenerateAPI(NoAuthConfig())
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		t.Fatalf("Failed to find project root: %v", err)
 	}
 
-	userResourceFile := filepath.Join(projectRoot, "internal/resources", "user.go")
+	userResourceFile := filepath.Join(projectRoot, "internal/api/resources", "user.go")
 	if _, err := os.Stat(userResourceFile); os.IsNotExist(err) {
 		t.Error("Expected user.go resource to be generated")
 	}
 
-	todoResourceFile := filepath.Join(projectRoot, "internal/resources", "todo.go")
+	todoResourceFile := filepath.Join(projectRoot, "internal/api/resources", "todo.go")
 	if _, err := os.Stat(todoResourceFile); os.IsNotExist(err) {
 		t.Error("Expected todo.go resource to be generated")
 	}
@@ -181,14 +181,14 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables, NoAuthConfig())
+	GenerateAPI(NoAuthConfig())
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		t.Fatalf("Failed to find project root: %v", err)
 	}
 
-	userResourceFile := filepath.Join(projectRoot, "internal/resources", "user.go")
+	userResourceFile := filepath.Join(projectRoot, "internal/api/resources", "user.go")
 	content, err := os.ReadFile(userResourceFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated user resource: %v", err)

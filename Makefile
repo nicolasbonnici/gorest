@@ -73,7 +73,11 @@ openapigen:
 	go run ./cmd/openapigen/main.go
 
 .PHONY: generate
-generate: modelgen resourcegen openapigen
+generate: modelgen
+	@echo "[INFO] Generating API resources from models..."
+	@go run ./cmd/resourcegen/main.go -y
+	@echo "[INFO] Generating OpenAPI schema..."
+	@go run ./cmd/openapigen/main.go
 	@echo "[INFO] All code generation completed successfully"
 
 # ----------------------------

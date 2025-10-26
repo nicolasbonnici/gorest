@@ -8,18 +8,18 @@ import (
 	"strings"
 )
 
-func GenerateAPI(_ interface{}, _ map[string]TableSchema, authCfg *AuthConfig) {
-	GenerateAPIWithSkip(nil, nil, authCfg, make(map[string]bool))
+func GenerateAPI(authCfg *AuthConfig) {
+	GenerateAPIWithSkip(authCfg, make(map[string]bool))
 }
 
-func GenerateAPIWithSkip(_ interface{}, _ map[string]TableSchema, authCfg *AuthConfig, resourcesToSkip map[string]bool) {
+func GenerateAPIWithSkip(authCfg *AuthConfig, resourcesToSkip map[string]bool) {
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
 	modelsDir := filepath.Join(projectRoot, "internal", "models")
-	apiDir := filepath.Join(projectRoot, "internal", "resources")
+	apiDir := filepath.Join(projectRoot, "internal", "api", "resources")
 	dtosDir := filepath.Join(projectRoot, "internal", "api", "dtos")
 
 	if err := os.MkdirAll(apiDir, 0755); err != nil {
@@ -94,7 +94,7 @@ package api
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/internal"
-	"github.com/nicolasbonnici/gorest/internal/resources"
+	"github.com/nicolasbonnici/gorest/internal/api/resources"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 

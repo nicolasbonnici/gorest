@@ -222,6 +222,6 @@ func SingularizeExported(word string) string {
 func ScaffoldAll(db database.Database) {
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables, NoAuthConfig())
+	GenerateAPI(NoAuthConfig())
 	GenerateOpenAPI(tables)
 }

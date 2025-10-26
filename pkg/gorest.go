@@ -38,7 +38,7 @@ func Start(cfg Config) {
 		log.Fatal("❌ Models not found. Run 'make modelgen' first to generate models from database schema.")
 	}
 
-	resourcesDir := filepath.Join(projectRoot, "internal", "resources")
+	resourcesDir := filepath.Join(projectRoot, "internal", "api", "resources")
 	if _, err := os.Stat(resourcesDir); os.IsNotExist(err) {
 		log.Fatal("❌ Resources not found. Run 'make resourcegen' first to generate API resources.")
 	}

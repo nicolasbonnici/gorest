@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
@@ -24,6 +25,11 @@ var (
 
 func main() {
 	flag.Parse()
+
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("❌ DATABASE_URL environment variable is required")
@@ -156,7 +162,7 @@ func main() {
 		log.Printf("💾 Auth configuration saved to: %s", authConfigPath)
 	}
 
-	internal.GenerateAPIWithSkip(db, tables, authCfg, resourcesToSkip)
+	internal.GenerateAPIWithSkip(authCfg, resourcesToSkip)
 	log.Println("✅ Resource generation completed successfully")
 }
 

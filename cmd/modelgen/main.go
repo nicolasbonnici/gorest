@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
@@ -14,6 +15,10 @@ import (
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("❌ DATABASE_URL environment variable is required")

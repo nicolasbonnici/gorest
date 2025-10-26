@@ -35,7 +35,6 @@ func modelToUserDTO(m models.User) dtos.UserDTO {
 		Firstname: m.Firstname,
 		Lastname: m.Lastname,
 		Email: m.Email,
-		Password: m.Password,
 		UpdatedAt: m.UpdatedAt,
 		CreatedAt: m.CreatedAt,
 	}

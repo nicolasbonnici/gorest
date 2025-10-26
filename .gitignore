@@ -38,10 +38,18 @@ internal/models/*
 !internal/models/.gitkeep
 !internal/models/user.go
 
+# API DTOs scaffolded from models
+internal/api/dtos/*
+!internal/api/dtos/.gitkeep
+!internal/api/dtos/user.go
+
 # API resources scaffolded from models
-internal/resources/*
-!internal/resources/.gitkeep
-!internal/resources/user.go
+internal/api/resources/*
+!internal/api/resources/.gitkeep
+!internal/api/resources/user.go
+
+# Generated routes file
+internal/api/routes.go
 
 # Custom business logic hooks
 internal/hooks/*
@@ -49,4 +57,3 @@ internal/hooks/*
 !internal/hooks/factory.go
 !internal/hooks.go
 !internal/hooks/user.go
-!internal/hooks/todo.go
