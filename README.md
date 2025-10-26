@@ -5,12 +5,13 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 
 ## ✨ Features
 - 🔎 Auto-discovery of tables, relations, columns & types
+- ⚡ Type-safe generic CRUD operations
 - 🛠 Scaffold REST endpoints for each table
 - 🔐 Full DTO support with customizable serialization
 - 🔑 JWT authentication with decorator pattern
-- ⚡ Type-safe generic CRUD operations
-- 🐳 Docker support
+- 👨🏻‍💻 DAL for PostreSQL, MySQL and SQLlite engines
 - 🛡️ Production grade errors and processes management 
+- 🐳 Docker support
 - 🧪 Full test coverage with automated testing
 - 💚 Health check endpoint (`/health`)
 - 📜 OpenAPI 3.0 spec generation
@@ -61,9 +62,11 @@ make openapigen    # Generate OpenAPI schema
 ```
 
 This generates:
-- `internal/models/*.go` - Type-safe model structs
-- `internal/resources/*.go` - REST API endpoints
-- `internal/openapi/*.go` - OpenAPI schema stubs
+- `internal/api/models/*.go` - Type-safe model structs
+- `internal/api/dtos/*.go` - Data Transfer Objects (Create/Update/Response)
+- `internal/api/resources/*.go` - REST API endpoints with DTO conversion
+- `internal/api/routes.go` - Auto-generated route registration
+- `internal/api/openapi/*.go` - OpenAPI schema stubs
 
 ### 4. Build & Run
 ```bash
@@ -102,9 +105,12 @@ gorest/
 │   │   └── logger.go         # Request/response logging
 │   ├── formatter/            # Response formatters
 │   │   └── formatter.go      # JSON/JSON-LD formatters
-│   ├── models/               # Database models (gitignored)
-│   ├── resources/            # REST endpoints (gitignored)
-│   └── openapi/              # OpenAPI schema stubs (gitignored)
+│   └── api/                  # Generated code (gitignored)
+│       ├── models/           # Database models
+│       ├── dtos/             # Data Transfer Objects
+│       ├── resources/        # REST endpoints
+│       ├── openapi/          # OpenAPI schema stubs
+│       └── routes.go         # Route registration
 ├── test/
 │   └── sql/schema.sql        # Test database schema
 ├── config/
@@ -147,9 +153,9 @@ make test             # Run all tests
 ### Code Generation Architecture
 
 The generators are separate CLI tools that enforce proper ordering:
-- **cmd/modelgen** → generates `internal/models/`
-- **cmd/resourcegen** → generates `internal/resources/` (requires models)
-- **cmd/openapigen** → generates `internal/openapi/`
+- **cmd/modelgen** → generates `internal/api/models/`
+- **cmd/resourcegen** → generates `internal/api/resources/` (requires models)
+- **cmd/openapigen** → generates `internal/api/openapi/`
 
 This separation allows:
 - Running generators independently during development
