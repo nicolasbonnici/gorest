@@ -5,13 +5,16 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 
 ## ✨ Features
 - 🔎 Auto-discovery of tables, relations, columns & types
-- ⚡ Type-safe generic CRUD operations
+- ⚡ Type-safe generic CRUD operations with hooks system
 - 🛠 Scaffold REST endpoints for each table
-- 🔐 Full DTO support with customizable serialization
-- 🔑 JWT authentication with decorator pattern
-- 👨🏻‍💻 DAL for PostreSQL, MySQL and SQLlite engines
-- 🛡️ Production grade errors and processes management 
-- 🐳 Docker support
+- 🔐 Full DTO support with field-level control (`dto` tags)
+- 🔑 JWT authentication with context-aware middleware
+- 🎭 Auto-population of fields from authentication context
+- 🌐 JSON-LD support with semantic web context (@context, @type, @id)
+- 🔗 Automatic foreign key to IRI conversion (e.g., `/users/{uuid}`)
+- 👨🏻‍💻 DAL for PostgreSQL, MySQL and SQLite engines
+- 🛡️ Production grade errors and processes management
+- 🐳 Docker support with multi-database testing
 - 🧪 Full test coverage with automated testing
 - 💚 Health check endpoint (`/health`)
 - 📜 OpenAPI 3.0 spec generation
@@ -62,11 +65,11 @@ make openapigen    # Generate OpenAPI schema
 ```
 
 This generates:
-- `internal/api/models/*.go` - Type-safe model structs
+- `internal/models/*.go` - Type-safe model structs
 - `internal/api/dtos/*.go` - Data Transfer Objects (Create/Update/Response)
 - `internal/api/resources/*.go` - REST API endpoints with DTO conversion
 - `internal/api/routes.go` - Auto-generated route registration
-- `internal/api/openapi/*.go` - OpenAPI schema stubs
+- `internal/openapi/*.go` - OpenAPI schema stubs
 
 ### 4. Build & Run
 ```bash
@@ -88,29 +91,38 @@ gorest/
 │   ├── resourcegen/main.go   # Resource generator CLI
 │   └── openapigen/main.go    # OpenAPI generator CLI
 ├── pkg/
-│   └── gorest/main.go        # API server entrypoint
+│   ├── gorest/main.go        # API server entrypoint
+│   └── database/             # Database abstraction layer
+│       ├── database.go       # Core interface
+│       ├── postgres/         # PostgreSQL implementation
+│       ├── mysql/            # MySQL implementation
+│       └── sqlite/           # SQLite implementation
 ├── internal/                 # Core logic
 │   ├── modelgen.go           # Model generation logic
 │   ├── apigen.go             # REST API generation logic
 │   ├── auth.go               # JWT authentication
 │   ├── openapi.go            # OpenAPI spec setup
-│   ├── utils.go              # Shared utilities
 │   ├── crud/                 # Generic CRUD operations
-│   │   ├── crud.go           # Type-safe CRUD implementation
+│   │   ├── crud.go           # Type-safe CRUD with hooks
 │   │   └── model.go          # Model interface
 │   ├── hooks/                # Business logic hooks
 │   │   ├── hooks.go          # Hook interfaces
-│   │   └── factory.go        # Hook registry
-│   ├── middleware/           # HTTP middleware
-│   │   └── logger.go         # Request/response logging
+│   │   ├── factory.go        # Hook registry
+│   │   ├── user.go           # User resource hooks
+│   │   └── todo.go           # Todo resource hooks
+│   ├── helpers/              # HTTP helpers
+│   │   ├── decorators.go     # Auth middleware & context
+│   │   └── response.go       # Response utilities
 │   ├── formatter/            # Response formatters
-│   │   └── formatter.go      # JSON/JSON-LD formatters
-│   └── api/                  # Generated code (gitignored)
-│       ├── models/           # Database models
-│       ├── dtos/             # Data Transfer Objects
-│       ├── resources/        # REST endpoints
-│       ├── openapi/          # OpenAPI schema stubs
-│       └── routes.go         # Route registration
+│   │   └── formatter.go      # JSON/JSON-LD with IRI conversion
+│   ├── models/               # Generated database models
+│   │   ├── user.go           # (tracked in git)
+│   │   └── *.go              # (other models gitignored)
+│   ├── api/                  # Generated API code
+│   │   ├── dtos/             # Data Transfer Objects
+│   │   ├── resources/        # REST endpoints
+│   │   └── routes.go         # Route registration
+│   └── openapi/              # Generated OpenAPI stubs
 ├── test/
 │   └── sql/schema.sql        # Test database schema
 ├── config/
@@ -153,14 +165,15 @@ make test             # Run all tests
 ### Code Generation Architecture
 
 The generators are separate CLI tools that enforce proper ordering:
-- **cmd/modelgen** → generates `internal/api/models/`
-- **cmd/resourcegen** → generates `internal/api/resources/` (requires models)
-- **cmd/openapigen** → generates `internal/api/openapi/`
+- **cmd/modelgen** → generates `internal/models/`
+- **cmd/resourcegen** → generates `internal/api/resources/` and `internal/api/dtos/` (requires models)
+- **cmd/openapigen** → generates `internal/openapi/`
 
 This separation allows:
 - Running generators independently during development
 - Clear dependency management (resources depend on models)
 - Better testing and validation of each generation step
+- Regeneration without losing custom business logic in hooks
 
 ---
 
@@ -182,25 +195,48 @@ gorest provides a powerful hooks system to customize business logic without modi
 
 ### Quick Example
 
+Here's the actual TodoHooks implementation from the project, showing auto-population of `user_id` from JWT authentication:
+
 ```go
+// internal/hooks/todo.go
 type TodoHooks struct {
     hooks.NoOpHooks[models.Todo]
 }
 
 func (h *TodoHooks) StateProcessor(ctx context.Context, operation hooks.Operation, id any, todo *models.Todo) error {
-    if operation == hooks.OperationCreate {
-        // Validate title length
+    switch operation {
+    case hooks.OperationCreate:
+        // Validate required fields
+        if todo.Title == "" {
+            return fmt.Errorf("title is required")
+        }
         if len(todo.Title) < 3 {
             return fmt.Errorf("title must be at least 3 characters")
         }
-        // Enrich with user ID from context
+
+        // Auto-populate user_id from authenticated user
+        // This happens server-side from JWT token - client cannot spoof it
         if userID := ctx.Value("user_id"); userID != nil {
-            todo.UserID = userID.(string)
+            if uid, ok := userID.(string); ok {
+                todo.UserId = &uid
+            }
+        }
+
+    case hooks.OperationUpdate:
+        // Validate on updates too
+        if todo.Title != "" && len(todo.Title) < 3 {
+            return fmt.Errorf("title must be at least 3 characters")
         }
     }
     return nil
 }
 ```
+
+**Key Features**:
+- ✅ Server-side field population from authentication context
+- 🔒 Client cannot send or modify `user_id` (excluded from DTOs with `dto:"read"` tag)
+- ✅ Validation runs before database operations
+- ✅ Works seamlessly with JWT middleware
 
 For complete documentation, see [HOOKS.md](HOOKS.md)
 
@@ -232,54 +268,74 @@ Use the `dto` struct tag to control which fields appear in different contexts:
 - `dto:"write"` - Only in create/update DTOs (POST/PUT requests)
 - `dto:"read,write"` or no tag - Include in all DTOs (default)
 
-### Example
+### Example: Todo with Auto-Populated UserId
 
-**Model** (internal/api/models/user.go):
+This example shows how the Todo model uses `dto:"read"` to make `user_id` read-only, preventing clients from sending or modifying it:
+
+**Model** (internal/models/todo.go):
 ```go
-type User struct {
-    Id        string     `json:"id" db:"id"`
-    Email     string     `json:"email" db:"email"`
-    Password  *string    `json:"password" db:"password" dto:"write"`
-    ApiKey    *string    `json:"api_key" db:"api_key" dto:"-"`
-    CreatedAt *time.Time `json:"created_at" db:"created_at"`
+type Todo struct {
+    Id        string     `json:"id,omitempty" db:"id"`
+    UserId    *string    `json:"user_id,omitempty" db:"user_id" dto:"read"`  // 🔒 Read-only
+    Title     string     `json:"title" db:"title"`
+    Content   string     `json:"content" db:"content"`
+    UpdatedAt *time.Time `json:"updated_at,omitempty" db:"updated_at"`
+    CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
 }
 ```
 
-**Generated DTOs** (internal/api/dtos/user.go):
+**Generated DTOs** (internal/api/dtos/todo.go):
 ```go
-// For creating users (POST /users)
-type UserCreateDTO struct {
-    Email    string  `json:"email"`
-    Password *string `json:"password"`  // Included (dto:"write")
-    // id, created_at, api_key excluded
+// For creating todos (POST /todos)
+type TodoCreateDTO struct {
+    Title   string `json:"title"`
+    Content string `json:"content"`
+    // user_id excluded - populated server-side from JWT
+    // id, created_at, updated_at excluded - auto-generated
 }
 
-// For responses (GET /users)
-type UserDTO struct {
+// For updating todos (PUT /todos/:id)
+type TodoUpdateDTO struct {
+    Title   string `json:"title"`
+    Content string `json:"content"`
+    // user_id excluded - cannot be changed
+}
+
+// For responses (GET /todos)
+type TodoDTO struct {
     Id        string     `json:"id"`
-    Email     string     `json:"email"`
+    UserId    *string    `json:"user_id"`  // ✅ Included (dto:"read")
+    Title     string     `json:"title"`
+    Content   string     `json:"content"`
+    UpdatedAt *time.Time `json:"updated_at"`
     CreatedAt *time.Time `json:"created_at"`
-    // Password excluded (dto:"write" - write-only)
-    // ApiKey excluded (dto:"-" - completely hidden)
 }
 ```
 
-**Conversion** (automatic in generated resources):
+**How it Works** (automatic in generated resources + hooks):
 ```go
-// POST /users - accepts UserCreateDTO
-func (r *UserResource) Create(c *fiber.Ctx) error {
-    var createDTO dtos.UserCreateDTO
+// POST /todos - client sends TodoCreateDTO (no user_id)
+func (r *TodoResource) Create(c *fiber.Ctx) error {
+    var createDTO dtos.TodoCreateDTO  // No user_id field
     c.BodyParser(&createDTO)
 
     // Convert to model
-    user := userCreateDTOToModel(createDTO)
-    r.CRUD.Create(c.Context(), user)
+    todo := todoCreateDTOToModel(createDTO)
 
-    // Convert to response DTO (password excluded)
-    dto := modelToUserDTO(user)
+    // Hooks auto-populate user_id from JWT context
+    r.CRUD.Create(helpers.ContextWithUser(c), todo)  // 🔒 Server-side population
+
+    // Response includes user_id
+    dto := modelToTodoDTO(todo)  // TodoDTO has user_id
     return c.JSON(dto)
 }
 ```
+
+**Security Benefits**:
+- 🔒 Client cannot send `user_id` in POST/PUT requests
+- ✅ Server populates `user_id` from authenticated JWT token
+- 🎯 Prevents users from creating/modifying resources for other users
+- ✅ API responses correctly show the `user_id` value
 
 ---
 
@@ -314,6 +370,92 @@ curl http://localhost:3000/health
 
 ---
 
+## 🌐 JSON-LD Support
+
+gorest automatically supports **JSON-LD** (Linked Data) format, providing semantic web context to your API responses. This makes your API machine-readable and interoperable with semantic web technologies.
+
+### What is JSON-LD?
+
+JSON-LD adds semantic context to regular JSON, making data self-describing and linked:
+
+**Regular JSON** (application/json):
+```json
+{
+  "id": "bc46c7ef-6191-4285-ae3a-3c90840bacee",
+  "user_id": "a134d103-910d-4b81-9bff-293ba8d103d9",
+  "title": "Buy groceries",
+  "content": "Milk, eggs, bread"
+}
+```
+
+**JSON-LD** (application/ld+json):
+```json
+{
+  "@context": "https://schema.org/",
+  "@type": "TodoDTO",
+  "@id": "/todos/bc46c7ef-6191-4285-ae3a-3c90840bacee",
+  "id": "bc46c7ef-6191-4285-ae3a-3c90840bacee",
+  "user_id": "/users/a134d103-910d-4b81-9bff-293ba8d103d9",
+  "title": "Buy groceries",
+  "content": "Milk, eggs, bread"
+}
+```
+
+### Key Features
+
+1. **Automatic Foreign Key IRIs**: Foreign keys like `user_id` are automatically converted to IRIs (Internationalized Resource Identifiers):
+   - `"user_id": "a134d103..."` → `"user_id": "/users/a134d103..."`
+   - Follows semantic web best practices
+   - Enables hypermedia-driven APIs
+
+2. **Semantic Context**: Every response includes:
+   - `@context` - Links to vocabulary (Schema.org)
+   - `@type` - Specifies the resource type (TodoDTO, UserDTO, etc.)
+   - `@id` - Canonical IRI for the resource
+
+3. **Content Negotiation**: Supports both formats:
+   ```bash
+   # Get regular JSON
+   curl -H "Accept: application/json" http://localhost:3000/todos/123
+
+   # Get JSON-LD
+   curl -H "Accept: application/ld+json" http://localhost:3000/todos/123
+   ```
+
+### Implementation
+
+The formatter automatically detects foreign keys and converts them to IRIs:
+
+```go
+// internal/formatter/formatter.go
+func (f *Formatter) formatItem(item interface{}, baseType string) map[string]interface{} {
+    itemMap := toMap(item)
+
+    // Convert foreign keys to IRIs
+    for key, value := range itemMap {
+        if strings.HasSuffix(key, "_id") && key != "id" {
+            if valueStr, ok := value.(string); ok && valueStr != "" {
+                resourceName := pluralize(strings.TrimSuffix(key, "_id"))
+                itemMap[key] = fmt.Sprintf("/%s/%s", resourceName, valueStr)
+            }
+        }
+    }
+
+    itemMap["@context"] = "https://schema.org/"
+    itemMap["@type"] = baseType
+    return itemMap
+}
+```
+
+### Benefits
+
+- ✅ **Discoverable APIs**: Clients can navigate relationships via IRIs
+- ✅ **Semantic Clarity**: Types and contexts make data self-describing
+- ✅ **Standards Compliance**: Compatible with semantic web tools
+- ✅ **Zero Configuration**: Works automatically for all resources
+
+---
+
 ## 🛡️ Graceful Shutdown
 
 gorest handles shutdown signals gracefully:
@@ -324,9 +466,159 @@ gorest handles shutdown signals gracefully:
 
 ---
 
+## 🔐 Authentication & Context System
+
+gorest provides a sophisticated context system that bridges JWT authentication with your business logic hooks, enabling secure server-side field population.
+
+### How It Works
+
+```
+HTTP Request with JWT
+        ↓
+   RequireAuth Middleware
+   (extracts claims)
+        ↓
+   c.Locals("authenticated_user")
+   (stores in Fiber context)
+        ↓
+   ContextWithUser(c)
+   (bridges to standard Go context)
+        ↓
+   ctx.Value("user_id")
+   (available in hooks)
+```
+
+### Components
+
+#### 1. JWT Authentication Middleware
+
+The `RequireAuth` middleware validates JWT tokens and extracts claims:
+
+```go
+// internal/helpers/decorators.go
+func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        // Validate JWT token
+        token, err := jwt.Parse(tokenString, keyFunc)
+
+        // Extract claims and store in context
+        if claims, ok := token.Claims.(jwt.MapClaims); ok {
+            user := &AuthenticatedUser{
+                UserID:    claims["user_id"].(string),
+                Email:     claims["email"].(string),
+                Firstname: claims["firstname"].(string),
+                Lastname:  claims["lastname"].(string),
+            }
+            c.Locals(UserContextKey, user)  // Store in Fiber context
+        }
+
+        return handler(c)
+    }
+}
+```
+
+#### 2. Context Bridge Helper
+
+The `ContextWithUser` helper bridges Fiber context to standard Go context:
+
+```go
+// internal/helpers/decorators.go
+func ContextWithUser(c *fiber.Ctx) context.Context {
+    ctx := c.Context()  // Get standard Go context
+
+    // Extract authenticated user from Fiber context
+    if user := GetAuthenticatedUser(c); user != nil {
+        // Add user_id to standard context (for hooks)
+        return context.WithValue(ctx, "user_id", user.UserID)
+    }
+
+    return ctx
+}
+```
+
+#### 3. Usage in Generated Resources
+
+All generated resources use `ContextWithUser` when calling CRUD operations:
+
+```go
+// internal/api/resources/todo.go (generated)
+func (r *TodoResource) Create(c *fiber.Ctx) error {
+    var createDTO dtos.TodoCreateDTO
+    c.BodyParser(&createDTO)
+
+    item := todoCreateDTOToModel(createDTO)
+
+    // Pass context with user info to CRUD/hooks
+    ctx := helpers.ContextWithUser(c)
+    r.CRUD.Create(ctx, item)  // ← Context includes user_id
+
+    // ...
+}
+```
+
+#### 4. Hooks Access the Context
+
+Hooks can then access `user_id` from the context:
+
+```go
+// internal/hooks/todo.go
+func (h *TodoHooks) StateProcessor(ctx context.Context, operation hooks.Operation, id any, todo *models.Todo) error {
+    if operation == hooks.OperationCreate {
+        // Read user_id from context
+        if userID := ctx.Value("user_id"); userID != nil {
+            if uid, ok := userID.(string); ok {
+                todo.UserId = &uid  // Populate server-side
+            }
+        }
+    }
+    return nil
+}
+```
+
+### Security Model
+
+This architecture provides multiple security layers:
+
+1. **JWT Validation**: Only valid tokens pass the middleware
+2. **Server-Side Population**: Fields are set from trusted JWT claims, not client input
+3. **DTO Exclusion**: DTOs prevent clients from sending protected fields
+4. **Context Isolation**: User info flows through secure context, not modifiable by client
+
+### Adding Custom Context Values
+
+You can extend this pattern for other use-cases:
+
+```go
+// Add custom context value in middleware
+func CustomMiddleware(handler fiber.Handler) fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        c.Locals("custom_key", "custom_value")
+        return handler(c)
+    }
+}
+
+// Access in ContextWithUser
+func ContextWithUser(c *fiber.Ctx) context.Context {
+    ctx := c.Context()
+
+    if user := GetAuthenticatedUser(c); user != nil {
+        ctx = context.WithValue(ctx, "user_id", user.UserID)
+    }
+
+    // Add custom values
+    if custom := c.Locals("custom_key"); custom != nil {
+        ctx = context.WithValue(ctx, "custom_key", custom)
+    }
+
+    return ctx
+}
+```
+
+---
+
 ## 🤝 Contributing
 
-GoRESTWe welcome contributions from developers of all experience levels! Whether you're fixing bugs, adding features, improving documentation, or sharing ideas, your input helps make **gorest** better for everyone.
+We welcome contributions from developers of all experience levels! Whether you're fixing bugs, adding features, improving documentation, or sharing ideas, your input helps make **gorest** better for everyone.
 
 ### 🌟 Why Contribute?
 

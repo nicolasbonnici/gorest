@@ -10,6 +10,6 @@ import (
 )
 
 func RegisterGeneratedRoutes(app *fiber.App, db database.Database, tables map[string]internal.TableSchema, jwtSecret string) {
-		resources.RegisterTodoRoutes(app, db)
-		resources.RegisterUserRoutes(app, db)
+		resources.RegisterTodoRoutes(app, db, jwtSecret)
+		resources.RegisterUserRoutes(app, db, jwtSecret)
 }
