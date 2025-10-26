@@ -20,25 +20,49 @@ func TestSetupAuth(t *testing.T) {
 	ctx := context.Background()
 	testEmail := "test@example.com"
 	testPassword := "testpass123"
-	testUserId := "test-user-1"
 	testFirstname := "Test"
 	testLastname := "User"
 
-	passwordHash := hashPassword(testPassword, testUserId)
-
+	// Insert user and get the generated ID
+	var testUserId string
 	var query string
 	switch db.DriverName() {
 	case "postgres":
-		query = `INSERT INTO users (id, email, password, firstname, lastname) VALUES ($1, $2, $3, $4, $5)`
-	case "mysql":
-		query = `INSERT INTO users (id, email, password, firstname, lastname) VALUES (?, ?, ?, ?, ?)`
-	case "sqlite":
-		query = `INSERT INTO users (id, email, password, firstname, lastname) VALUES (?, ?, ?, ?, ?)`
+		query = `INSERT INTO users (email, password, firstname, lastname) VALUES ($1, $2, $3, $4) RETURNING id`
+		row := db.QueryRow(ctx, query, testEmail, hashPassword(testPassword, "temp"), testFirstname, testLastname)
+		if err := row.Scan(&testUserId); err != nil {
+			t.Fatalf("Failed to create test user: %v", err)
+		}
+	case "mysql", "sqlite":
+		// For MySQL/SQLite, insert without ID and let it auto-generate
+		query = `INSERT INTO users (email, password, firstname, lastname) VALUES (?, ?, ?, ?)`
+		_, err := db.Exec(ctx, query, testEmail, hashPassword(testPassword, "temp"), testFirstname, testLastname)
+		if err != nil {
+			t.Fatalf("Failed to create test user: %v", err)
+		}
+		// Query to get the ID
+		selectQuery := "SELECT id FROM users WHERE email = ?"
+		if db.DriverName() == "postgres" {
+			selectQuery = "SELECT id FROM users WHERE email = $1"
+		}
+		row := db.QueryRow(ctx, selectQuery, testEmail)
+		if err := row.Scan(&testUserId); err != nil {
+			t.Fatalf("Failed to get user ID: %v", err)
+		}
 	}
 
-	_, err := db.Exec(ctx, query, testUserId, testEmail, passwordHash, testFirstname, testLastname)
+	// Update password with correct hash using the actual user ID
+	passwordHash := hashPassword(testPassword, testUserId)
+	var updateQuery string
+	switch db.DriverName() {
+	case "postgres":
+		updateQuery = `UPDATE users SET password = $1 WHERE id = $2`
+	case "mysql", "sqlite":
+		updateQuery = `UPDATE users SET password = ? WHERE id = ?`
+	}
+	_, err := db.Exec(ctx, updateQuery, passwordHash, testUserId)
 	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
+		t.Fatalf("Failed to update user password: %v", err)
 	}
 
 	// Create Fiber app and setup auth

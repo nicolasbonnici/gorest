@@ -75,7 +75,7 @@ func TestRequireAuth(t *testing.T) {
 				return "Bearer "
 			},
 			expectedStatus: 401,
-			expectedError:  "invalid token",
+			expectedError:  "missing token",
 		},
 	}
 
