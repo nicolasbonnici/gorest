@@ -26,11 +26,24 @@ jobs:
           PORT=3000
           EOF
 
-      - name: CI setup (database + code generation)
-        run: make ci-setup
+      - name: Start databases and wait for health checks
+        run: docker compose -f compose.yml -f compose.override.test.yml up -d --wait db_test mysql_test
+
+      - name: Load database schemas
+        run: make test-schema
+
+      - name: Generate code
+        run: make test-generate
 
       - name: Build
         run: make build
 
-      - name: Test
-        run: make test
+      - name: Test with coverage
+        run: make test-coverage
+
+      - name: Upload coverage to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/coverage.out
+          retention-days: 30

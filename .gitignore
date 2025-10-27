@@ -23,18 +23,30 @@ go.work
 .env
 .env.local
 
+# Coompiled binary
+bin/*
+
+# Test coverage
+coverage/
+
+# OpenAPI spec resource schemas generation
+internal/openapi/*
+!internal/openapi/.gitkeep
+
 # Models scaffolded from database schema
-internal/api/models/*
-!internal/api/models/.gitkeep
+internal/models/*
+!internal/models/.gitkeep
 
 # API resources scaffolded from models
 internal/api/resources/*
 !internal/api/resources/.gitkeep
 
-
-# API resources DTOs scaffolded from resources
+# DTOs scaffolded from models
 internal/api/dtos/*
 !internal/api/dtos/.gitkeep
+
+# Generated route registration
+internal/api/routes.go
 
 # Custom business logic hooks
 internal/hooks/*

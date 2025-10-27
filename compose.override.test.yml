@@ -1,8 +1,7 @@
 services:
   db_test:
-    image: postgres:18
+    image: postgres:16
     container_name: gorest_db_test
-    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -11,6 +10,35 @@ services:
       - "5433:5432"
     volumes:
       - db_test_data:/var/lib/postgresql/data
+    tmpfs:
+      - /var/run/postgresql
+    shm_size: 128mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mysql_test:
+    image: mysql:8.0
+    container_name: gorest_mysql_test
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mydb_test
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-P", "3306", "-utestuser", "-ptestpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
 
 volumes:
   db_test_data:
+  mysql_test_data:

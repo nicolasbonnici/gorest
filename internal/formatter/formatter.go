@@ -92,9 +92,34 @@ func (f *JSONLDFormatter) addTypeToItem(data interface{}, path string) map[strin
 		}
 	}
 
+	for key, value := range itemMap {
+		if strings.HasSuffix(key, "_id") && key != "id" {
+			if valueStr, ok := value.(string); ok && valueStr != "" {
+				resourceName := pluralize(strings.TrimSuffix(key, "_id"))
+				itemMap[key] = fmt.Sprintf("/%s/%s", resourceName, valueStr)
+			}
+		}
+	}
+
 	return itemMap
 }
 
 func (f *JSONLDFormatter) inferSchemaType(data interface{}) string {
 	return reflect.TypeOf(data).Name()
+}
+
+func pluralize(word string) string {
+	if strings.HasSuffix(word, "y") && len(word) > 1 && !isVowel(word[len(word)-2]) {
+		return word[:len(word)-1] + "ies"
+	}
+	if strings.HasSuffix(word, "s") || strings.HasSuffix(word, "x") ||
+		strings.HasSuffix(word, "z") || strings.HasSuffix(word, "ch") ||
+		strings.HasSuffix(word, "sh") {
+		return word + "es"
+	}
+	return word + "s"
+}
+
+func isVowel(c byte) bool {
+	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
 }

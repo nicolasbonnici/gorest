@@ -3,26 +3,27 @@ package crud
 import (
 	"context"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nicolasbonnici/gorest/internal/hooks"
+	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 
 type CRUD[T Model] struct {
-	DB    *pgxpool.Pool
+	DB    database.Database
 	Hooks hooks.Hooks[T]
 }
 
-func New[T Model](db *pgxpool.Pool) *CRUD[T] {
+func New[T Model](db database.Database) *CRUD[T] {
 	return &CRUD[T]{
 		DB:    db,
 		Hooks: hooks.NoOpHooks[T]{},
 	}
 }
 
-func NewWithHooks[T Model](db *pgxpool.Pool, h hooks.Hooks[T]) *CRUD[T] {
+func NewWithHooks[T Model](db database.Database, h hooks.Hooks[T]) *CRUD[T] {
 	return &CRUD[T]{
 		DB:    db,
 		Hooks: h,
@@ -57,14 +58,20 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 			}
 			cols = append(cols, tag)
 			vals = append(vals, v.Field(i).Interface())
-			placeholders = append(placeholders, fmt.Sprintf("$%d", len(vals)))
+			placeholders = append(placeholders, c.DB.Dialect().Placeholder(len(vals)))
+		}
+
+		returning := ""
+		if c.DB.Dialect().SupportsReturning() {
+			returning = " " + c.DB.Dialect().ReturningClause()
 		}
 
 		query = fmt.Sprintf(
-			"INSERT INTO %s (%s) VALUES (%s) RETURNING id",
+			"INSERT INTO %s (%s) VALUES (%s)%s",
 			m.TableName(),
 			strings.Join(cols, ", "),
 			strings.Join(placeholders, ", "),
+			returning,
 		)
 	}
 
@@ -75,14 +82,32 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 
 	var execErr error
 	var result any
-
-	row := c.DB.QueryRow(ctx, finalQuery, finalArgs...)
 	var createdID any
-	scanErr := row.Scan(&createdID)
-	if scanErr != nil {
-		execErr = scanErr
+
+	if c.DB.Dialect().SupportsReturning() {
+		row := c.DB.QueryRow(ctx, finalQuery, finalArgs...)
+		scanErr := row.Scan(&createdID)
+		if scanErr != nil {
+			execErr = scanErr
+		} else {
+			result = createdID
+		}
 	} else {
-		result = createdID
+		res, err := c.DB.Exec(ctx, finalQuery, finalArgs...)
+		if err != nil {
+			execErr = err
+		} else {
+			id, err := res.LastInsertId()
+			if err != nil {
+				execErr = err
+			} else {
+				createdID = id
+				result = id
+			}
+		}
+	}
+
+	if execErr == nil && createdID != nil {
 		v := reflect.ValueOf(&m).Elem()
 		t := v.Type()
 		for i := 0; i < t.NumField(); i++ {
@@ -95,11 +120,19 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 					case reflect.String:
 						if s, ok := createdID.(string); ok {
 							fieldValue.SetString(s)
+						} else {
+							log.Printf("warning: failed to cast ID to string, got type %T", createdID)
 						}
 					case reflect.Int, reflect.Int64:
 						if n, ok := createdID.(int64); ok {
 							fieldValue.SetInt(n)
+						} else if n, ok := createdID.(int); ok {
+							fieldValue.SetInt(int64(n))
+						} else {
+							log.Printf("warning: failed to cast ID to int64, got type %T", createdID)
 						}
+					default:
+						log.Printf("warning: unsupported ID field type: %v", fieldValue.Kind())
 					}
 				}
 				break
@@ -230,7 +263,7 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 			}
 		}
 
-		query = fmt.Sprintf("SELECT %s FROM %s WHERE id = $1", strings.Join(cols, ", "), item.TableName())
+		query = fmt.Sprintf("SELECT %s FROM %s WHERE id = %s", strings.Join(cols, ", "), item.TableName(), c.DB.Dialect().Placeholder(1))
 		args = []any{id}
 	}
 
@@ -302,17 +335,17 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 			if tag == "" || tag == "id" || tag == "created_at" {
 				continue
 			}
-			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", tag, paramIdx))
+			setClauses = append(setClauses, fmt.Sprintf("%s = %s", tag, c.DB.Dialect().Placeholder(paramIdx)))
 			vals = append(vals, v.Field(i).Interface())
 			paramIdx++
 		}
 
 		vals = append(vals, id)
 		query = fmt.Sprintf(
-			"UPDATE %s SET %s WHERE id = $%d",
+			"UPDATE %s SET %s WHERE id = %s",
 			m.TableName(),
 			strings.Join(setClauses, ", "),
-			paramIdx,
+			c.DB.Dialect().Placeholder(paramIdx),
 		)
 	}
 
@@ -354,7 +387,7 @@ func (c *CRUD[T]) Delete(ctx context.Context, id any) error {
 		query = customQuery
 		args = customArgs
 	} else {
-		query = fmt.Sprintf("DELETE FROM %s WHERE id = $1", zero.TableName())
+		query = fmt.Sprintf("DELETE FROM %s WHERE id = %s", zero.TableName(), c.DB.Dialect().Placeholder(1))
 		args = []any{id}
 	}
 
