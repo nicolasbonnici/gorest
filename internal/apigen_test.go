@@ -12,7 +12,7 @@ import (
 func TestGenerateAPI(t *testing.T) {
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables, NoAuthConfig())
+	GenerateAPI(NoAuthConfig())
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {
@@ -48,11 +48,9 @@ func TestGenerateAPI(t *testing.T) {
 		"func (r *UserResource) Create(c *fiber.Ctx) error",
 		"func (r *UserResource) Update(c *fiber.Ctx) error",
 		"func (r *UserResource) Delete(c *fiber.Ctx) error",
-		"r.CRUD.GetAll(c.Context())",
-		"r.CRUD.GetByID(c.Context(), id)",
-		"r.CRUD.Create(c.Context(), item)",
-		"r.CRUD.Update(c.Context(), id, item)",
-		"r.CRUD.Delete(c.Context(), id)",
+		"r.CRUD.GetAll(helpers.Context(c))",
+		"r.CRUD.GetByID(helpers.Context(c), id)",
+		"r.CRUD.Delete(helpers.Context(c), id)",
 	}
 
 	for _, expected := range expectedStrings {
@@ -131,16 +129,17 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		"router.Get(\"/users\"",
 		"router.Post(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
-		"items, err := r.CRUD.GetAll(c.Context())",
+		"items, err := r.CRUD.GetAll(helpers.Context(c))",
 		"func (r *UserResource) Get(c *fiber.Ctx) error",
-		"item, err := r.CRUD.GetByID(c.Context(), id)",
+		"item, err := r.CRUD.GetByID(helpers.Context(c), id)",
 		"func (r *UserResource) Create(c *fiber.Ctx) error",
-		"var item models.User",
-		"r.CRUD.Create(c.Context(), item)",
+		"var createDTO dtos.UserCreateDTO",
+		"item := userCreateDTOToModel(createDTO)",
 		"func (r *UserResource) Update(c *fiber.Ctx) error",
-		"r.CRUD.Update(c.Context(), id, item)",
+		"var updateDTO dtos.UserUpdateDTO",
+		"item := userUpdateDTOToModel(updateDTO)",
 		"func (r *UserResource) Delete(c *fiber.Ctx) error",
-		"r.CRUD.Delete(c.Context(), id)",
+		"r.CRUD.Delete(helpers.Context(c), id)",
 	}
 
 	for _, expected := range expectedStrings {
@@ -178,7 +177,7 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 
 	tables := LoadSchema(db)
 	GenerateStructs(tables)
-	GenerateAPI(db, tables, NoAuthConfig())
+	GenerateAPI(NoAuthConfig())
 
 	projectRoot, err := findProjectRoot()
 	if err != nil {
@@ -219,5 +218,119 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 		if !strings.Contains(contentStr, check) {
 			t.Errorf("Generated resource missing error handling: %s", check)
 		}
+	}
+}
+
+func TestExtractStructFieldsWithDTOTag(t *testing.T) {
+	tempDir := t.TempDir()
+	testFile := filepath.Join(tempDir, "test.go")
+
+	testContent := `package test
+
+type TestModel struct {
+	ID        string ` + "`json:\"id,omitempty\" db:\"id\" dto:\"read\"`" + `
+	Name      string ` + "`json:\"name\" db:\"name\" dto:\"read,write\"`" + `
+	Email     string ` + "`json:\"email,omitempty\" db:\"email\" dto:\"write\"`" + `
+	Password  string ` + "`json:\"password\" db:\"password\"`" + `
+	CreatedAt string ` + "`json:\"created_at,omitempty\" db:\"created_at\" dto:\"read\"`" + `
+}
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	fields := extractStructFields(testFile, "TestModel")
+
+	if len(fields) != 5 {
+		t.Errorf("Expected 5 fields, got %d", len(fields))
+	}
+
+	expectedFields := map[string]struct {
+		jsonTag string
+		dbTag   string
+		dtoTag  string
+	}{
+		"ID":        {jsonTag: "id", dbTag: "id", dtoTag: "read"},
+		"Name":      {jsonTag: "name", dbTag: "name", dtoTag: "read,write"},
+		"Email":     {jsonTag: "email", dbTag: "email", dtoTag: "write"},
+		"Password":  {jsonTag: "password", dbTag: "password", dtoTag: ""},
+		"CreatedAt": {jsonTag: "created_at", dbTag: "created_at", dtoTag: "read"},
+	}
+
+	for _, field := range fields {
+		expected, ok := expectedFields[field.Name]
+		if !ok {
+			t.Errorf("Unexpected field: %s", field.Name)
+			continue
+		}
+
+		if field.JSONTag != expected.jsonTag {
+			t.Errorf("Field %s: expected jsonTag '%s', got '%s'", field.Name, expected.jsonTag, field.JSONTag)
+		}
+
+		if field.DBTag != expected.dbTag {
+			t.Errorf("Field %s: expected dbTag '%s', got '%s'", field.Name, expected.dbTag, field.DBTag)
+		}
+
+		if field.DTOTag != expected.dtoTag {
+			t.Errorf("Field %s: expected dtoTag '%s', got '%s'", field.Name, expected.dtoTag, field.DTOTag)
+		}
+	}
+}
+
+func TestExtractTag(t *testing.T) {
+	tests := []struct {
+		name     string
+		tagStr   string
+		key      string
+		expected string
+	}{
+		{
+			name:     "simple json tag",
+			tagStr:   "`json:\"id\"`",
+			key:      "json",
+			expected: "id",
+		},
+		{
+			name:     "json tag with omitempty",
+			tagStr:   "`json:\"id,omitempty\"`",
+			key:      "json",
+			expected: "id,omitempty",
+		},
+		{
+			name:     "dto tag with single value",
+			tagStr:   "`dto:\"read\"`",
+			key:      "dto",
+			expected: "read",
+		},
+		{
+			name:     "dto tag with comma-separated values",
+			tagStr:   "`dto:\"read,write\"`",
+			key:      "dto",
+			expected: "read,write",
+		},
+		{
+			name:     "multiple tags",
+			tagStr:   "`json:\"name\" db:\"name\" dto:\"read,write\"`",
+			key:      "dto",
+			expected: "read,write",
+		},
+		{
+			name:     "missing tag",
+			tagStr:   "`json:\"id\" db:\"id\"`",
+			key:      "dto",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractTag(tt.tagStr, tt.key)
+			if result != tt.expected {
+				t.Errorf("extractTag(%q, %q) = %q; want %q", tt.tagStr, tt.key, result, tt.expected)
+			}
+		})
 	}
 }

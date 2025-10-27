@@ -7,24 +7,34 @@ import (
 	"log"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nicolasbonnici/gorest/pkg/database"
+	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
+	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
+	_ "github.com/nicolasbonnici/gorest/pkg/database/sqlite"
 )
 
-const testDBURL = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
+const defaultTestDBURL = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
 
-var db *pgxpool.Pool
+var db database.Database
 
 func TestMain(m *testing.M) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	testDBURL := os.Getenv("DATABASE_URL_TEST")
+	if testDBURL == "" {
+		testDBURL = os.Getenv("DATABASE_URL")
+	}
+	if testDBURL == "" {
+		testDBURL = defaultTestDBURL
+		log.Printf("DATABASE_URL_TEST not set, using default: %s", testDBURL)
+	}
 
 	var err error
-	db, err = pgxpool.New(ctx, testDBURL)
+	db, err = database.Open("", testDBURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to test database: %v", err)
 	}
+
+	log.Printf("✅ Test database connected (%s)", db.DriverName())
 
 	code := m.Run()
 
@@ -32,13 +42,32 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// cleanupTestDB truncates all tables to ensure test isolation
 func cleanupTestDB(t *testing.T) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
-	_, err := db.Exec(ctx, "TRUNCATE users, todo CASCADE")
+	var err error
+	switch db.DriverName() {
+	case "postgres":
+		_, err = db.Exec(ctx, "TRUNCATE users, todo CASCADE")
+	case "mysql":
+		_, err = db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 0")
+		if err == nil {
+			_, err = db.Exec(ctx, "TRUNCATE users")
+		}
+		if err == nil {
+			_, err = db.Exec(ctx, "TRUNCATE todo")
+		}
+		if err == nil {
+			_, err = db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 1")
+		}
+	case "sqlite":
+		_, err = db.Exec(ctx, "DELETE FROM todo")
+		if err == nil {
+			_, err = db.Exec(ctx, "DELETE FROM users")
+		}
+	}
+
 	if err != nil {
 		t.Fatalf("Failed to cleanup test database: %v", err)
 	}
