@@ -616,6 +616,290 @@ func ContextWithUser(c *fiber.Ctx) context.Context {
 
 ---
 
+## 🔒 Security
+
+### Password Security
+
+gorest uses **bcrypt** for password hashing with automatic salt generation:
+- Resistant to brute-force attacks (cost factor 10)
+- Random salt per password
+- Constant-time comparison prevents timing attacks
+
+Use the exported `HashPassword()` function for password operations:
+
+```go
+import "github.com/nicolasbonnici/gorest/internal"
+
+hash, err := internal.HashPassword("userPassword123")
+if err != nil {
+    // handle error
+}
+// Store hash in database
+```
+
+### JWT Token Security
+
+JWT_SECRET must be:
+- **At least 32 characters long** (enforced at startup)
+- **Randomly generated** using cryptographically secure methods
+- **Never committed** to version control
+
+Generate a strong secret:
+```bash
+openssl rand -base64 32
+```
+
+### CORS Configuration
+
+For production, configure CORS to restrict allowed origins:
+
+```go
+import "github.com/gofiber/fiber/v2/middleware/cors"
+
+app.Use(cors.New(cors.Config{
+    AllowOrigins: "https://yourdomain.com,https://app.yourdomain.com",
+    AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+    AllowMethods: "GET,POST,PUT,DELETE",
+    AllowCredentials: true,
+}))
+```
+
+### Rate Limiting
+
+Protect your API from abuse with rate limiting:
+
+```go
+import "github.com/gofiber/fiber/v2/middleware/limiter"
+import "time"
+
+// Global rate limiter
+app.Use(limiter.New(limiter.Config{
+    Max:        100,
+    Expiration: 1 * time.Minute,
+}))
+
+// Login endpoint protection
+app.Use("/login", limiter.New(limiter.Config{
+    Max:        5,
+    Expiration: 15 * time.Minute,
+}))
+```
+
+### Security Best Practices
+
+1. **HTTPS Only**: Always use HTTPS in production
+2. **Environment Variables**: Never hardcode secrets
+3. **Input Validation**: Validate all user inputs
+4. **SQL Injection**: Use parameterized queries (gorest handles this)
+5. **Update Dependencies**: Regularly update dependencies
+6. **Audit Logs**: Log authentication attempts and sensitive operations
+
+---
+
+## 🚀 Production Deployment
+
+### Prerequisites
+
+- Reverse proxy (nginx, caddy, traefik)
+- PostgreSQL 18+ database
+- SSL/TLS certificates
+- Process manager (systemd, docker)
+
+### Environment Configuration
+
+Create production `.env`:
+
+```bash
+# Database
+DATABASE_URL=postgres://user:password@db-host:5432/production_db?sslmode=require
+
+# JWT Secret (32+ characters)
+JWT_SECRET=$(openssl rand -base64 32)
+
+# Server
+PORT=3000
+```
+
+### Docker Deployment
+
+**docker-compose.yml:**
+
+```yaml
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+    depends_on:
+      - db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_DB=production_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+### Nginx Reverse Proxy
+
+**nginx.conf:**
+
+```nginx
+upstream gorest_api {
+    server localhost:3000;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.yourdomain.com;
+
+    ssl_certificate /etc/ssl/certs/api.yourdomain.com.crt;
+    ssl_certificate_key /etc/ssl/private/api.yourdomain.com.key;
+
+    location / {
+        proxy_pass http://gorest_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /health {
+        proxy_pass http://gorest_api/health;
+        access_log off;
+    }
+}
+
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+```
+
+### Systemd Service
+
+**/etc/systemd/system/gorest.service:**
+
+```ini
+[Unit]
+Description=gorest API Server
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=gorest
+WorkingDirectory=/opt/gorest
+EnvironmentFile=/opt/gorest/.env
+ExecStart=/opt/gorest/bin/gorest
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl enable gorest
+sudo systemctl start gorest
+sudo systemctl status gorest
+```
+
+### Database Migrations
+
+For schema changes, use migration tools:
+
+```bash
+# Install golang-migrate
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Create migration
+migrate create -ext sql -dir migrations -seq add_new_table
+
+# Apply migrations
+migrate -path migrations -database "${DATABASE_URL}" up
+```
+
+After migrations, regenerate code:
+```bash
+make generate
+make build
+```
+
+### Health Checks & Monitoring
+
+Use the `/health` endpoint for:
+- Load balancer health checks
+- Kubernetes readiness/liveness probes
+- Monitoring systems (Prometheus, Datadog)
+
+**Kubernetes probe example:**
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+### Performance Tuning
+
+**Database Connection Pooling:**
+
+Adjust PostgreSQL connection limits based on your workload:
+- Default: 25 max connections
+- High traffic: 50-100 connections
+- Monitor with `pg_stat_activity`
+
+**Go Runtime:**
+
+```bash
+# Set GOMAXPROCS for CPU-intensive workloads
+GOMAXPROCS=4 ./bin/gorest
+```
+
+### Logging
+
+Structured logging setup:
+
+```go
+import "log/slog"
+
+logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+logger.Info("server starting", "port", cfg.Port)
+```
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions from developers of all experience levels! Whether you're fixing bugs, adding features, improving documentation, or sharing ideas, your input helps make **gorest** better for everyone.
