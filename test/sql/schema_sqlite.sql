@@ -26,5 +26,7 @@ CREATE TABLE todo (
 CREATE INDEX idx_todo_title ON todo (title);
 CREATE INDEX idx_todo_fk_user ON todo (user_id);
 
+-- Fixtures
+-- Test user: admin@test.com / password (bcrypt hash)
 INSERT INTO users (id, firstname, lastname, email, password)
-VALUES ('admin-test-id', 'Admin', 'User', 'admin@test.com', 'test_password_hash');
+VALUES ('admin-test-id', 'Admin', 'User', 'admin@test.com', '$2a$10$xZybcXcww7epzFX6d6yr1uWKJvnqs7cEySXCKDYlBN1frJeUswGla');

@@ -23,46 +23,23 @@ func TestSetupAuth(t *testing.T) {
 	testFirstname := "Test"
 	testLastname := "User"
 
-	// Insert user and get the generated ID
-	var testUserId string
+	// Hash the password using bcrypt
+	passwordHash, err := HashPassword(testPassword)
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
+	}
+
+	// Insert user with hashed password
 	var query string
 	switch db.DriverName() {
 	case "postgres":
-		query = `INSERT INTO users (email, password, firstname, lastname) VALUES ($1, $2, $3, $4) RETURNING id`
-		row := db.QueryRow(ctx, query, testEmail, hashPassword(testPassword, "temp"), testFirstname, testLastname)
-		if err := row.Scan(&testUserId); err != nil {
-			t.Fatalf("Failed to create test user: %v", err)
-		}
+		query = `INSERT INTO users (email, password, firstname, lastname) VALUES ($1, $2, $3, $4)`
 	case "mysql", "sqlite":
-		// For MySQL/SQLite, insert without ID and let it auto-generate
 		query = `INSERT INTO users (email, password, firstname, lastname) VALUES (?, ?, ?, ?)`
-		_, err := db.Exec(ctx, query, testEmail, hashPassword(testPassword, "temp"), testFirstname, testLastname)
-		if err != nil {
-			t.Fatalf("Failed to create test user: %v", err)
-		}
-		// Query to get the ID
-		selectQuery := "SELECT id FROM users WHERE email = ?"
-		if db.DriverName() == "postgres" {
-			selectQuery = "SELECT id FROM users WHERE email = $1"
-		}
-		row := db.QueryRow(ctx, selectQuery, testEmail)
-		if err := row.Scan(&testUserId); err != nil {
-			t.Fatalf("Failed to get user ID: %v", err)
-		}
 	}
-
-	// Update password with correct hash using the actual user ID
-	passwordHash := hashPassword(testPassword, testUserId)
-	var updateQuery string
-	switch db.DriverName() {
-	case "postgres":
-		updateQuery = `UPDATE users SET password = $1 WHERE id = $2`
-	case "mysql", "sqlite":
-		updateQuery = `UPDATE users SET password = ? WHERE id = ?`
-	}
-	_, err := db.Exec(ctx, updateQuery, passwordHash, testUserId)
+	_, err = db.Exec(ctx, query, testEmail, passwordHash, testFirstname, testLastname)
 	if err != nil {
-		t.Fatalf("Failed to update user password: %v", err)
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
 	// Create Fiber app and setup auth
@@ -189,53 +166,60 @@ func TestHashPassword(t *testing.T) {
 	tests := []struct {
 		name     string
 		password string
-		userId   string
-		expected string
 	}{
 		{
 			name:     "basic hash",
 			password: "testpass123",
-			userId:   "user-1",
-			expected: hashPassword("testpass123", "user-1"),
 		},
 		{
-			name:     "different user same password",
-			password: "testpass123",
-			userId:   "user-2",
-			expected: hashPassword("testpass123", "user-2"),
+			name:     "different password",
+			password: "anotherpass456",
+		},
+		{
+			name:     "empty password",
+			password: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := hashPassword(tt.password, tt.userId)
-
-			if result != tt.expected {
-				t.Errorf("Expected hash %s, got %s", tt.expected, result)
+			hash1, err := HashPassword(tt.password)
+			if err != nil {
+				t.Fatalf("Failed to hash password: %v", err)
 			}
 
-			// Verify hash is deterministic
-			result2 := hashPassword(tt.password, tt.userId)
-			if result != result2 {
-				t.Error("Hash should be deterministic")
+			// Verify hash is not empty
+			if hash1 == "" {
+				t.Error("Hash should not be empty")
 			}
 
-			// Verify different inputs produce different hashes
-			if tt.userId == "user-1" {
-				differentUser := hashPassword(tt.password, "user-2")
-				if result == differentUser {
-					t.Error("Different users should produce different hashes")
-				}
-
-				differentPassword := hashPassword("differentpass", tt.userId)
-				if result == differentPassword {
-					t.Error("Different passwords should produce different hashes")
-				}
+			// Verify hash starts with bcrypt prefix
+			if len(hash1) < 4 || hash1[:4] != "$2a$" && hash1[:4] != "$2b$" && hash1[:4] != "$2y$" {
+				t.Errorf("Hash should start with bcrypt prefix, got: %s", hash1[:4])
 			}
 
-			// Verify hash is hex-encoded SHA256 (64 characters)
-			if len(result) != 64 {
-				t.Errorf("Expected hash length 64, got %d", len(result))
+			// Verify password verification works
+			if err := verifyPassword(tt.password, hash1); err != nil {
+				t.Errorf("Password verification failed: %v", err)
+			}
+
+			// Verify wrong password fails
+			if err := verifyPassword("wrongpassword", hash1); err == nil {
+				t.Error("Wrong password should not verify successfully")
+			}
+
+			// Verify bcrypt generates different salts (hashes are different each time)
+			hash2, err := HashPassword(tt.password)
+			if err != nil {
+				t.Fatalf("Failed to hash password second time: %v", err)
+			}
+			if hash1 == hash2 {
+				t.Error("Bcrypt should generate different salts, producing different hashes")
+			}
+
+			// But both hashes should verify the same password
+			if err := verifyPassword(tt.password, hash2); err != nil {
+				t.Errorf("Second hash verification failed: %v", err)
 			}
 		})
 	}
