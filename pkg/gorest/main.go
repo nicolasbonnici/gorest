@@ -1,26 +1,28 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/nicolasbonnici/gorest/internal/logger"
 	"github.com/nicolasbonnici/gorest/pkg"
 )
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		logger.Log.Info("No .env file found, using environment variables")
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		log.Fatal("❌ DATABASE_URL environment variable is required")
+		logger.Log.Error("DATABASE_URL environment variable is required")
+		os.Exit(1)
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		log.Fatal("❌ JWT_SECRET environment variable is required")
+		logger.Log.Error("JWT_SECRET environment variable is required")
+		os.Exit(1)
 	}
 
 	port := os.Getenv("PORT")

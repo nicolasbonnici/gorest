@@ -696,6 +696,183 @@ app.Use("/login", limiter.New(limiter.Config{
 
 ---
 
+## 🛠 Advanced Features
+
+### Input Validation
+
+gorest includes validation support via `go-playground/validator`:
+
+```go
+import (
+	"github.com/nicolasbonnici/gorest/internal/helpers"
+	"github.com/gofiber/fiber/v2"
+)
+
+type CreateUserRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	Age      int    `json:"age" validate:"gte=0,lte=130"`
+}
+
+app.Post("/users", func(c *fiber.Ctx) error {
+	var req CreateUserRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helpers.SendError(c, 400, "Invalid request body")
+	}
+
+	if err := helpers.ValidateAndRespond(c, &req); err != nil {
+		return err
+	}
+
+	return helpers.SendSuccess(c, fiber.Map{"status": "created"})
+})
+```
+
+**Validation tags:**
+- `required` - Field must be present
+- `email` - Valid email format
+- `min=8` - Minimum length/value
+- `max=100` - Maximum length/value
+- `gte=0,lte=130` - Range validation
+- [Full documentation](https://pkg.go.dev/github.com/go-playground/validator/v10)
+
+### Error Responses
+
+Standardized error format across all endpoints:
+
+```go
+import "github.com/nicolasbonnici/gorest/internal/helpers"
+
+app.Post("/example", func(c *fiber.Ctx) error {
+	if someError {
+		return helpers.SendError(c, 400, "Invalid input")
+	}
+
+	return helpers.SendSuccess(c, data)
+})
+```
+
+**Response format:**
+```json
+{
+  "error": "Invalid credentials"
+}
+```
+
+**Helper functions:**
+- `helpers.SendError(c, statusCode, message)` - Error responses
+- `helpers.SendSuccess(c, data)` - 200 OK responses
+- `helpers.SendCreated(c, data)` - 201 Created responses
+
+### Request IDs
+
+Every request automatically gets a unique ID for tracing:
+
+```go
+app.Get("/example", func(c *fiber.Ctx) error {
+	requestID := c.Locals("requestid")
+
+	logger.Log.Info("Processing request", "request_id", requestID)
+
+	return c.JSON(fiber.Map{"request_id": requestID})
+})
+```
+
+Request IDs appear in:
+- HTTP response headers (`X-Request-ID`)
+- Structured logs
+- Error tracking
+
+### Structured Logging
+
+gorest uses Go's `log/slog` for structured JSON logging:
+
+```go
+import "github.com/nicolasbonnici/gorest/internal/logger"
+
+logger.Log.Info("User created", "user_id", userID, "email", email)
+logger.Log.Error("Database error", "error", err, "query", query)
+logger.Log.Warn("Rate limit exceeded", "ip", clientIP, "endpoint", path)
+```
+
+**Log levels:**
+- `Info` - Normal operations
+- `Warn` - Warning conditions
+- `Error` - Error conditions
+
+**Log output (JSON):**
+```json
+{
+  "time": "2025-10-29T23:00:00Z",
+  "level": "INFO",
+  "msg": "HTTP request",
+  "request_id": "abc123",
+  "method": "GET",
+  "path": "/users",
+  "status": 200,
+  "duration_ms": 45
+}
+```
+
+### API Versioning
+
+Implement versioning using HTTP headers for backward compatibility:
+
+**Header-based versioning** (recommended):
+
+```go
+app.Use(func(c *fiber.Ctx) error {
+	apiVersion := c.Get("Accept-Version", "1")
+	c.Locals("api_version", apiVersion)
+	return c.Next()
+})
+
+app.Get("/users", func(c *fiber.Ctx) error {
+	version := c.Locals("api_version").(string)
+
+	switch version {
+	case "1":
+		return c.JSON(getUsersV1())
+	case "2":
+		return c.JSON(getUsersV2())
+	default:
+		return helpers.SendError(c, 400, "Unsupported API version")
+	}
+})
+```
+
+**Client request:**
+```http
+GET /users HTTP/1.1
+Accept-Version: 2
+```
+
+**Benefits:**
+- Clean URLs (no `/v1/` prefixes)
+- Easy content negotiation
+- Supports multiple versions simultaneously
+- Gradual migration path
+
+**Alternative: URL Path Versioning**
+
+If you prefer URL-based versioning:
+
+```go
+v1 := app.Group("/v1")
+v1.Get("/users", getUsersV1)
+
+v2 := app.Group("/v2")
+v2.Get("/users", getUsersV2)
+```
+
+**Deprecation strategy:**
+1. Announce deprecation timeline (e.g., 6 months)
+2. Add deprecation warning headers
+3. Monitor usage of old versions
+4. Remove deprecated versions after timeline
+
+---
+
 ## 🚀 Production Deployment
 
 ### Prerequisites

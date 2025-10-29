@@ -49,7 +49,6 @@ func parseAcceptHeader(accept string) []string {
 		if trimmed == "" {
 			continue
 		}
-		// Split on semicolon and take first part (media type)
 		mediaTypeParts := strings.Split(trimmed, ";")
 		if len(mediaTypeParts) > 0 && mediaTypeParts[0] != "" {
 			contentTypes = append(contentTypes, mediaTypeParts[0])
@@ -57,4 +56,18 @@ func parseAcceptHeader(accept string) []string {
 	}
 
 	return contentTypes
+}
+
+func SendError(c *fiber.Ctx, statusCode int, message string) error {
+	return c.Status(statusCode).JSON(fiber.Map{
+		"error": message,
+	})
+}
+
+func SendSuccess(c *fiber.Ctx, data interface{}) error {
+	return c.Status(fiber.StatusOK).JSON(data)
+}
+
+func SendCreated(c *fiber.Ctx, data interface{}) error {
+	return c.Status(fiber.StatusCreated).JSON(data)
 }
