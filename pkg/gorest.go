@@ -27,7 +27,22 @@ type Config struct {
 	Port      string
 }
 
+func validateConfig(cfg Config) {
+	if cfg.DBUrl == "" {
+		log.Fatal("❌ DATABASE_URL is required")
+	}
+
+	if cfg.JWTSecret == "" {
+		log.Fatal("❌ JWT_SECRET is required")
+	}
+
+	if len(cfg.JWTSecret) < 32 {
+		log.Fatalf("❌ JWT_SECRET must be at least 32 characters long for security. Current length: %d", len(cfg.JWTSecret))
+	}
+}
+
 func Start(cfg Config) {
+	validateConfig(cfg)
 	projectRoot, err := internal.FindProjectRoot()
 	if err != nil {
 		log.Fatalf("❌ Failed to find project root: %v", err)
