@@ -252,6 +252,175 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema) {
 			}
 		}
 
+		paths["/login"] = map[string]interface{}{
+			"post": map[string]interface{}{
+				"summary":     "User login",
+				"description": "Authenticate a user and receive a JWT token",
+				"tags":        []string{"Authentication"},
+				"requestBody": map[string]interface{}{
+					"required": true,
+					"content": map[string]interface{}{
+						"application/json": map[string]interface{}{
+							"schema": map[string]interface{}{
+								"type": "object",
+								"required": []string{"email", "password"},
+								"properties": map[string]interface{}{
+									"email": map[string]interface{}{
+										"type":        "string",
+										"format":      "email",
+										"description": "User email address",
+									},
+									"password": map[string]interface{}{
+										"type":        "string",
+										"format":      "password",
+										"description": "User password",
+									},
+								},
+							},
+						},
+					},
+				},
+				"responses": map[string]interface{}{
+					"200": map[string]interface{}{
+						"description": "Successful authentication",
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"token": map[string]interface{}{
+											"type":        "string",
+											"description": "JWT authentication token",
+										},
+										"user": map[string]interface{}{
+											"type": "object",
+											"properties": map[string]interface{}{
+												"id": map[string]interface{}{
+													"type": "string",
+												},
+												"email": map[string]interface{}{
+													"type": "string",
+												},
+												"firstname": map[string]interface{}{
+													"type": "string",
+												},
+												"lastname": map[string]interface{}{
+													"type": "string",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					"400": map[string]interface{}{
+						"description": "Bad request - missing email or password",
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"error": map[string]interface{}{
+											"type": "string",
+										},
+									},
+								},
+							},
+						},
+					},
+					"401": map[string]interface{}{
+						"description": "Unauthorized - invalid credentials",
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"error": map[string]interface{}{
+											"type": "string",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		paths["/health"] = map[string]interface{}{
+			"get": map[string]interface{}{
+				"summary":     "Health check",
+				"description": "Check API and database health status",
+				"tags":        []string{"System"},
+				"responses": map[string]interface{}{
+					"200": map[string]interface{}{
+						"description": "Service is healthy",
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"status": map[string]interface{}{
+											"type":        "string",
+											"enum":        []string{"healthy"},
+											"description": "Overall health status",
+										},
+										"database": map[string]interface{}{
+											"type": "object",
+											"properties": map[string]interface{}{
+												"status": map[string]interface{}{
+													"type": "string",
+													"enum": []string{"up"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					"503": map[string]interface{}{
+						"description": "Service is unhealthy",
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"status": map[string]interface{}{
+											"type": "string",
+											"enum": []string{"unhealthy"},
+										},
+										"database": map[string]interface{}{
+											"type": "object",
+											"properties": map[string]interface{}{
+												"status": map[string]interface{}{
+													"type": "string",
+													"enum": []string{"down"},
+												},
+												"error": map[string]interface{}{
+													"type": "string",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		components["securitySchemes"] = map[string]interface{}{
+			"bearerAuth": map[string]interface{}{
+				"type":         "http",
+				"scheme":       "bearer",
+				"bearerFormat": "JWT",
+				"description":  "JWT token from /login endpoint",
+			},
+		}
+
 		return c.JSON(map[string]interface{}{
 			"openapi": "3.0.0",
 			"info": map[string]interface{}{
@@ -259,8 +428,14 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema) {
 				"version":     "1.0.0",
 				"description": "Auto-generated REST API with full CRUD operations",
 			},
+			"servers": []map[string]string{
+				{"url": "http://localhost:3000", "description": "Development server"},
+			},
 			"paths":      paths,
 			"components": components,
+			"security": []map[string]interface{}{
+				{"bearerAuth": []string{}},
+			},
 		})
 	})
 }

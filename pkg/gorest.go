@@ -103,6 +103,7 @@ func Start(cfg Config) {
 	app.Use(requestid.New())
 	app.Use(middleware.HTTPLogger())
 
+	internal.SetupOpenAPIUI(app)
 	internal.SetupHealthCheck(app, db)
 	internal.SetupAuth(app, db, cfg.JWTSecret)
 	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret)

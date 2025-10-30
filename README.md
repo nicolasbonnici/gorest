@@ -77,9 +77,14 @@ make build
 ./bin/gorest
 ```
 
-API available at: **http://localhost:3000**
-Health check: **http://localhost:3000/health**
-OpenAPI API specs: **http://localhost:3000/openapi.json**
+**API Spec**
+- 📚 API Docs: **http://localhost:3000/openapi**
+- 📄 OpenAPI JSON: **http://localhost:3000/openapi.json**
+
+
+**Health check**
+- 💚 Health check: **http://localhost:3000/health**
+
 
 ---
 
