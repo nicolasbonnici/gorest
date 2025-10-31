@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -9,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func SetupAuth(app *fiber.App, db database.Database, jwtSecret string) {
+func SetupAuth(app *fiber.App, db database.Database, jwtSecret string, jwtTTL int) {
 	app.Post("/login", func(c *fiber.Ctx) error {
 		var body struct {
 			Email    string `json:"email"`
@@ -36,11 +37,14 @@ func SetupAuth(app *fiber.App, db database.Database, jwtSecret string) {
 			return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 		}
 
+		now := time.Now()
 		claims := jwt.MapClaims{
 			"user_id":   userId,
 			"email":     body.Email,
 			"firstname": firstname,
 			"lastname":  lastname,
+			"iat":       now.Unix(),
+			"exp":       now.Add(time.Duration(jwtTTL) * time.Second).Unix(),
 		}
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 		t, err := token.SignedString([]byte(jwtSecret))

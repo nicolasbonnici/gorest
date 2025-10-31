@@ -25,6 +25,7 @@ type Config struct {
 	DBDriver  string
 	DBUrl     string
 	JWTSecret string
+	JWTTTL    int
 	Port      string
 }
 
@@ -41,6 +42,11 @@ func validateConfig(cfg Config) {
 
 	if len(cfg.JWTSecret) < 32 {
 		logger.Log.Error("JWT_SECRET must be at least 32 characters long for security", "current_length", len(cfg.JWTSecret))
+		os.Exit(1)
+	}
+
+	if cfg.JWTTTL <= 0 {
+		logger.Log.Error("JWT_TTL must be a positive integer (seconds)", "current_value", cfg.JWTTTL)
 		os.Exit(1)
 	}
 
@@ -105,7 +111,7 @@ func Start(cfg Config) {
 
 	internal.SetupOpenAPIUI(app)
 	internal.SetupHealthCheck(app, db)
-	internal.SetupAuth(app, db, cfg.JWTSecret)
+	internal.SetupAuth(app, db, cfg.JWTSecret, cfg.JWTTTL)
 	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret)
 
 	internal.SetupOpenAPI(app, tables)
