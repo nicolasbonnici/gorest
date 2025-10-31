@@ -48,10 +48,10 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	deleteRoute := fmt.Sprintf(`router.Delete("/%s/:id", %s)`, pluralResourceName, wrapHandler("Delete", requireDeleteAuth))
 
 	needsAuth := requireGetAuth || requirePostAuth || requirePutAuth || requireDeleteAuth
-	routesSignature := "router fiber.Router, db database.Database"
+	routesSignature := "router fiber.Router, db database.Database, paginationLimit, paginationMaxLimit int"
 
 	if needsAuth {
-		routesSignature = "router fiber.Router, db database.Database, jwtSecret string"
+		routesSignature = "router fiber.Router, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int"
 	}
 
 	// Check if model has UserId field
@@ -91,14 +91,18 @@ import (
 )
 
 type %sResource struct {
-	DB   database.Database
-	CRUD *crud.CRUD[models.%s]
+	DB                 database.Database
+	CRUD               *crud.CRUD[models.%s]
+	PaginationLimit    int
+	PaginationMaxLimit int
 }
 
 func Register%sRoutes(%s) {
 	res := &%sResource{
-		DB:   db,
-		CRUD: crud.New[models.%s](db),
+		DB:                 db,
+		CRUD:               crud.New[models.%s](db),
+		PaginationLimit:    paginationLimit,
+		PaginationMaxLimit: paginationMaxLimit,
 	}
 	%s
 	%s
@@ -113,20 +117,28 @@ func Register%sRoutes(%s) {
 // @Summary List %s
 // @Tags %s
 // @Produce json,application/ld+json
-// @Success 200 {array} dtos.%sDTO
+// @Success 200 {object} helpers.HydraCollection
 // @Router /%s [get]
 func (r *%sResource) List(c *fiber.Ctx) error {
-	items, err := r.CRUD.GetAll(helpers.Context(c))
+	limit := helpers.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
+	offset := helpers.ParseIntQuery(c, "offset", 0, 1000000)
+	includeCount := c.Query("count") == "true"
+
+	result, err := r.CRUD.GetAllPaginated(helpers.Context(c), crud.PaginationOptions{
+		Limit:        limit,
+		Offset:       offset,
+		IncludeCount: includeCount,
+	})
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return helpers.SendPaginatedError(c, 500, err.Error())
 	}
 
-	dtoItems := make([]dtos.%sDTO, len(items))
-	for i, item := range items {
+	dtoItems := make([]dtos.%sDTO, len(result.Items))
+	for i, item := range result.Items {
 		dtoItems[i] = modelTo%sDTO(item)
 	}
 
-	return helpers.SendFormatted(c, 200, dtoItems)
+	return helpers.SendHydraCollection(c, dtoItems, result.Total, limit, offset)
 }
 
 // Get %s by ID
@@ -222,7 +234,7 @@ func (r *%sResource) Delete(c *fiber.Ctx) error {
 		structName, routesSignature, structName, structName,
 		listRoute, getRoute, postRoute, putRoute, deleteRoute,
 		conversionFuncs,
-		structName, structName, structName, structName, pluralResourceName, structName,
+		structName, structName, structName, pluralResourceName, structName,
 		structName, structName,
 		structName, structName, structName, structName, pluralResourceName, structName,
 		structName,

@@ -40,7 +40,7 @@ func TestGenerateAPI(t *testing.T) {
 		"package resources",
 		"UserResource",
 		"RegisterUserRoutes",
-		"CRUD *crud.CRUD[models.User]",
+		"*crud.CRUD[models.User]",
 		"crud.New[models.User](db)",
 		"router.Get(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
@@ -48,9 +48,10 @@ func TestGenerateAPI(t *testing.T) {
 		"func (r *UserResource) Create(c *fiber.Ctx) error",
 		"func (r *UserResource) Update(c *fiber.Ctx) error",
 		"func (r *UserResource) Delete(c *fiber.Ctx) error",
-		"r.CRUD.GetAll(helpers.Context(c))",
+		"r.CRUD.GetAllPaginated(helpers.Context(c), crud.PaginationOptions{",
 		"r.CRUD.GetByID(helpers.Context(c), id)",
 		"r.CRUD.Delete(helpers.Context(c), id)",
+		"helpers.SendHydraCollection(c, dtoItems, result.Total, limit, offset)",
 	}
 
 	for _, expected := range expectedStrings {
@@ -124,12 +125,12 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		"package resources",
 		"UserResource",
 		"RegisterUserRoutes",
-		"CRUD *crud.CRUD[models.User]",
+		"*crud.CRUD[models.User]",
 		"crud.New[models.User](db)",
 		"router.Get(\"/users\"",
 		"router.Post(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
-		"items, err := r.CRUD.GetAll(helpers.Context(c))",
+		"result, err := r.CRUD.GetAllPaginated(helpers.Context(c), crud.PaginationOptions{",
 		"func (r *UserResource) Get(c *fiber.Ctx) error",
 		"item, err := r.CRUD.GetByID(helpers.Context(c), id)",
 		"func (r *UserResource) Create(c *fiber.Ctx) error",
@@ -193,8 +194,8 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 	contentStr := string(content)
 
 	crudChecks := []string{
-		"CRUD *crud.CRUD[models.User]",
-		"r.CRUD.GetAll",
+		"*crud.CRUD[models.User]",
+		"r.CRUD.GetAllPaginated",
 		"r.CRUD.GetByID",
 		"r.CRUD.Create",
 		"r.CRUD.Update",

@@ -22,11 +22,13 @@ import (
 )
 
 type Config struct {
-	DBDriver  string
-	DBUrl     string
-	JWTSecret string
-	JWTTTL    int
-	Port      string
+	DBDriver           string
+	DBUrl              string
+	JWTSecret          string
+	JWTTTL             int
+	Port               string
+	PaginationLimit    int
+	PaginationMaxLimit int
 }
 
 func validateConfig(cfg Config) {
@@ -47,6 +49,21 @@ func validateConfig(cfg Config) {
 
 	if cfg.JWTTTL <= 0 {
 		logger.Log.Error("JWT_TTL must be a positive integer (seconds)", "current_value", cfg.JWTTTL)
+		os.Exit(1)
+	}
+
+	if cfg.PaginationLimit <= 0 {
+		logger.Log.Error("PAGINATION_LIMIT must be a positive integer", "current_value", cfg.PaginationLimit)
+		os.Exit(1)
+	}
+
+	if cfg.PaginationMaxLimit <= 0 {
+		logger.Log.Error("PAGINATION_MAX_LIMIT must be a positive integer", "current_value", cfg.PaginationMaxLimit)
+		os.Exit(1)
+	}
+
+	if cfg.PaginationLimit > cfg.PaginationMaxLimit {
+		logger.Log.Error("PAGINATION_LIMIT cannot exceed PAGINATION_MAX_LIMIT", "limit", cfg.PaginationLimit, "max", cfg.PaginationMaxLimit)
 		os.Exit(1)
 	}
 
@@ -112,9 +129,9 @@ func Start(cfg Config) {
 	internal.SetupOpenAPIUI(app)
 	internal.SetupHealthCheck(app, db)
 	internal.SetupAuth(app, db, cfg.JWTSecret, cfg.JWTTTL)
-	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret)
+	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret, cfg.PaginationLimit, cfg.PaginationMaxLimit)
 
-	internal.SetupOpenAPI(app, tables)
+	internal.SetupOpenAPI(app, tables, cfg.PaginationLimit, cfg.PaginationMaxLimit)
 
 	// Channel to listen for shutdown signal
 	quit := make(chan os.Signal, 1)

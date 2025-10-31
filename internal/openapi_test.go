@@ -13,9 +13,8 @@ import (
 func TestSetupOpenAPI(t *testing.T) {
 	app := fiber.New()
 
-	// Setup with empty tables map
 	tables := map[string]TableSchema{}
-	SetupOpenAPI(app, tables)
+	SetupOpenAPI(app, tables, 100, 1000)
 
 	// Test that endpoint is registered
 	req := httptest.NewRequest("GET", "/openapi.json", nil)

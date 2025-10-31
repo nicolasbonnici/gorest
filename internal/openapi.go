@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -53,7 +54,7 @@ func getRequiredFieldsFromDTO(fields []StructField) []string {
 	return required
 }
 
-func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema) {
+func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema, paginationLimit, paginationMaxLimit int) {
 	app.Get("/openapi.json", func(c *fiber.Ctx) error {
 		resourceDTOs := LoadResourceDTOs()
 
@@ -97,14 +98,20 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema) {
 						{
 							"name":        "limit",
 							"in":          "query",
-							"description": "Maximum number of items to return",
-							"schema":      map[string]string{"type": "integer"},
+							"description": fmt.Sprintf("Maximum number of items to return (default: %d, max: %d)", paginationLimit, paginationMaxLimit),
+							"schema":      map[string]interface{}{"type": "integer", "default": paginationLimit, "maximum": paginationMaxLimit},
 						},
 						{
 							"name":        "offset",
 							"in":          "query",
-							"description": "Number of items to skip",
-							"schema":      map[string]string{"type": "integer"},
+							"description": "Number of items to skip (default: 0)",
+							"schema":      map[string]interface{}{"type": "integer", "default": 0, "minimum": 0},
+						},
+						{
+							"name":        "count",
+							"in":          "query",
+							"description": "Include total count in response (adds hydra:totalItems field)",
+							"schema":      map[string]interface{}{"type": "boolean", "default": false},
 						},
 						{
 							"name":        "expand",
@@ -115,13 +122,33 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema) {
 					},
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
-							"description": "Successful response",
+							"description": "Hydra paginated collection",
 							"content": map[string]interface{}{
 								"application/json": map[string]interface{}{
 									"schema": map[string]interface{}{
-										"type": "array",
-										"items": map[string]string{
-											"$ref": "#/components/schemas/" + schemaName,
+										"type": "object",
+										"properties": map[string]interface{}{
+											"@context": map[string]string{"type": "string"},
+											"@id":      map[string]string{"type": "string"},
+											"@type":    map[string]string{"type": "string", "example": "hydra:Collection"},
+											"hydra:totalItems": map[string]interface{}{"type": "integer", "description": "Total count (only present if count=true)"},
+											"hydra:member": map[string]interface{}{
+												"type": "array",
+												"items": map[string]string{
+													"$ref": "#/components/schemas/" + schemaName,
+												},
+											},
+											"hydra:view": map[string]interface{}{
+												"type": "object",
+												"properties": map[string]interface{}{
+													"@id":            map[string]string{"type": "string"},
+													"@type":          map[string]string{"type": "string"},
+													"hydra:first":    map[string]string{"type": "string"},
+													"hydra:last":     map[string]string{"type": "string"},
+													"hydra:previous": map[string]string{"type": "string"},
+													"hydra:next":     map[string]string{"type": "string"},
+												},
+											},
 										},
 									},
 								},
