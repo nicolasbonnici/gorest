@@ -66,7 +66,7 @@ func TestSendHydraCollection(t *testing.T) {
 			{"id": "2", "name": "Item 2"},
 		}
 		total := 10
-		return SendHydraCollection(c, items, &total, 2, 0)
+		return SendHydraCollection(c, items, &total, 2, 1, 2)
 	})
 
 	req := httptest.NewRequest("GET", "/items", nil)
@@ -115,7 +115,7 @@ func TestSendHydraCollectionWithoutCount(t *testing.T) {
 
 	app.Get("/items", func(c *fiber.Ctx) error {
 		items := []string{"item1", "item2"}
-		return SendHydraCollection(c, items, nil, 2, 0)
+		return SendHydraCollection(c, items, nil, 2, 1, 2)
 	})
 
 	req := httptest.NewRequest("GET", "/items", nil)
@@ -145,10 +145,10 @@ func TestSendHydraCollectionPagination(t *testing.T) {
 	app.Get("/items", func(c *fiber.Ctx) error {
 		items := []int{3, 4}
 		total := 10
-		return SendHydraCollection(c, items, &total, 2, 2)
+		return SendHydraCollection(c, items, &total, 2, 2, 2)
 	})
 
-	req := httptest.NewRequest("GET", "/items?limit=2&offset=2", nil)
+	req := httptest.NewRequest("GET", "/items?limit=2&page=2", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("Failed to test: %v", err)

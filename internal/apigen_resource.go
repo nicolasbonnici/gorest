@@ -121,8 +121,12 @@ func Register%sRoutes(%s) {
 // @Router /%s [get]
 func (r *%sResource) List(c *fiber.Ctx) error {
 	limit := helpers.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
-	offset := helpers.ParseIntQuery(c, "offset", 0, 1000000)
-	includeCount := c.Query("count") == "true"
+	page := helpers.ParseIntQuery(c, "page", 1, 1000000)
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+	includeCount := c.Query("count", "true") != "false"
 
 	result, err := r.CRUD.GetAllPaginated(helpers.Context(c), crud.PaginationOptions{
 		Limit:        limit,
@@ -138,7 +142,7 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 		dtoItems[i] = modelTo%sDTO(item)
 	}
 
-	return helpers.SendHydraCollection(c, dtoItems, result.Total, limit, offset)
+	return helpers.SendHydraCollection(c, dtoItems, result.Total, limit, page, r.PaginationLimit)
 }
 
 // Get %s by ID

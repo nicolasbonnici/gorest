@@ -44,15 +44,25 @@ func ParseIntQuery(c *fiber.Ctx, key string, defaultValue, maxValue int) int {
 	return value
 }
 
-func buildPaginationURL(basePath string, params url.Values, limit, offset int) string {
+func buildPaginationURL(basePath string, params url.Values, limit, page, defaultLimit int) string {
 	newParams := url.Values{}
 	for k, v := range params {
-		if k != "limit" && k != "offset" {
+		if k == "limit" || k == "page" {
+			continue
+		}
+
+		if len(v) > 0 && v[0] != "" {
 			newParams[k] = v
 		}
 	}
-	newParams.Set("limit", strconv.Itoa(limit))
-	newParams.Set("offset", strconv.Itoa(offset))
+
+	if limit > 0 && limit != defaultLimit {
+		newParams.Set("limit", strconv.Itoa(limit))
+	}
+
+	if page > 1 {
+		newParams.Set("page", strconv.Itoa(page))
+	}
 
 	if len(newParams) > 0 {
 		return basePath + "?" + newParams.Encode()
@@ -60,7 +70,7 @@ func buildPaginationURL(basePath string, params url.Values, limit, offset int) s
 	return basePath
 }
 
-func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, offset int) error {
+func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, page, defaultLimit int) error {
 	basePath := c.Path()
 	queryParams := c.Context().QueryArgs()
 	parsedParams := make(url.Values)
@@ -68,38 +78,27 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, off
 		parsedParams.Add(string(key), string(value))
 	})
 
-	currentURL := buildPaginationURL(basePath, parsedParams, limit, offset)
+	currentURL := buildPaginationURL(basePath, parsedParams, limit, page, defaultLimit)
 
 	view := &HydraView{
 		ID:    currentURL,
 		Type:  "hydra:PartialCollectionView",
-		First: buildPaginationURL(basePath, parsedParams, limit, 0),
+		First: buildPaginationURL(basePath, parsedParams, limit, 1, defaultLimit),
 	}
 
-	if offset > 0 {
-		prevOffset := offset - limit
-		if prevOffset < 0 {
-			prevOffset = 0
-		}
-		prevURL := buildPaginationURL(basePath, parsedParams, limit, prevOffset)
+	if page > 1 {
+		prevURL := buildPaginationURL(basePath, parsedParams, limit, page-1, defaultLimit)
 		view.Previous = &prevURL
 	}
 
 	if total != nil {
-		nextOffset := offset + limit
-		if nextOffset < *total {
-			nextURL := buildPaginationURL(basePath, parsedParams, limit, nextOffset)
+		lastPage := (*total + limit - 1) / limit
+		if page < lastPage {
+			nextURL := buildPaginationURL(basePath, parsedParams, limit, page+1, defaultLimit)
 			view.Next = &nextURL
 		}
 
-		lastOffset := (*total / limit) * limit
-		if lastOffset == *total && *total > 0 {
-			lastOffset = *total - limit
-		}
-		if lastOffset < 0 {
-			lastOffset = 0
-		}
-		lastURL := buildPaginationURL(basePath, parsedParams, limit, lastOffset)
+		lastURL := buildPaginationURL(basePath, parsedParams, limit, lastPage, defaultLimit)
 		view.Last = &lastURL
 	}
 
@@ -122,9 +121,9 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, off
 
 func SendPaginatedError(c *fiber.Ctx, statusCode int, message string) error {
 	return c.Status(statusCode).JSON(fiber.Map{
-		"@context": "http://www.w3.org/ns/hydra/context.jsonld",
-		"@type":    "hydra:Error",
-		"hydra:title": fmt.Sprintf("Error %d", statusCode),
+		"@context":          "http://www.w3.org/ns/hydra/context.jsonld",
+		"@type":             "hydra:Error",
+		"hydra:title":       fmt.Sprintf("Error %d", statusCode),
 		"hydra:description": message,
 	})
 }
