@@ -81,9 +81,9 @@ func generateRoutesFile(projectRoot string, resources []string, authCfg *AuthCon
 		}
 
 		if requiresAuth {
-			registrations.WriteString(fmt.Sprintf("\t\tresources.Register%sRoutes(app, db, jwtSecret)\n", resource))
+			registrations.WriteString(fmt.Sprintf("\t\tresources.Register%sRoutes(app, db, jwtSecret, paginationLimit, paginationMaxLimit)\n", resource))
 		} else {
-			registrations.WriteString(fmt.Sprintf("\t\tresources.Register%sRoutes(app, db)\n", resource))
+			registrations.WriteString(fmt.Sprintf("\t\tresources.Register%sRoutes(app, db, paginationLimit, paginationMaxLimit)\n", resource))
 		}
 	}
 
@@ -98,7 +98,7 @@ import (
 	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 
-func RegisterGeneratedRoutes(app *fiber.App, db database.Database, tables map[string]internal.TableSchema, jwtSecret string) {
+func RegisterGeneratedRoutes(app *fiber.App, db database.Database, tables map[string]internal.TableSchema, jwtSecret string, paginationLimit, paginationMaxLimit int) {
 %s}
 `, registrations.String())
 

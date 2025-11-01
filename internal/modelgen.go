@@ -79,7 +79,7 @@ func GenerateStructs(tables map[string]TableSchema) {
 
 	for _, table := range tables {
 		singularTable := singularize(table.TableName)
-		structName := toCamelCase(singularTable)
+		structName := toPascalCase(singularTable)
         switch structName {
         case "model":
             continue
@@ -103,7 +103,7 @@ func GenerateStructs(tables map[string]TableSchema) {
 		b.WriteString("type " + structName + " struct {\n")
 
 		for _, col := range table.Columns {
-			fieldName := toCamelCase(col.Name)
+			fieldName := toPascalCase(col.Name)
 			fieldType := pgToGoType(col.Type, col.IsNullable)
 
 			omitempty := ""
@@ -111,7 +111,7 @@ func GenerateStructs(tables map[string]TableSchema) {
 				omitempty = ",omitempty"
 			}
 
-			jsonTag := fmt.Sprintf("`json:\"%s%s\" db:\"%s\"`", col.Name, omitempty, col.Name)
+			jsonTag := fmt.Sprintf("`json:\"%s%s\" db:\"%s\"`", toCamelCase(col.Name), omitempty, col.Name)
 			b.WriteString(fmt.Sprintf("\t%s %s %s\n", fieldName, fieldType, jsonTag))
 		}
 		b.WriteString("}\n")
@@ -143,7 +143,7 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 
 	for _, table := range tables {
 		singularTable := singularize(table.TableName)
-		resource := toCamelCase(singularTable)
+		resource := toPascalCase(singularTable)
 		b.WriteString(fmt.Sprintf("// %sResource defines OpenAPI schema and endpoints for %s\n", resource, table.TableName))
 		b.WriteString(fmt.Sprintf("type %sResource struct {}\n\n", resource))
 	}
@@ -183,13 +183,27 @@ func pgToGoType(pgType string, nullable bool) string {
 	return goType
 }
 
-func toCamelCase(s string) string {
+func toPascalCase(s string) string {
 	parts := strings.Split(s, "_")
 	caser := cases.Title(language.English)
 	for i, p := range parts {
 		parts[i] = caser.String(p)
 	}
 	return strings.Join(parts, "")
+}
+
+func toCamelCase(s string) string {
+	parts := strings.Split(s, "_")
+	if len(parts) == 1 {
+		return s
+	}
+
+	caser := cases.Title(language.English)
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result += caser.String(parts[i])
+	}
+	return result
 }
 
 func singularize(word string) string {

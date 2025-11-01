@@ -16,6 +16,20 @@ type CRUD[T Model] struct {
 	Hooks hooks.Hooks[T]
 }
 
+type PaginationOptions struct {
+	Limit        int
+	Offset       int
+	IncludeCount bool
+	WhereClause  string
+	WhereArgs    []interface{}
+	OrderByClause string
+}
+
+type PaginationResult[T any] struct {
+	Items []T
+	Total *int
+}
+
 func New[T Model](db database.Database) *CRUD[T] {
 	return &CRUD[T]{
 		DB:    db,
@@ -236,6 +250,117 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	}
 
 	return results, nil
+}
+
+func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (*PaginationResult[T], error) {
+	var zero T
+
+	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationGetAll, nil, nil)
+
+	var baseQuery string
+	var args []any
+	var fieldIndices []int
+
+	if skip && customQuery != "" {
+		baseQuery = customQuery
+		args = customArgs
+	} else {
+		t := reflect.TypeOf(zero)
+
+		var cols []string
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			tag := field.Tag.Get("db")
+			if tag != "" {
+				cols = append(cols, tag)
+				fieldIndices = append(fieldIndices, i)
+			}
+		}
+
+		baseQuery = fmt.Sprintf("SELECT %s FROM %s", strings.Join(cols, ", "), zero.TableName())
+		args = []any{}
+	}
+
+	if skip && customQuery != "" {
+		t := reflect.TypeOf(zero)
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			tag := field.Tag.Get("db")
+			if tag != "" {
+				fieldIndices = append(fieldIndices, i)
+			}
+		}
+	}
+
+	var total *int
+	if opts.IncludeCount {
+		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", zero.TableName())
+		if opts.WhereClause != "" {
+			countQuery += " " + opts.WhereClause
+		}
+		var count int
+		if err := c.DB.QueryRow(ctx, countQuery, opts.WhereArgs...).Scan(&count); err != nil {
+			return nil, err
+		}
+		total = &count
+	}
+
+	query := baseQuery
+	if opts.WhereClause != "" {
+		query += " " + opts.WhereClause
+	}
+	if opts.OrderByClause != "" {
+		query += " " + opts.OrderByClause
+	}
+	limitOffsetClause := c.DB.Dialect().LimitOffset(opts.Limit, opts.Offset)
+	query += " " + limitOffsetClause
+
+	args = append(args, opts.WhereArgs...)
+
+	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetAll, query, args)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, execErr := c.DB.Query(ctx, finalQuery, finalArgs...)
+	if execErr != nil {
+		_ = c.Hooks.AfterQuery(ctx, hooks.OperationGetAll, finalQuery, finalArgs, nil, execErr)
+		return nil, execErr
+	}
+	defer rows.Close()
+
+	var results []T
+	for rows.Next() {
+		var item T
+		v := reflect.ValueOf(&item).Elem()
+
+		fields := make([]interface{}, len(fieldIndices))
+		for i, idx := range fieldIndices {
+			fields[i] = v.Field(idx).Addr().Interface()
+		}
+
+		if err := rows.Scan(fields...); err != nil {
+			return nil, err
+		}
+		results = append(results, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := c.Hooks.AfterQuery(ctx, hooks.OperationGetAll, finalQuery, finalArgs, results, nil); err != nil {
+		return nil, err
+	}
+
+	if err := c.Hooks.SerializeMany(ctx, hooks.OperationGetAll, &results); err != nil {
+		return nil, err
+	}
+
+	return &PaginationResult[T]{
+		Items: results,
+		Total: total,
+	}, nil
 }
 
 func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {

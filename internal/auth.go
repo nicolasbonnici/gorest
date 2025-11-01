@@ -2,15 +2,15 @@ package internal
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/nicolasbonnici/gorest/pkg/database"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func SetupAuth(app *fiber.App, db database.Database, jwtSecret string) {
+func SetupAuth(app *fiber.App, db database.Database, jwtSecret string, jwtTTL int) {
 	app.Post("/login", func(c *fiber.Ctx) error {
 		var body struct {
 			Email    string `json:"email"`
@@ -33,16 +33,18 @@ func SetupAuth(app *fiber.App, db database.Database, jwtSecret string) {
 			return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 		}
 
-		passwordHash := hashPassword(body.Password, userId)
-		if passwordHash != storedPassword {
+		if err := verifyPassword(body.Password, storedPassword); err != nil {
 			return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
 		}
 
+		now := time.Now()
 		claims := jwt.MapClaims{
-			"user_id":   userId,
+			"userId":    userId,
 			"email":     body.Email,
 			"firstname": firstname,
 			"lastname":  lastname,
+			"iat":       now.Unix(),
+			"exp":       now.Add(time.Duration(jwtTTL) * time.Second).Unix(),
 		}
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 		t, err := token.SignedString([]byte(jwtSecret))
@@ -62,7 +64,14 @@ func SetupAuth(app *fiber.App, db database.Database, jwtSecret string) {
 	})
 }
 
-func hashPassword(password, userId string) string {
-	hash := sha256.Sum256([]byte("salt" + password + userId))
-	return hex.EncodeToString(hash[:])
+func HashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+func verifyPassword(password, hash string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }
