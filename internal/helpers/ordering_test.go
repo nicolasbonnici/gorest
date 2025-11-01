@@ -32,7 +32,7 @@ func TestOrderSet_ParseFromQuery(t *testing.T) {
 			queryString:   "order[priority]=desc&order[created_at]=asc",
 			allowedFields: []string{"priority", "created_at"},
 			expectedCount: 2,
-			expectedDirs:  []OrderDirection{OrderDesc, OrderAsc},
+			expectedDirs:  []OrderDirection{OrderAsc, OrderDesc},
 		},
 		{
 			name:          "default to asc for invalid direction",
@@ -102,7 +102,7 @@ func TestOrderSet_BuildOrderByClause(t *testing.T) {
 			name:            "multiple fields",
 			queryString:     "order[priority]=desc&order[created_at]=asc",
 			allowedFields:   []string{"priority", "created_at"},
-			expectedOrderBy: "ORDER BY priority DESC, created_at ASC",
+			expectedOrderBy: "ORDER BY created_at ASC, priority DESC",
 		},
 		{
 			name:            "no orders",

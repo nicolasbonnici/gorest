@@ -39,7 +39,7 @@ func SetupAuth(app *fiber.App, db database.Database, jwtSecret string, jwtTTL in
 
 		now := time.Now()
 		claims := jwt.MapClaims{
-			"user_id":   userId,
+			"userId":    userId,
 			"email":     body.Email,
 			"firstname": firstname,
 			"lastname":  lastname,

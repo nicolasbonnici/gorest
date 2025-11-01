@@ -26,7 +26,7 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 ## ⚙️ Requirements
 - Go **1.25+**
 - Docker & Docker Compose
-- PostgreSQL **18+**
+- Any relational database engine (PostgreSQL, MySQL and SQLlite supported)
 
 ---
 

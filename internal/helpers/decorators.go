@@ -38,7 +38,7 @@ func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			user := &AuthenticatedUser{}
 
-			if userID, ok := claims["user_id"].(string); ok {
+			if userID, ok := claims["userId"].(string); ok {
 				user.UserID = userID
 			}
 			if email, ok := claims["email"].(string); ok {

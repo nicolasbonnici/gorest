@@ -3,6 +3,7 @@ package helpers
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 )
 
@@ -41,6 +42,7 @@ func (os *OrderSet) ParseFromQuery(query url.Values) error {
 			keys = append(keys, key)
 		}
 	}
+	sort.Strings(keys)
 
 	for _, key := range keys {
 		if !strings.HasPrefix(key, "order[") || !strings.HasSuffix(key, "]") {

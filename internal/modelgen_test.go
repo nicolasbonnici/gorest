@@ -180,7 +180,7 @@ func TestPgToGoType(t *testing.T) {
 	}
 }
 
-func TestToCamelCase(t *testing.T) {
+func TestToPascalCase(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
@@ -189,6 +189,28 @@ func TestToCamelCase(t *testing.T) {
 		{"user_profile", "UserProfile"},
 		{"todo_item", "TodoItem"},
 		{"my_table_name", "MyTableName"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := toPascalCase(tt.input)
+			if result != tt.expected {
+				t.Errorf("toPascalCase(%s) = %s; want %s", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestToCamelCase(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"user", "user"},
+		{"user_id", "userId"},
+		{"created_at", "createdAt"},
+		{"todo_item", "todoItem"},
+		{"my_table_name", "myTableName"},
 	}
 
 	for _, tt := range tests {
