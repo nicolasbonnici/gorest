@@ -61,6 +61,8 @@ func main() {
 		port = "3000"
 	}
 
+	corsOrigins := os.Getenv("CORS_ORIGINS")
+
 	cfg := gorest.Config{
 		DBUrl:              dbURL,
 		JWTSecret:          jwtSecret,
@@ -68,6 +70,7 @@ func main() {
 		Port:               port,
 		PaginationLimit:    paginationLimit,
 		PaginationMaxLimit: paginationMaxLimit,
+		CORSOrigins:        corsOrigins,
 	}
 
 	gorest.Start(cfg)

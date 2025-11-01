@@ -79,6 +79,9 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	var allowedFieldsList []string
 	for _, field := range fields {
 		if field.DBTag != "" {
+			if field.DBTag == "password" || field.DTOTag == "write" {
+				continue
+			}
 			allowedFieldsList = append(allowedFieldsList, fmt.Sprintf(`"%s"`, field.DBTag))
 		}
 	}
@@ -94,6 +97,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/internal/crud"
 	"github.com/nicolasbonnici/gorest/internal/helpers"
+	"github.com/nicolasbonnici/gorest/internal/logger"
 	"github.com/nicolasbonnici/gorest/internal/models"
 	"github.com/nicolasbonnici/gorest/internal/api/dtos"
 	"github.com/nicolasbonnici/gorest/pkg/database"
@@ -130,7 +134,7 @@ func Register%sRoutes(%s) {
 // @Router /%s [get]
 func (r *%sResource) List(c *fiber.Ctx) error {
 	limit := helpers.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
-	page := helpers.ParseIntQuery(c, "page", 1, 1000000)
+	page := helpers.ParseIntQuery(c, "page", 1, 10000)
 	if page < 1 {
 		page = 1
 	}
@@ -205,7 +209,8 @@ func (r *%sResource) Get(c *fiber.Ctx) error {
 func (r *%sResource) Create(c *fiber.Ctx) error {
 	var createDTO dtos.%sCreateDTO
 	if err := c.BodyParser(&createDTO); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body", "details": err.Error()})
+		logger.Log.Error("Failed to parse request body", "error", err, "path", c.Path())
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
 	item := %sCreateDTOToModel(createDTO)

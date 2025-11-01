@@ -29,6 +29,9 @@ func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
 		tokenStr := strings.TrimPrefix(auth, "Bearer ")
 
 		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
 			return []byte(jwtSecret), nil
 		})
 		if err != nil || !token.Valid {

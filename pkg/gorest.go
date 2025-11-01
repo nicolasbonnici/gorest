@@ -5,10 +5,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
 	"github.com/nicolasbonnici/gorest/internal"
@@ -29,12 +32,17 @@ type Config struct {
 	Port               string
 	PaginationLimit    int
 	PaginationMaxLimit int
+	CORSOrigins        string
 }
 
 func validateConfig(cfg Config) {
 	if cfg.DBUrl == "" {
 		logger.Log.Error("DATABASE_URL is required")
 		os.Exit(1)
+	}
+
+	if strings.Contains(cfg.DBUrl, "sslmode=disable") {
+		logger.Log.Warn("⚠️  Database SSL is DISABLED! This is insecure for production. Use sslmode=require or sslmode=verify-full")
 	}
 
 	if cfg.JWTSecret == "" {
@@ -121,9 +129,72 @@ func Start(cfg Config) {
 		}
 	}
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit:    4 * 1024 * 1024,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
+			return c.Status(code).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		},
+	})
 
 	app.Use(requestid.New())
+
+	app.Use(limiter.New(limiter.Config{
+		Max:        100,
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(429).JSON(fiber.Map{
+				"error": "Rate limit exceeded. Please try again later.",
+			})
+		},
+	}))
+
+	corsOrigins := cfg.CORSOrigins
+	if corsOrigins == "" {
+		corsOrigins = "*"
+		logger.Log.Warn("CORS_ORIGINS not set, defaulting to '*' (allow all). Set CORS_ORIGINS in production!")
+	}
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     corsOrigins,
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
+		AllowCredentials: true,
+	}))
+
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("X-Content-Type-Options", "nosniff")
+		c.Set("X-Frame-Options", "DENY")
+		c.Set("X-XSS-Protection", "1; mode=block")
+		c.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		c.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		return c.Next()
+	})
+
+	app.Use(func(c *fiber.Ctx) error {
+		method := c.Method()
+		if method == "POST" || method == "PUT" || method == "PATCH" {
+			contentType := c.Get("Content-Type")
+			if contentType != "" && !strings.HasPrefix(contentType, "application/json") {
+				return c.Status(415).JSON(fiber.Map{
+					"error": "Content-Type must be application/json",
+				})
+			}
+		}
+		return c.Next()
+	})
+
 	app.Use(middleware.HTTPLogger())
 
 	internal.SetupOpenAPIUI(app)
