@@ -51,6 +51,8 @@ func TestGenerateAPI(t *testing.T) {
 		"r.CRUD.GetAllPaginated(helpers.Context(c), crud.PaginationOptions{",
 		"r.CRUD.GetByID(helpers.Context(c), id)",
 		"r.CRUD.Delete(helpers.Context(c), id)",
+		"helpers.NewFilterSet(allowedFields, r.DB.Dialect())",
+		"helpers.NewOrderSet(allowedFields)",
 		"helpers.SendHydraCollection(c, dtoItems, result.Total, limit, page, r.PaginationLimit)",
 	}
 

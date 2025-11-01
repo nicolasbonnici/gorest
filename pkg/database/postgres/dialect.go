@@ -62,3 +62,7 @@ func (d *PostgresDialect) MapType(stdType string) string {
 		return stdType
 	}
 }
+
+func (d *PostgresDialect) CaseInsensitiveLike() string {
+	return "ILIKE"
+}

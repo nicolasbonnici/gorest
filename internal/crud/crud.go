@@ -20,6 +20,9 @@ type PaginationOptions struct {
 	Limit        int
 	Offset       int
 	IncludeCount bool
+	WhereClause  string
+	WhereArgs    []interface{}
+	OrderByClause string
 }
 
 type PaginationResult[T any] struct {
@@ -292,15 +295,27 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 	var total *int
 	if opts.IncludeCount {
 		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", zero.TableName())
+		if opts.WhereClause != "" {
+			countQuery += " " + opts.WhereClause
+		}
 		var count int
-		if err := c.DB.QueryRow(ctx, countQuery).Scan(&count); err != nil {
+		if err := c.DB.QueryRow(ctx, countQuery, opts.WhereArgs...).Scan(&count); err != nil {
 			return nil, err
 		}
 		total = &count
 	}
 
+	query := baseQuery
+	if opts.WhereClause != "" {
+		query += " " + opts.WhereClause
+	}
+	if opts.OrderByClause != "" {
+		query += " " + opts.OrderByClause
+	}
 	limitOffsetClause := c.DB.Dialect().LimitOffset(opts.Limit, opts.Offset)
-	query := baseQuery + " " + limitOffsetClause
+	query += " " + limitOffsetClause
+
+	args = append(args, opts.WhereArgs...)
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetAll, query, args)
 	if err != nil {

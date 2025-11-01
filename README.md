@@ -12,6 +12,8 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 - 🎭 Auto-population of fields from authentication context
 - 🌐 JSON-LD support with semantic web context (@context, @type, @id)
 - 🔗 Automatic foreign key to IRI conversion (e.g., `/users/{uuid}`)
+- 🔍 Advanced filtering & ordering (equality, comparison, text search, multiple fields)
+- 📄 Page-based pagination with Hydra collections
 - 👨🏻‍💻 DAL for PostgreSQL, MySQL and SQLite engines
 - 🛡️ Production grade errors and processes management
 - 🐳 Docker support with multi-database testing
@@ -458,6 +460,111 @@ func (f *Formatter) formatItem(item interface{}, baseType string) map[string]int
 - ✅ **Semantic Clarity**: Types and contexts make data self-describing
 - ✅ **Standards Compliance**: Compatible with semantic web tools
 - ✅ **Zero Configuration**: Works automatically for all resources
+
+---
+
+## 🔍 Filtering & Ordering
+
+gorest provides powerful filtering and ordering capabilities for collection endpoints, allowing clients to query and sort data efficiently.
+
+### Filtering
+
+Filter results using query parameters with support for various operators:
+
+**Simple equality:**
+```bash
+GET /todos?status=active
+```
+
+**Multiple values (OR):**
+```bash
+GET /todos?status[]=active&status[]=archived
+```
+
+**Comparison operators:**
+```bash
+GET /todos?priority[gte]=5              # Greater than or equal
+GET /todos?priority[lte]=10             # Less than or equal
+GET /todos?priority[gt]=3               # Greater than
+GET /todos?priority[lt]=8               # Less than
+GET /todos?priority[ne]=0               # Not equal
+```
+
+**Text search:**
+```bash
+GET /todos?title[like]=meeting          # Case-sensitive LIKE
+GET /todos?title[ilike]=MEETING         # Case-insensitive (ILIKE on PostgreSQL, LOWER() on MySQL/SQLite)
+```
+
+**Date filtering:**
+```bash
+GET /todos?created_at[gte]=2024-01-01
+GET /todos?updated_at[lt]=2024-12-31
+```
+
+**Combining filters (AND):**
+```bash
+GET /todos?status=active&priority[gte]=7&created_at[gte]=2024-01-01
+```
+
+### Ordering
+
+Sort results using the `order[field]` parameter:
+
+**Single field:**
+```bash
+GET /todos?order[created_at]=desc
+GET /todos?order[priority]=asc
+```
+
+**Multiple fields:**
+```bash
+GET /todos?order[priority]=desc&order[created_at]=asc
+```
+
+Order of parameters determines sort precedence (first parameter = primary sort).
+
+### Combined Example
+
+```bash
+GET /todos?status[]=active&status[]=pending&priority[gte]=5&order[priority]=desc&order[created_at]=desc&page=2&limit=20
+```
+
+This query:
+- Filters todos with status "active" OR "pending"
+- AND priority >= 5
+- Sorts by priority (descending), then by created_at (descending)
+- Returns page 2 with 20 items per page
+
+### Pagination with Filters
+
+Pagination works seamlessly with filters and ordering:
+
+```json
+{
+  "@context": "http://www.w3.org/ns/hydra/context.jsonld",
+  "@id": "/todos",
+  "@type": "hydra:Collection",
+  "hydra:totalItems": 42,
+  "hydra:member": [...],
+  "hydra:view": {
+    "@id": "/todos?status=active&priority[gte]=5&order[priority]=desc&page=2",
+    "@type": "hydra:PartialCollectionView",
+    "hydra:first": "/todos?status=active&priority[gte]=5&order[priority]=desc",
+    "hydra:previous": "/todos?status=active&priority[gte]=5&order[priority]=desc",
+    "hydra:next": "/todos?status=active&priority[gte]=5&order[priority]=desc&page=3",
+    "hydra:last": "/todos?status=active&priority[gte]=5&order[priority]=desc&page=5"
+  }
+}
+```
+
+### Security
+
+Filtering and ordering are restricted to database fields only:
+- Only fields with `db` tags can be filtered/sorted
+- SQL injection protection via parameterized queries
+- Invalid fields are silently ignored
+- No arbitrary SQL execution possible
 
 ---
 
