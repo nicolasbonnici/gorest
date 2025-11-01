@@ -229,7 +229,7 @@ func TestGetFormatter(t *testing.T) {
 func TestJSONLDFormatterForeignKeyIRI(t *testing.T) {
 	type Todo struct {
 		ID      string `json:"id"`
-		UserID  string `json:"user_id"`
+		UserID  string `json:"userId"`
 		Title   string `json:"title"`
 		Content string `json:"content"`
 	}
@@ -252,17 +252,17 @@ func TestJSONLDFormatterForeignKeyIRI(t *testing.T) {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
-	userID, ok := result["user_id"].(string)
+	userID, ok := result["userId"].(string)
 	if !ok {
-		t.Fatal("user_id should be a string")
+		t.Fatal("userId should be a string")
 	}
 
 	expectedUserID := "/users/user-456"
 	if userID != expectedUserID {
-		t.Errorf("Expected user_id to be IRI %s, got %s", expectedUserID, userID)
+		t.Errorf("Expected userId to be IRI %s, got %s", expectedUserID, userID)
 	}
 
 	if !strings.HasPrefix(userID, "/users/") {
-		t.Error("user_id should be converted to IRI starting with /users/")
+		t.Error("userId should be converted to IRI starting with /users/")
 	}
 }

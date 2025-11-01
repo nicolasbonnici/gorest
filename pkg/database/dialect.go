@@ -9,6 +9,7 @@ type Dialect interface {
 	LimitOffset(limit, offset int) string
 	QuoteIdentifier(name string) string
 	MapType(dbType string) string
+	CaseInsensitiveLike() string
 }
 
 type BaseDialect struct{}
@@ -22,4 +23,8 @@ func (d *BaseDialect) LimitOffset(limit, offset int) string {
 		return fmt.Sprintf("OFFSET %d", offset)
 	}
 	return ""
+}
+
+func (d *BaseDialect) CaseInsensitiveLike() string {
+	return "LOWER"
 }

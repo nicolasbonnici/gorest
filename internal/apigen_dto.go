@@ -6,7 +6,28 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
+
+func toJSONCamelCase(s string) string {
+	if s == "" {
+		return s
+	}
+
+	if strings.Contains(s, "_") {
+		parts := strings.Split(s, "_")
+		caser := cases.Title(language.English)
+		result := strings.ToLower(parts[0])
+		for i := 1; i < len(parts); i++ {
+			result += caser.String(parts[i])
+		}
+		return result
+	}
+
+	return strings.ToLower(s[:1]) + s[1:]
+}
 
 type DTOSchema struct {
 	Name   string
@@ -80,7 +101,7 @@ func generateDTOFields(fields []StructField) string {
 
 		jsonTag := field.JSONTag
 		if jsonTag == "" {
-			jsonTag = strings.ToLower(field.Name)
+			jsonTag = toJSONCamelCase(field.Name)
 		}
 
 		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))
@@ -107,7 +128,7 @@ func generateCreateDTOFields(fields []StructField) string {
 
 		jsonTag := field.JSONTag
 		if jsonTag == "" {
-			jsonTag = strings.ToLower(field.Name)
+			jsonTag = toJSONCamelCase(field.Name)
 		}
 
 		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))
@@ -134,7 +155,7 @@ func generateUpdateDTOFields(fields []StructField) string {
 
 		jsonTag := field.JSONTag
 		if jsonTag == "" {
-			jsonTag = strings.ToLower(field.Name)
+			jsonTag = toJSONCamelCase(field.Name)
 		}
 
 		result.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\"`\n", field.Name, typeStr, jsonTag))

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -23,52 +24,29 @@ func TestSetupAuth(t *testing.T) {
 	testFirstname := "Test"
 	testLastname := "User"
 
-	// Insert user and get the generated ID
-	var testUserId string
+	// Hash the password using bcrypt
+	passwordHash, err := HashPassword(testPassword)
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
+	}
+
+	// Insert user with hashed password
 	var query string
 	switch db.DriverName() {
 	case "postgres":
-		query = `INSERT INTO users (email, password, firstname, lastname) VALUES ($1, $2, $3, $4) RETURNING id`
-		row := db.QueryRow(ctx, query, testEmail, hashPassword(testPassword, "temp"), testFirstname, testLastname)
-		if err := row.Scan(&testUserId); err != nil {
-			t.Fatalf("Failed to create test user: %v", err)
-		}
+		query = `INSERT INTO users (email, password, firstname, lastname) VALUES ($1, $2, $3, $4)`
 	case "mysql", "sqlite":
-		// For MySQL/SQLite, insert without ID and let it auto-generate
 		query = `INSERT INTO users (email, password, firstname, lastname) VALUES (?, ?, ?, ?)`
-		_, err := db.Exec(ctx, query, testEmail, hashPassword(testPassword, "temp"), testFirstname, testLastname)
-		if err != nil {
-			t.Fatalf("Failed to create test user: %v", err)
-		}
-		// Query to get the ID
-		selectQuery := "SELECT id FROM users WHERE email = ?"
-		if db.DriverName() == "postgres" {
-			selectQuery = "SELECT id FROM users WHERE email = $1"
-		}
-		row := db.QueryRow(ctx, selectQuery, testEmail)
-		if err := row.Scan(&testUserId); err != nil {
-			t.Fatalf("Failed to get user ID: %v", err)
-		}
 	}
-
-	// Update password with correct hash using the actual user ID
-	passwordHash := hashPassword(testPassword, testUserId)
-	var updateQuery string
-	switch db.DriverName() {
-	case "postgres":
-		updateQuery = `UPDATE users SET password = $1 WHERE id = $2`
-	case "mysql", "sqlite":
-		updateQuery = `UPDATE users SET password = ? WHERE id = ?`
-	}
-	_, err := db.Exec(ctx, updateQuery, passwordHash, testUserId)
+	_, err = db.Exec(ctx, query, testEmail, passwordHash, testFirstname, testLastname)
 	if err != nil {
-		t.Fatalf("Failed to update user password: %v", err)
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Create Fiber app and setup auth
 	app := fiber.New()
 	jwtSecret := "test-secret-key"
-	SetupAuth(app, db, jwtSecret)
+	jwtTTL := 900
+	SetupAuth(app, db, jwtSecret, jwtTTL)
 
 	tests := []struct {
 		name           string
@@ -189,54 +167,246 @@ func TestHashPassword(t *testing.T) {
 	tests := []struct {
 		name     string
 		password string
-		userId   string
-		expected string
 	}{
 		{
 			name:     "basic hash",
 			password: "testpass123",
-			userId:   "user-1",
-			expected: hashPassword("testpass123", "user-1"),
 		},
 		{
-			name:     "different user same password",
-			password: "testpass123",
-			userId:   "user-2",
-			expected: hashPassword("testpass123", "user-2"),
+			name:     "different password",
+			password: "anotherpass456",
+		},
+		{
+			name:     "empty password",
+			password: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := hashPassword(tt.password, tt.userId)
-
-			if result != tt.expected {
-				t.Errorf("Expected hash %s, got %s", tt.expected, result)
+			hash1, err := HashPassword(tt.password)
+			if err != nil {
+				t.Fatalf("Failed to hash password: %v", err)
 			}
 
-			// Verify hash is deterministic
-			result2 := hashPassword(tt.password, tt.userId)
-			if result != result2 {
-				t.Error("Hash should be deterministic")
+			// Verify hash is not empty
+			if hash1 == "" {
+				t.Error("Hash should not be empty")
 			}
 
-			// Verify different inputs produce different hashes
-			if tt.userId == "user-1" {
-				differentUser := hashPassword(tt.password, "user-2")
-				if result == differentUser {
-					t.Error("Different users should produce different hashes")
+			// Verify hash starts with bcrypt prefix
+			if len(hash1) < 4 || hash1[:4] != "$2a$" && hash1[:4] != "$2b$" && hash1[:4] != "$2y$" {
+				t.Errorf("Hash should start with bcrypt prefix, got: %s", hash1[:4])
+			}
+
+			// Verify password verification works
+			if err := verifyPassword(tt.password, hash1); err != nil {
+				t.Errorf("Password verification failed: %v", err)
+			}
+
+			// Verify wrong password fails
+			if err := verifyPassword("wrongpassword", hash1); err == nil {
+				t.Error("Wrong password should not verify successfully")
+			}
+
+			// Verify bcrypt generates different salts (hashes are different each time)
+			hash2, err := HashPassword(tt.password)
+			if err != nil {
+				t.Fatalf("Failed to hash password second time: %v", err)
+			}
+			if hash1 == hash2 {
+				t.Error("Bcrypt should generate different salts, producing different hashes")
+			}
+
+			// But both hashes should verify the same password
+			if err := verifyPassword(tt.password, hash2); err != nil {
+				t.Errorf("Second hash verification failed: %v", err)
+			}
+		})
+	}
+}
+
+func TestJWTTokenExpiration(t *testing.T) {
+	cleanupTestDB(t)
+
+	ctx := context.Background()
+	testEmail := "jwttest@example.com"
+	testPassword := "testpass123"
+
+	passwordHash, err := HashPassword(testPassword)
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
+	}
+
+	var query string
+	switch db.DriverName() {
+	case "postgres":
+		query = `INSERT INTO users (email, password, firstname, lastname) VALUES ($1, $2, $3, $4)`
+	case "mysql", "sqlite":
+		query = `INSERT INTO users (email, password, firstname, lastname) VALUES (?, ?, ?, ?)`
+	}
+	_, err = db.Exec(ctx, query, testEmail, passwordHash, "JWT", "Test")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	tests := []struct {
+		name         string
+		jwtTTL       int
+		validateFunc func(*testing.T, string, string, int)
+	}{
+		{
+			name:   "token contains exp and iat claims",
+			jwtTTL: 900,
+			validateFunc: func(t *testing.T, token, secret string, ttl int) {
+				parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+					return []byte(secret), nil
+				})
+				if err != nil {
+					t.Fatalf("Failed to parse token: %v", err)
 				}
 
-				differentPassword := hashPassword("differentpass", tt.userId)
-				if result == differentPassword {
-					t.Error("Different passwords should produce different hashes")
+				claims, ok := parsedToken.Claims.(jwt.MapClaims)
+				if !ok {
+					t.Fatal("Failed to extract claims")
 				}
+
+				iat, ok := claims["iat"].(float64)
+				if !ok {
+					t.Error("Token missing iat claim")
+				}
+
+				exp, ok := claims["exp"].(float64)
+				if !ok {
+					t.Error("Token missing exp claim")
+				}
+
+				expectedExpDiff := float64(ttl)
+				actualExpDiff := exp - iat
+				if actualExpDiff != expectedExpDiff {
+					t.Errorf("Expected exp-iat difference of %v, got %v", expectedExpDiff, actualExpDiff)
+				}
+
+				if time.Unix(int64(exp), 0).Before(time.Now()) {
+					t.Error("Token already expired")
+				}
+			},
+		},
+		{
+			name:   "short TTL - 1 second",
+			jwtTTL: 1,
+			validateFunc: func(t *testing.T, token, secret string, ttl int) {
+				time.Sleep(2 * time.Second)
+
+				parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+					return []byte(secret), nil
+				})
+
+				if err == nil && parsedToken.Valid {
+					t.Error("Token should be expired after TTL")
+				}
+			},
+		},
+		{
+			name:   "valid token within TTL",
+			jwtTTL: 3600,
+			validateFunc: func(t *testing.T, token, secret string, ttl int) {
+				parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+					return []byte(secret), nil
+				})
+
+				if err != nil {
+					t.Fatalf("Token parsing failed: %v", err)
+				}
+
+				if !parsedToken.Valid {
+					t.Error("Token should be valid within TTL")
+				}
+
+				claims, ok := parsedToken.Claims.(jwt.MapClaims)
+				if !ok {
+					t.Fatal("Failed to extract claims")
+				}
+
+				exp, ok := claims["exp"].(float64)
+				if !ok {
+					t.Fatal("Missing exp claim")
+				}
+
+				expiresAt := time.Unix(int64(exp), 0)
+				if time.Now().After(expiresAt) {
+					t.Error("Token expired prematurely")
+				}
+			},
+		},
+		{
+			name:   "default TTL - 15 minutes",
+			jwtTTL: 900,
+			validateFunc: func(t *testing.T, token, secret string, ttl int) {
+				parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+					return []byte(secret), nil
+				})
+
+				if err != nil {
+					t.Fatalf("Token parsing failed: %v", err)
+				}
+
+				claims, ok := parsedToken.Claims.(jwt.MapClaims)
+				if !ok {
+					t.Fatal("Failed to extract claims")
+				}
+
+				exp, ok := claims["exp"].(float64)
+				if !ok {
+					t.Fatal("Missing exp claim")
+				}
+
+				iat, ok := claims["iat"].(float64)
+				if !ok {
+					t.Fatal("Missing iat claim")
+				}
+
+				actualTTL := int64(exp - iat)
+				if actualTTL != int64(ttl) {
+					t.Errorf("Expected TTL of %d seconds, got %d", ttl, actualTTL)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			jwtSecret := "test-secret-for-expiration"
+			SetupAuth(app, db, jwtSecret, tt.jwtTTL)
+
+			body := map[string]string{
+				"email":    testEmail,
+				"password": testPassword,
+			}
+			bodyBytes, _ := json.Marshal(body)
+
+			req := httptest.NewRequest("POST", "/login", bytes.NewReader(bodyBytes))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("Failed to test request: %v", err)
 			}
 
-			// Verify hash is hex-encoded SHA256 (64 characters)
-			if len(result) != 64 {
-				t.Errorf("Expected hash length 64, got %d", len(result))
+			if resp.StatusCode != 200 {
+				t.Fatalf("Login failed with status %d", resp.StatusCode)
 			}
+
+			var result map[string]interface{}
+			json.NewDecoder(resp.Body).Decode(&result)
+
+			token, ok := result["token"].(string)
+			if !ok || token == "" {
+				t.Fatal("No token in response")
+			}
+
+			tt.validateFunc(t, token, jwtSecret, tt.jwtTTL)
 		})
 	}
 }

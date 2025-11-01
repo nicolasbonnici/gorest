@@ -27,7 +27,7 @@ func TestRequireAuth(t *testing.T) {
 		{
 			name: "valid token",
 			setupAuth: func() string {
-				claims := jwt.MapClaims{"user_id": "123"}
+				claims := jwt.MapClaims{"userId": "123"}
 				token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 				tokenStr, _ := token.SignedString([]byte(jwtSecret))
 				return "Bearer " + tokenStr
@@ -61,7 +61,7 @@ func TestRequireAuth(t *testing.T) {
 		{
 			name: "token signed with wrong secret",
 			setupAuth: func() string {
-				claims := jwt.MapClaims{"user_id": "123"}
+				claims := jwt.MapClaims{"userId": "123"}
 				token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 				tokenStr, _ := token.SignedString([]byte("wrong-secret"))
 				return "Bearer " + tokenStr
@@ -139,9 +139,9 @@ func TestRequireAuthWithDifferentClaims(t *testing.T) {
 		claims jwt.MapClaims
 	}{
 		{
-			name: "with user_id claim",
+			name: "with userId claim",
 			claims: jwt.MapClaims{
-				"user_id": "123",
+				"userId": "123",
 			},
 		},
 		{
@@ -153,7 +153,7 @@ func TestRequireAuthWithDifferentClaims(t *testing.T) {
 		{
 			name: "with multiple claims",
 			claims: jwt.MapClaims{
-				"user_id":   "123",
+				"userId":    "123",
 				"email":     "test@example.com",
 				"firstname": "Test",
 				"lastname":  "User",

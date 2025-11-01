@@ -2,7 +2,6 @@ package gorest
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -10,9 +9,11 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 
 	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/api"
+	"github.com/nicolasbonnici/gorest/internal/logger"
 	"github.com/nicolasbonnici/gorest/internal/middleware"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
@@ -21,42 +22,94 @@ import (
 )
 
 type Config struct {
-	DBDriver  string
-	DBUrl     string
-	JWTSecret string
-	Port      string
+	DBDriver           string
+	DBUrl              string
+	JWTSecret          string
+	JWTTTL             int
+	Port               string
+	PaginationLimit    int
+	PaginationMaxLimit int
+}
+
+func validateConfig(cfg Config) {
+	if cfg.DBUrl == "" {
+		logger.Log.Error("DATABASE_URL is required")
+		os.Exit(1)
+	}
+
+	if cfg.JWTSecret == "" {
+		logger.Log.Error("JWT_SECRET is required")
+		os.Exit(1)
+	}
+
+	if len(cfg.JWTSecret) < 32 {
+		logger.Log.Error("JWT_SECRET must be at least 32 characters long for security", "current_length", len(cfg.JWTSecret))
+		os.Exit(1)
+	}
+
+	if cfg.JWTTTL <= 0 {
+		logger.Log.Error("JWT_TTL must be a positive integer (seconds)", "current_value", cfg.JWTTTL)
+		os.Exit(1)
+	}
+
+	if cfg.PaginationLimit <= 0 {
+		logger.Log.Error("PAGINATION_LIMIT must be a positive integer", "current_value", cfg.PaginationLimit)
+		os.Exit(1)
+	}
+
+	if cfg.PaginationMaxLimit <= 0 {
+		logger.Log.Error("PAGINATION_MAX_LIMIT must be a positive integer", "current_value", cfg.PaginationMaxLimit)
+		os.Exit(1)
+	}
+
+	if cfg.PaginationLimit > cfg.PaginationMaxLimit {
+		logger.Log.Error("PAGINATION_LIMIT cannot exceed PAGINATION_MAX_LIMIT", "limit", cfg.PaginationLimit, "max", cfg.PaginationMaxLimit)
+		os.Exit(1)
+	}
+
+	if cfg.Port == "" {
+		logger.Log.Error("PORT is required")
+		os.Exit(1)
+	}
 }
 
 func Start(cfg Config) {
+	validateConfig(cfg)
 	projectRoot, err := internal.FindProjectRoot()
 	if err != nil {
-		log.Fatalf("❌ Failed to find project root: %v", err)
+		logger.Log.Error("Failed to find project root", "error", err)
+		os.Exit(1)
 	}
 
 	modelsDir := filepath.Join(projectRoot, "internal", "models")
 	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
-		log.Fatal("❌ Models not found. Run 'make modelgen' first to generate models from database schema.")
+		logger.Log.Error("Models not found. Run 'make modelgen' first to generate models from database schema")
+		os.Exit(1)
 	}
 
 	resourcesDir := filepath.Join(projectRoot, "internal", "api", "resources")
 	if _, err := os.Stat(resourcesDir); os.IsNotExist(err) {
-		log.Fatal("❌ Resources not found. Run 'make resourcegen' first to generate API resources.")
+		logger.Log.Error("Resources not found. Run 'make resourcegen' first to generate API resources")
+		os.Exit(1)
 	}
 
 	openapiDir := filepath.Join(projectRoot, "internal", "openapi")
 	if _, err := os.Stat(openapiDir); os.IsNotExist(err) {
-		log.Fatal("❌ OpenAPI schema not found. Run 'make openapigen' first to generate OpenAPI schema.")
+		logger.Log.Error("OpenAPI schema not found. Run 'make openapigen' first to generate OpenAPI schema")
+		os.Exit(1)
 	}
 
 	db, err := database.Open(cfg.DBDriver, cfg.DBUrl)
 	if err != nil {
-		log.Fatalf("❌ DB connection failed: %v", err)
+		logger.Log.Error("DB connection failed", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	schemaSlice, err := db.Introspector().LoadSchema(context.Background())
 	if err != nil {
-		log.Fatalf("❌ Failed to load schema: %v", err)
+		logger.Log.Error("Failed to load schema", "error", err)
+		os.Exit(1)
 	}
 
 	tables := make(map[string]internal.TableSchema)
@@ -70,13 +123,15 @@ func Start(cfg Config) {
 
 	app := fiber.New()
 
+	app.Use(requestid.New())
 	app.Use(middleware.HTTPLogger())
 
+	internal.SetupOpenAPIUI(app)
 	internal.SetupHealthCheck(app, db)
-	internal.SetupAuth(app, db, cfg.JWTSecret)
-	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret)
+	internal.SetupAuth(app, db, cfg.JWTSecret, cfg.JWTTTL)
+	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret, cfg.PaginationLimit, cfg.PaginationMaxLimit)
 
-	internal.SetupOpenAPI(app, tables)
+	internal.SetupOpenAPI(app, tables, cfg.PaginationLimit, cfg.PaginationMaxLimit)
 
 	// Channel to listen for shutdown signal
 	quit := make(chan os.Signal, 1)
@@ -84,28 +139,26 @@ func Start(cfg Config) {
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("🚀 REST API running at http://localhost:%s", cfg.Port)
-		log.Printf("📊 Health check available at http://localhost:%s/health", cfg.Port)
+		logger.Log.Info("REST API running", "port", cfg.Port, "url", "http://localhost:"+cfg.Port)
+		logger.Log.Info("Health check available", "url", "http://localhost:"+cfg.Port+"/health")
 		if err := app.Listen(":" + cfg.Port); err != nil {
-			log.Fatalf("❌ Server failed: %v", err)
+			logger.Log.Error("Server failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
-	// Wait for interrupt signal
 	<-quit
-	log.Println("🛑 Shutting down server gracefully...")
+	logger.Log.Info("Shutting down server gracefully")
 
-	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := app.ShutdownWithContext(ctx); err != nil {
-		log.Printf("⚠️  Server forced to shutdown: %v", err)
+		logger.Log.Warn("Server forced to shutdown", "error", err)
 	}
 
-	// Close database connection
 	db.Close()
-	log.Println("✅ Server shutdown complete")
+	logger.Log.Info("Server shutdown complete")
 }
 
 func convertColumns(dbCols []database.Column) []internal.Column {

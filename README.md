@@ -12,6 +12,8 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 - 🎭 Auto-population of fields from authentication context
 - 🌐 JSON-LD support with semantic web context (@context, @type, @id)
 - 🔗 Automatic foreign key to IRI conversion (e.g., `/users/{uuid}`)
+- 🔍 Advanced filtering & ordering (equality, comparison, text search, multiple fields)
+- 📄 Page-based pagination with Hydra collections
 - 👨🏻‍💻 DAL for PostgreSQL, MySQL and SQLite engines
 - 🛡️ Production grade errors and processes management
 - 🐳 Docker support with multi-database testing
@@ -24,7 +26,7 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 ## ⚙️ Requirements
 - Go **1.25+**
 - Docker & Docker Compose
-- PostgreSQL **18+**
+- Any relational database engine (PostgreSQL, MySQL and SQLlite supported)
 
 ---
 
@@ -77,9 +79,14 @@ make build
 ./bin/gorest
 ```
 
-API available at: **http://localhost:3000**
-Health check: **http://localhost:3000/health**
-OpenAPI API specs: **http://localhost:3000/openapi.json**
+**API Spec**
+- 📚 API Docs: **http://localhost:3000/openapi**
+- 📄 OpenAPI JSON: **http://localhost:3000/openapi.json**
+
+
+**Health check**
+- 💚 Health check: **http://localhost:3000/health**
+
 
 ---
 
@@ -456,6 +463,111 @@ func (f *Formatter) formatItem(item interface{}, baseType string) map[string]int
 
 ---
 
+## 🔍 Filtering & Ordering
+
+gorest provides powerful filtering and ordering capabilities for collection endpoints, allowing clients to query and sort data efficiently.
+
+### Filtering
+
+Filter results using query parameters with support for various operators:
+
+**Simple equality:**
+```bash
+GET /todos?status=active
+```
+
+**Multiple values (OR):**
+```bash
+GET /todos?status[]=active&status[]=archived
+```
+
+**Comparison operators:**
+```bash
+GET /todos?priority[gte]=5              # Greater than or equal
+GET /todos?priority[lte]=10             # Less than or equal
+GET /todos?priority[gt]=3               # Greater than
+GET /todos?priority[lt]=8               # Less than
+GET /todos?priority[ne]=0               # Not equal
+```
+
+**Text search:**
+```bash
+GET /todos?title[like]=meeting          # Case-sensitive LIKE
+GET /todos?title[ilike]=MEETING         # Case-insensitive (ILIKE on PostgreSQL, LOWER() on MySQL/SQLite)
+```
+
+**Date filtering:**
+```bash
+GET /todos?created_at[gte]=2024-01-01
+GET /todos?updated_at[lt]=2024-12-31
+```
+
+**Combining filters (AND):**
+```bash
+GET /todos?status=active&priority[gte]=7&created_at[gte]=2024-01-01
+```
+
+### Ordering
+
+Sort results using the `order[field]` parameter:
+
+**Single field:**
+```bash
+GET /todos?order[created_at]=desc
+GET /todos?order[priority]=asc
+```
+
+**Multiple fields:**
+```bash
+GET /todos?order[priority]=desc&order[created_at]=asc
+```
+
+Order of parameters determines sort precedence (first parameter = primary sort).
+
+### Combined Example
+
+```bash
+GET /todos?status[]=active&status[]=pending&priority[gte]=5&order[priority]=desc&order[created_at]=desc&page=2&limit=20
+```
+
+This query:
+- Filters todos with status "active" OR "pending"
+- AND priority >= 5
+- Sorts by priority (descending), then by created_at (descending)
+- Returns page 2 with 20 items per page
+
+### Pagination with Filters
+
+Pagination works seamlessly with filters and ordering:
+
+```json
+{
+  "@context": "http://www.w3.org/ns/hydra/context.jsonld",
+  "@id": "/todos",
+  "@type": "hydra:Collection",
+  "hydra:totalItems": 42,
+  "hydra:member": [...],
+  "hydra:view": {
+    "@id": "/todos?status=active&priority[gte]=5&order[priority]=desc&page=2",
+    "@type": "hydra:PartialCollectionView",
+    "hydra:first": "/todos?status=active&priority[gte]=5&order[priority]=desc",
+    "hydra:previous": "/todos?status=active&priority[gte]=5&order[priority]=desc",
+    "hydra:next": "/todos?status=active&priority[gte]=5&order[priority]=desc&page=3",
+    "hydra:last": "/todos?status=active&priority[gte]=5&order[priority]=desc&page=5"
+  }
+}
+```
+
+### Security
+
+Filtering and ordering are restricted to database fields only:
+- Only fields with `db` tags can be filtered/sorted
+- SQL injection protection via parameterized queries
+- Invalid fields are silently ignored
+- No arbitrary SQL execution possible
+
+---
+
 ## 🛡️ Graceful Shutdown
 
 gorest handles shutdown signals gracefully:
@@ -612,6 +724,467 @@ func ContextWithUser(c *fiber.Ctx) context.Context {
 
     return ctx
 }
+```
+
+---
+
+## 🔒 Security
+
+### Password Security
+
+gorest uses **bcrypt** for password hashing with automatic salt generation:
+- Resistant to brute-force attacks (cost factor 10)
+- Random salt per password
+- Constant-time comparison prevents timing attacks
+
+Use the exported `HashPassword()` function for password operations:
+
+```go
+import "github.com/nicolasbonnici/gorest/internal"
+
+hash, err := internal.HashPassword("userPassword123")
+if err != nil {
+    // handle error
+}
+// Store hash in database
+```
+
+### JWT Token Security
+
+JWT_SECRET must be:
+- **At least 32 characters long** (enforced at startup)
+- **Randomly generated** using cryptographically secure methods
+- **Never committed** to version control
+
+Generate a strong secret:
+```bash
+openssl rand -base64 32
+```
+
+### CORS Configuration
+
+For production, configure CORS to restrict allowed origins:
+
+```go
+import "github.com/gofiber/fiber/v2/middleware/cors"
+
+app.Use(cors.New(cors.Config{
+    AllowOrigins: "https://yourdomain.com,https://app.yourdomain.com",
+    AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+    AllowMethods: "GET,POST,PUT,DELETE",
+    AllowCredentials: true,
+}))
+```
+
+### Rate Limiting
+
+Protect your API from abuse with rate limiting:
+
+```go
+import "github.com/gofiber/fiber/v2/middleware/limiter"
+import "time"
+
+// Global rate limiter
+app.Use(limiter.New(limiter.Config{
+    Max:        100,
+    Expiration: 1 * time.Minute,
+}))
+
+// Login endpoint protection
+app.Use("/login", limiter.New(limiter.Config{
+    Max:        5,
+    Expiration: 15 * time.Minute,
+}))
+```
+
+### Security Best Practices
+
+1. **HTTPS Only**: Always use HTTPS in production
+2. **Environment Variables**: Never hardcode secrets
+3. **Input Validation**: Validate all user inputs
+4. **SQL Injection**: Use parameterized queries (gorest handles this)
+5. **Update Dependencies**: Regularly update dependencies
+6. **Audit Logs**: Log authentication attempts and sensitive operations
+
+---
+
+## 🛠 Advanced Features
+
+### Input Validation
+
+gorest includes validation support via `go-playground/validator`:
+
+```go
+import (
+	"github.com/nicolasbonnici/gorest/internal/helpers"
+	"github.com/gofiber/fiber/v2"
+)
+
+type CreateUserRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	Age      int    `json:"age" validate:"gte=0,lte=130"`
+}
+
+app.Post("/users", func(c *fiber.Ctx) error {
+	var req CreateUserRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helpers.SendError(c, 400, "Invalid request body")
+	}
+
+	if err := helpers.ValidateAndRespond(c, &req); err != nil {
+		return err
+	}
+
+	return helpers.SendSuccess(c, fiber.Map{"status": "created"})
+})
+```
+
+**Validation tags:**
+- `required` - Field must be present
+- `email` - Valid email format
+- `min=8` - Minimum length/value
+- `max=100` - Maximum length/value
+- `gte=0,lte=130` - Range validation
+- [Full documentation](https://pkg.go.dev/github.com/go-playground/validator/v10)
+
+### Error Responses
+
+Standardized error format across all endpoints:
+
+```go
+import "github.com/nicolasbonnici/gorest/internal/helpers"
+
+app.Post("/example", func(c *fiber.Ctx) error {
+	if someError {
+		return helpers.SendError(c, 400, "Invalid input")
+	}
+
+	return helpers.SendSuccess(c, data)
+})
+```
+
+**Response format:**
+```json
+{
+  "error": "Invalid credentials"
+}
+```
+
+**Helper functions:**
+- `helpers.SendError(c, statusCode, message)` - Error responses
+- `helpers.SendSuccess(c, data)` - 200 OK responses
+- `helpers.SendCreated(c, data)` - 201 Created responses
+
+### Request IDs
+
+Every request automatically gets a unique ID for tracing:
+
+```go
+app.Get("/example", func(c *fiber.Ctx) error {
+	requestID := c.Locals("requestid")
+
+	logger.Log.Info("Processing request", "request_id", requestID)
+
+	return c.JSON(fiber.Map{"request_id": requestID})
+})
+```
+
+Request IDs appear in:
+- HTTP response headers (`X-Request-ID`)
+- Structured logs
+- Error tracking
+
+### Structured Logging
+
+gorest uses Go's `log/slog` for structured JSON logging:
+
+```go
+import "github.com/nicolasbonnici/gorest/internal/logger"
+
+logger.Log.Info("User created", "user_id", userID, "email", email)
+logger.Log.Error("Database error", "error", err, "query", query)
+logger.Log.Warn("Rate limit exceeded", "ip", clientIP, "endpoint", path)
+```
+
+**Log levels:**
+- `Info` - Normal operations
+- `Warn` - Warning conditions
+- `Error` - Error conditions
+
+**Log output (JSON):**
+```json
+{
+  "time": "2025-10-29T23:00:00Z",
+  "level": "INFO",
+  "msg": "HTTP request",
+  "request_id": "abc123",
+  "method": "GET",
+  "path": "/users",
+  "status": 200,
+  "duration_ms": 45
+}
+```
+
+### API Versioning
+
+Implement versioning using HTTP headers for backward compatibility:
+
+**Header-based versioning** (recommended):
+
+```go
+app.Use(func(c *fiber.Ctx) error {
+	apiVersion := c.Get("Accept-Version", "1")
+	c.Locals("api_version", apiVersion)
+	return c.Next()
+})
+
+app.Get("/users", func(c *fiber.Ctx) error {
+	version := c.Locals("api_version").(string)
+
+	switch version {
+	case "1":
+		return c.JSON(getUsersV1())
+	case "2":
+		return c.JSON(getUsersV2())
+	default:
+		return helpers.SendError(c, 400, "Unsupported API version")
+	}
+})
+```
+
+**Client request:**
+```http
+GET /users HTTP/1.1
+Accept-Version: 2
+```
+
+**Benefits:**
+- Clean URLs (no `/v1/` prefixes)
+- Easy content negotiation
+- Supports multiple versions simultaneously
+- Gradual migration path
+
+**Alternative: URL Path Versioning**
+
+If you prefer URL-based versioning:
+
+```go
+v1 := app.Group("/v1")
+v1.Get("/users", getUsersV1)
+
+v2 := app.Group("/v2")
+v2.Get("/users", getUsersV2)
+```
+
+**Deprecation strategy:**
+1. Announce deprecation timeline (e.g., 6 months)
+2. Add deprecation warning headers
+3. Monitor usage of old versions
+4. Remove deprecated versions after timeline
+
+---
+
+## 🚀 Production Deployment
+
+### Prerequisites
+
+- Reverse proxy (nginx, caddy, traefik)
+- PostgreSQL 18+ database
+- SSL/TLS certificates
+- Process manager (systemd, docker)
+
+### Environment Configuration
+
+Create production `.env`:
+
+```bash
+# Database
+DATABASE_URL=postgres://user:password@db-host:5432/production_db?sslmode=require
+
+# JWT Secret (32+ characters)
+JWT_SECRET=$(openssl rand -base64 32)
+
+# Server
+PORT=3000
+```
+
+### Docker Deployment
+
+**docker-compose.yml:**
+
+```yaml
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+    depends_on:
+      - db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_DB=production_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+### Nginx Reverse Proxy
+
+**nginx.conf:**
+
+```nginx
+upstream gorest_api {
+    server localhost:3000;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.yourdomain.com;
+
+    ssl_certificate /etc/ssl/certs/api.yourdomain.com.crt;
+    ssl_certificate_key /etc/ssl/private/api.yourdomain.com.key;
+
+    location / {
+        proxy_pass http://gorest_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /health {
+        proxy_pass http://gorest_api/health;
+        access_log off;
+    }
+}
+
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+```
+
+### Systemd Service
+
+**/etc/systemd/system/gorest.service:**
+
+```ini
+[Unit]
+Description=gorest API Server
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=gorest
+WorkingDirectory=/opt/gorest
+EnvironmentFile=/opt/gorest/.env
+ExecStart=/opt/gorest/bin/gorest
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl enable gorest
+sudo systemctl start gorest
+sudo systemctl status gorest
+```
+
+### Database Migrations
+
+For schema changes, use migration tools:
+
+```bash
+# Install golang-migrate
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Create migration
+migrate create -ext sql -dir migrations -seq add_new_table
+
+# Apply migrations
+migrate -path migrations -database "${DATABASE_URL}" up
+```
+
+After migrations, regenerate code:
+```bash
+make generate
+make build
+```
+
+### Health Checks & Monitoring
+
+Use the `/health` endpoint for:
+- Load balancer health checks
+- Kubernetes readiness/liveness probes
+- Monitoring systems (Prometheus, Datadog)
+
+**Kubernetes probe example:**
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+### Performance Tuning
+
+**Database Connection Pooling:**
+
+Adjust PostgreSQL connection limits based on your workload:
+- Default: 25 max connections
+- High traffic: 50-100 connections
+- Monitor with `pg_stat_activity`
+
+**Go Runtime:**
+
+```bash
+# Set GOMAXPROCS for CPU-intensive workloads
+GOMAXPROCS=4 ./bin/gorest
+```
+
+### Logging
+
+Structured logging setup:
+
+```go
+import "log/slog"
+
+logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+logger.Info("server starting", "port", cfg.Port)
 ```
 
 ---

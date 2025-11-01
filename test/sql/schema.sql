@@ -29,7 +29,6 @@ CREATE INDEX idx_todo_fk_user ON todo (user_id);
 
 
 -- Fixtures
-WITH gen AS (SELECT gen_random_uuid() AS uuid)
-INSERT INTO users (id, firstname, lastname, email, password)
-SELECT gen.uuid, 'Admin', 'User', 'admin@test.com', encode(digest('salt' || 'password' || gen.uuid::text, 'sha256'), 'hex')
-FROM gen;
+-- Test user: admin@test.com / password (bcrypt hash)
+INSERT INTO users (firstname, lastname, email, password)
+VALUES ('Admin', 'User', 'admin@test.com', '$2a$10$xZybcXcww7epzFX6d6yr1uWKJvnqs7cEySXCKDYlBN1frJeUswGla');

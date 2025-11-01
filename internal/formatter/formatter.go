@@ -93,9 +93,14 @@ func (f *JSONLDFormatter) addTypeToItem(data interface{}, path string) map[strin
 	}
 
 	for key, value := range itemMap {
-		if strings.HasSuffix(key, "_id") && key != "id" {
+		isForeignKey := (strings.HasSuffix(key, "_id") || strings.HasSuffix(key, "Id")) && key != "id"
+		if isForeignKey {
 			if valueStr, ok := value.(string); ok && valueStr != "" {
-				resourceName := pluralize(strings.TrimSuffix(key, "_id"))
+				suffix := "_id"
+				if strings.HasSuffix(key, "Id") {
+					suffix = "Id"
+				}
+				resourceName := pluralize(strings.TrimSuffix(key, suffix))
 				itemMap[key] = fmt.Sprintf("/%s/%s", resourceName, valueStr)
 			}
 		}
