@@ -60,6 +60,9 @@ func GenerateAPIWithSkip(authCfg *AuthConfig, resourcesToSkip map[string]bool) {
 
 	// Generate routes.go
 	generateRoutesFile(projectRoot, generatedResources, authCfg)
+
+	// Update factory.go with hook constructors
+	updateFactoryFunctions(projectRoot)
 }
 
 // generateRoutesFile generates the routes.go file with auto-registered routes
@@ -106,6 +109,112 @@ func RegisterGeneratedRoutes(app *fiber.App, db database.Database, tables map[st
 		log.Fatalf("failed to write routes.go: %v", err)
 	}
 	log.Printf("🔀 Generated route registration → %s", routesPath)
+}
+
+// updateFactoryFunctions scans for existing hook files and updates factory.go
+func updateFactoryFunctions(projectRoot string) {
+	hooksDir := filepath.Join(projectRoot, "internal", "hooks")
+	factoryPath := filepath.Join(hooksDir, "factory.go")
+
+	// Read existing factory.go
+	factoryContent, err := os.ReadFile(factoryPath)
+	if err != nil {
+		log.Printf("⚠️  Warning: Could not read factory.go: %v", err)
+		return
+	}
+
+	// Find all hook files in hooks directory
+	files, err := os.ReadDir(hooksDir)
+	if err != nil {
+		log.Printf("⚠️  Warning: Could not read hooks directory: %v", err)
+		return
+	}
+
+	var hookConstructors strings.Builder
+	hookFiles := []string{}
+
+	for _, file := range files {
+		name := file.Name()
+		// Skip non-go files and special files
+		if !strings.HasSuffix(name, ".go") ||
+		   name == "factory.go" ||
+		   name == "hooks.go" ||
+		   name == ".gitkeep" {
+			continue
+		}
+
+		// Extract model name from filename (e.g., "user.go" -> "User")
+		modelName := strings.TrimSuffix(name, ".go")
+		modelName = strings.ToUpper(modelName[:1]) + modelName[1:] // Capitalize
+
+		hookFiles = append(hookFiles, modelName)
+	}
+
+	// Generate constructor functions
+	if len(hookFiles) > 0 {
+		hookConstructors.WriteString("\n")
+		for _, modelName := range hookFiles {
+			constructor := fmt.Sprintf(`
+func New%sHooks() *%sHooks {
+	return &%sHooks{}
+}
+`, modelName, modelName, modelName)
+			hookConstructors.WriteString(constructor)
+		}
+
+		// Check if constructors already exist in factory.go
+		factoryStr := string(factoryContent)
+		needsUpdate := false
+		for _, modelName := range hookFiles {
+			constructorSignature := fmt.Sprintf("func New%sHooks()", modelName)
+			if !strings.Contains(factoryStr, constructorSignature) {
+				needsUpdate = true
+				break
+			}
+		}
+
+		if needsUpdate {
+			// Find the end of the file and append new constructors
+			// Remove any existing constructor section and re-add all
+			lines := strings.Split(factoryStr, "\n")
+			var cleanedLines []string
+			skipNext := false
+
+			for i, line := range lines {
+				// Skip existing New*Hooks functions
+				if strings.Contains(line, "func New") && strings.Contains(line, "Hooks()") {
+					// Skip this function and its body
+					skipNext = true
+					continue
+				}
+				if skipNext {
+					if strings.TrimSpace(line) == "}" {
+						skipNext = false
+					}
+					continue
+				}
+				// Keep line if not empty or if it's the last line
+				if strings.TrimSpace(line) != "" || i == len(lines)-1 {
+					cleanedLines = append(cleanedLines, line)
+				}
+			}
+
+			// Add new constructors
+			newContent := strings.Join(cleanedLines, "\n")
+			// Remove trailing empty lines
+			newContent = strings.TrimRight(newContent, "\n")
+			newContent += hookConstructors.String()
+
+			// Write updated factory.go
+			if err := os.WriteFile(factoryPath, []byte(newContent), 0644); err != nil {
+				log.Printf("⚠️  Warning: Could not update factory.go: %v", err)
+				return
+			}
+			log.Printf("🔧 Updated hook factory functions → %s", factoryPath)
+		} else {
+			log.Printf("✓ Hook factory functions already up-to-date")
+		}
+	}
 }
 
 // All functions moved to separate files:

@@ -29,6 +29,7 @@ help:
 	@echo "  make docker-clean    - Stop and remove containers/images"
 	@echo "  make test            - Run Go tests"
 	@echo "  make test-coverage   - Run Go tests with coverage report"
+	@echo "  make benchmark       - Benchmark resource generation (1, 10, 100, 1000 tables)"
 	@echo "  make tidy            - Run go mod tidy"
 	@echo "  make rebuild         - Clean + build binary"
 	@echo ""
@@ -152,6 +153,13 @@ docker-stop:
 docker-clean:
 	@echo "[INFO] Stopping and removing Docker Compose containers and images..."
 	docker compose down --rmi all --volumes --remove-orphans
+
+# ----------------------------
+# Benchmark targets
+# ----------------------------
+.PHONY: benchmark
+benchmark: test-up test-schema
+	@export $$(grep -v '^#' .env.test | xargs) && go run ./cmd/benchmark/main.go
 
 # ----------------------------
 # Database targets

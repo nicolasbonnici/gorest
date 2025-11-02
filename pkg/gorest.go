@@ -78,7 +78,7 @@ func validateConfig(cfg Config) {
 			logger.Log.Error("❌ FATAL: Database SSL is DISABLED in production! This is a critical security violation.")
 			os.Exit(1)
 		}
-		logger.Log.Warn("⚠️  Database SSL is DISABLED! This is insecure for production. Use sslmode=require or sslmode=verify-full")
+		logger.Log.Warn("Database SSL is DISABLED! This is insecure for production. Use sslmode=require or sslmode=verify-full")
 	}
 
 	if cfg.JWTSecret == "" {
@@ -201,12 +201,18 @@ func Start(cfg Config) {
 		corsOrigins = "*"
 		logger.Log.Warn("CORS_ORIGINS not set, defaulting to '*' (allow all). Set CORS_ORIGINS in production!")
 	}
-	app.Use(cors.New(cors.Config{
-		AllowOrigins:     corsOrigins,
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
-		AllowCredentials: true,
-	}))
+
+	corsConfig := cors.Config{
+		AllowOrigins: corsOrigins,
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+	}
+
+	if corsOrigins != "*" {
+		corsConfig.AllowCredentials = true
+	}
+
+	app.Use(cors.New(corsConfig))
 
 	app.Use(func(c *fiber.Ctx) error {
 		c.Set("X-Content-Type-Options", "nosniff")

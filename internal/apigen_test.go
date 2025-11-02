@@ -41,7 +41,6 @@ func TestGenerateAPI(t *testing.T) {
 		"UserResource",
 		"RegisterUserRoutes",
 		"*crud.CRUD[models.User]",
-		"crud.New[models.User](db)",
 		"router.Get(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
 		"func (r *UserResource) Get(c *fiber.Ctx) error",
@@ -60,6 +59,13 @@ func TestGenerateAPI(t *testing.T) {
 		if !strings.Contains(contentStr, expected) {
 			t.Errorf("Expected users.go to contain '%s'", expected)
 		}
+	}
+
+	// Check for CRUD initialization - either with or without hooks
+	hasCrudNew := strings.Contains(contentStr, "crud.New[models.User](db)")
+	hasCrudWithHooks := strings.Contains(contentStr, "crud.NewWithHooks[models.User](db, hooks.NewUserHooks())")
+	if !hasCrudNew && !hasCrudWithHooks {
+		t.Error("Expected users.go to contain either 'crud.New[models.User](db)' or 'crud.NewWithHooks[models.User](db, hooks.NewUserHooks())'")
 	}
 }
 
@@ -128,7 +134,6 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		"UserResource",
 		"RegisterUserRoutes",
 		"*crud.CRUD[models.User]",
-		"crud.New[models.User](db)",
 		"router.Get(\"/users\"",
 		"router.Post(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
@@ -149,6 +154,13 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		if !strings.Contains(result, expected) {
 			t.Errorf("Expected generated code to contain '%s'", expected)
 		}
+	}
+
+	// Check for CRUD initialization - either with or without hooks
+	hasCrudNew := strings.Contains(result, "crud.New[models.User](db)")
+	hasCrudWithHooks := strings.Contains(result, "crud.NewWithHooks[models.User](db, hooks.NewUserHooks())")
+	if !hasCrudNew && !hasCrudWithHooks {
+		t.Error("Expected generated code to contain either 'crud.New[models.User](db)' or 'crud.NewWithHooks[models.User](db, hooks.NewUserHooks())'")
 	}
 }
 

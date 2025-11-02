@@ -4,22 +4,23 @@
 It introspects your database schema and generates type-safe **CRUD endpoints automatically**.
 
 ## ✨ Features
+
 - 🔎 Auto-discovery of tables, relations, columns & types
-- ⚡ Type-safe generic CRUD operations with hooks system
 - 🛠 Scaffold REST endpoints for each table
+- ⚡ Offer Type-safe generic CRUD operations with hooks system
 - 🔐 Full DTO support with field-level control (`dto` tags)
 - 🔑 JWT authentication with context-aware middleware
-- 🎭 Auto-population of fields from authentication context
+- 🎭 Hook layer to add your business logic onto your API resources
 - 🌐 JSON-LD support with semantic web context (@context, @type, @id)
-- 🔗 Automatic foreign key to IRI conversion (e.g., `/users/{uuid}`)
-- 🔍 Advanced filtering & ordering (equality, comparison, text search, multiple fields)
-- 📄 Page-based pagination with Hydra collections
+- 🔗 Automatic relation to IRI conversion (e.g., `/users/{uuid}`)
+- 🔍 Advanced filtering & ordering 
+- 📄 Page based pagination with Hydra collections
 - 👨🏻‍💻 DAL for PostgreSQL, MySQL and SQLite engines
 - 🛡️ Production grade errors and processes management
 - 🐳 Docker support with multi-database testing
 - 🧪 Full test coverage with automated testing
 - 💚 Health check endpoint (`/health`)
-- 📜 OpenAPI 3.0 spec generation
+- 📜 OpenAPI 3 spec generation
 
 ---
 
