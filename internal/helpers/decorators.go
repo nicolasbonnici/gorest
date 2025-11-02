@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -34,7 +35,18 @@ func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
 			}
 			return []byte(jwtSecret), nil
 		})
-		if err != nil || !token.Valid {
+
+		// Explicit error handling for better user experience
+		if err != nil {
+			// Check specifically for token expiration
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				return c.Status(401).JSON(fiber.Map{"error": "token expired"})
+			}
+			// Handle other JWT errors with generic message
+			return c.Status(401).JSON(fiber.Map{"error": "invalid token"})
+		}
+
+		if !token.Valid {
 			return c.Status(401).JSON(fiber.Map{"error": "invalid token"})
 		}
 

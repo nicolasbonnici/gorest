@@ -1193,6 +1193,8 @@ logger.Info("server starting", "port", cfg.Port)
 
 We welcome contributions from developers of all experience levels! Whether you're fixing bugs, adding features, improving documentation, or sharing ideas, your input helps make **GoREST** better for everyone.
 
+📖 **See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.**
+
 ### 🌟 Why Contribute?
 
 - **Learn & Grow**: Get hands-on experience with Go, SQL, code generation, and REST API design
