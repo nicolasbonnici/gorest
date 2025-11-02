@@ -2,6 +2,7 @@ package gorest
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -35,6 +36,36 @@ type Config struct {
 	CORSOrigins        string
 }
 
+func validateJWTSecretStrength(secret string) error {
+	if len(secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters long (current: %d)", len(secret))
+	}
+
+	weakPatterns := []string{"secret", "password", "test", "admin", "123"}
+	secretLower := strings.ToLower(secret)
+	for _, pattern := range weakPatterns {
+		if strings.Contains(secretLower, pattern) {
+			return fmt.Errorf("JWT_SECRET contains common word '%s'. Generate secure secret: openssl rand -base64 32", pattern)
+		}
+	}
+
+	uniqueChars := make(map[rune]bool)
+	for _, c := range secret {
+		uniqueChars[c] = true
+	}
+	if len(uniqueChars) < 16 {
+		return fmt.Errorf("JWT_SECRET has low entropy (only %d unique characters). Use: openssl rand -base64 32", len(uniqueChars))
+	}
+
+	for i := 0; i < len(secret)-4; i++ {
+		if secret[i] == secret[i+1] && secret[i] == secret[i+2] && secret[i] == secret[i+3] {
+			return fmt.Errorf("JWT_SECRET has repeated characters pattern. Use: openssl rand -base64 32")
+		}
+	}
+
+	return nil
+}
+
 func validateConfig(cfg Config) {
 	if cfg.DBUrl == "" {
 		logger.Log.Error("DATABASE_URL is required")
@@ -42,6 +73,11 @@ func validateConfig(cfg Config) {
 	}
 
 	if strings.Contains(cfg.DBUrl, "sslmode=disable") {
+		env := os.Getenv("ENVIRONMENT")
+		if env == "production" || env == "prod" {
+			logger.Log.Error("❌ FATAL: Database SSL is DISABLED in production! This is a critical security violation.")
+			os.Exit(1)
+		}
 		logger.Log.Warn("⚠️  Database SSL is DISABLED! This is insecure for production. Use sslmode=require or sslmode=verify-full")
 	}
 
@@ -50,8 +86,8 @@ func validateConfig(cfg Config) {
 		os.Exit(1)
 	}
 
-	if len(cfg.JWTSecret) < 32 {
-		logger.Log.Error("JWT_SECRET must be at least 32 characters long for security", "current_length", len(cfg.JWTSecret))
+	if err := validateJWTSecretStrength(cfg.JWTSecret); err != nil {
+		logger.Log.Error("JWT_SECRET validation failed", "error", err)
 		os.Exit(1)
 	}
 
@@ -148,7 +184,7 @@ func Start(cfg Config) {
 	app.Use(requestid.New())
 
 	app.Use(limiter.New(limiter.Config{
-		Max:        100,
+		Max:        50,
 		Expiration: 1 * time.Minute,
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return c.IP()

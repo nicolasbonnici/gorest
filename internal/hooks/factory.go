@@ -72,3 +72,11 @@ func RegisterGlobal(resourceName string, hooks interface{}) {
 func GetGlobal(resourceName string) (interface{}, bool) {
 	return GlobalFactory().GetHooks(resourceName)
 }
+
+func NewUserHooks() *UserHooks {
+	return &UserHooks{}
+}
+
+func NewTodoHooks() *TodoHooks {
+	return &TodoHooks{}
+}

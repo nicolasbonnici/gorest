@@ -14,7 +14,8 @@ COPY --from=builder /app/gorest .
 
 ENV PORT=3000
 ENV DB_URL=postgres://postgres:postgres@db:5432/mydb?sslmode=disable
-ENV JWT_SECRET=supersecret
+# JWT_SECRET must be provided at runtime via environment variable
+# Example: docker run -e JWT_SECRET=$JWT_SECRET ...
 
 EXPOSE 3000
 CMD ["./gorest"]
