@@ -103,13 +103,21 @@ func main() {
 	fmt.Println("[INFO] Starting API server...")
 	serverCmd := exec.Command("./bin/gorest")
 	serverCmd.Env = append(os.Environ(),
+		"DATABASE_URL="+dbURL,
 		"PORT=3001",
-		"JWT_SECRET="+os.Getenv("JWT_SECRET"),
+		"JWT_SECRET=bmk-jwt-k3y-f0r-4p1-p3rf0rm4nc3-m34sur3m3nts-0nly",
 		"JWT_TTL=3600",
 		"PAGINATION_LIMIT=50",
 		"PAGINATION_MAX_LIMIT=10000",
+		"CORS_ORIGINS=*",
 		"ENVIRONMENT=test",
 	)
+
+	// Capture output for debugging
+	logFile, _ := os.Create("/tmp/gorest-benchmark-server.log")
+	serverCmd.Stdout = logFile
+	serverCmd.Stderr = logFile
+
 	if err := serverCmd.Start(); err != nil {
 		fmt.Printf("ERROR: Failed to start server: %v\n", err)
 		os.Exit(1)
@@ -119,9 +127,30 @@ func main() {
 		serverCmd.Wait()
 	}()
 
-	// Wait for server to be ready
+	// Wait for server to be ready with health check polling
 	fmt.Println("[INFO] Waiting for server to be ready...")
-	time.Sleep(2 * time.Second)
+	serverReady := false
+	for i := 0; i < 30; i++ {
+		time.Sleep(500 * time.Millisecond)
+		resp, err := http.Get("http://localhost:3001/health")
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == 200 {
+				serverReady = true
+				break
+			}
+		}
+	}
+
+	if !serverReady {
+		fmt.Println("ERROR: Server failed to start within 15 seconds")
+		fmt.Println("Server logs:")
+		logContent, _ := os.ReadFile("/tmp/gorest-benchmark-server.log")
+		fmt.Println(string(logContent))
+		os.Exit(1)
+	}
+	fmt.Println("[INFO] Server is ready")
+	logFile.Close()
 
 	// Run benchmarks
 	fmt.Println()
