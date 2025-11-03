@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nicolasbonnici/gorest/internal/logger"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 )
 
@@ -15,11 +16,11 @@ func SetupHealthCheck(app *fiber.App, db database.Database) {
 
 		// Test database connectivity
 		if err := db.Ping(ctx); err != nil {
+			logger.Log.Error("Database health check failed", "error", err)
 			return c.Status(503).JSON(fiber.Map{
 				"status": "unhealthy",
 				"database": fiber.Map{
 					"status": "down",
-					"error":  err.Error(),
 				},
 			})
 		}

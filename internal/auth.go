@@ -5,13 +5,27 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/nicolasbonnici/gorest/pkg/database"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func SetupAuth(app *fiber.App, db database.Database, jwtSecret string, jwtTTL int) {
-	app.Post("/login", func(c *fiber.Ctx) error {
+	loginLimiter := limiter.New(limiter.Config{
+		Max:        5,
+		Expiration: 15 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(429).JSON(fiber.Map{
+				"error": "Too many login attempts. Please try again in 15 minutes.",
+			})
+		},
+	})
+
+	app.Post("/login", loginLimiter, func(c *fiber.Ctx) error {
 		var body struct {
 			Email    string `json:"email"`
 			Password string `json:"password"`

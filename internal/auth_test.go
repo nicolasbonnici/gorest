@@ -43,10 +43,8 @@ func TestSetupAuth(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	app := fiber.New()
 	jwtSecret := "test-secret-key"
 	jwtTTL := 900
-	SetupAuth(app, db, jwtSecret, jwtTTL)
 
 	tests := []struct {
 		name           string
@@ -107,6 +105,10 @@ func TestSetupAuth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create a new app for each subtest to reset rate limiters
+			app := fiber.New()
+			SetupAuth(app, db, jwtSecret, jwtTTL)
+
 			var bodyBytes []byte
 			if tt.body != nil {
 				bodyBytes, _ = json.Marshal(tt.body)

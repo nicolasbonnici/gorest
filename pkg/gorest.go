@@ -2,13 +2,17 @@ package gorest
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
 	"github.com/nicolasbonnici/gorest/internal"
@@ -29,6 +33,37 @@ type Config struct {
 	Port               string
 	PaginationLimit    int
 	PaginationMaxLimit int
+	CORSOrigins        string
+}
+
+func validateJWTSecretStrength(secret string) error {
+	if len(secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters long (current: %d)", len(secret))
+	}
+
+	weakPatterns := []string{"secret", "password", "test", "admin", "123"}
+	secretLower := strings.ToLower(secret)
+	for _, pattern := range weakPatterns {
+		if strings.Contains(secretLower, pattern) {
+			return fmt.Errorf("JWT_SECRET contains common word '%s'. Generate secure secret: openssl rand -base64 32", pattern)
+		}
+	}
+
+	uniqueChars := make(map[rune]bool)
+	for _, c := range secret {
+		uniqueChars[c] = true
+	}
+	if len(uniqueChars) < 16 {
+		return fmt.Errorf("JWT_SECRET has low entropy (only %d unique characters). Use: openssl rand -base64 32", len(uniqueChars))
+	}
+
+	for i := 0; i < len(secret)-4; i++ {
+		if secret[i] == secret[i+1] && secret[i] == secret[i+2] && secret[i] == secret[i+3] {
+			return fmt.Errorf("JWT_SECRET has repeated characters pattern. Use: openssl rand -base64 32")
+		}
+	}
+
+	return nil
 }
 
 func validateConfig(cfg Config) {
@@ -37,13 +72,22 @@ func validateConfig(cfg Config) {
 		os.Exit(1)
 	}
 
+	if strings.Contains(cfg.DBUrl, "sslmode=disable") {
+		env := os.Getenv("ENVIRONMENT")
+		if env == "production" || env == "prod" {
+			logger.Log.Error("❌ FATAL: Database SSL is DISABLED in production! This is a critical security violation.")
+			os.Exit(1)
+		}
+		logger.Log.Warn("Database SSL is DISABLED! This is insecure for production. Use sslmode=require or sslmode=verify-full")
+	}
+
 	if cfg.JWTSecret == "" {
 		logger.Log.Error("JWT_SECRET is required")
 		os.Exit(1)
 	}
 
-	if len(cfg.JWTSecret) < 32 {
-		logger.Log.Error("JWT_SECRET must be at least 32 characters long for security", "current_length", len(cfg.JWTSecret))
+	if err := validateJWTSecretStrength(cfg.JWTSecret); err != nil {
+		logger.Log.Error("JWT_SECRET validation failed", "error", err)
 		os.Exit(1)
 	}
 
@@ -121,9 +165,78 @@ func Start(cfg Config) {
 		}
 	}
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit:    4 * 1024 * 1024,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
+			return c.Status(code).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		},
+	})
 
 	app.Use(requestid.New())
+
+	app.Use(limiter.New(limiter.Config{
+		Max:        50,
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(429).JSON(fiber.Map{
+				"error": "Rate limit exceeded. Please try again later.",
+			})
+		},
+	}))
+
+	corsOrigins := cfg.CORSOrigins
+	if corsOrigins == "" {
+		corsOrigins = "*"
+		logger.Log.Warn("CORS_ORIGINS not set, defaulting to '*' (allow all). Set CORS_ORIGINS in production!")
+	}
+
+	corsConfig := cors.Config{
+		AllowOrigins: corsOrigins,
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+	}
+
+	if corsOrigins != "*" {
+		corsConfig.AllowCredentials = true
+	}
+
+	app.Use(cors.New(corsConfig))
+
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("X-Content-Type-Options", "nosniff")
+		c.Set("X-Frame-Options", "DENY")
+		c.Set("X-XSS-Protection", "1; mode=block")
+		c.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		c.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		return c.Next()
+	})
+
+	app.Use(func(c *fiber.Ctx) error {
+		method := c.Method()
+		if method == "POST" || method == "PUT" || method == "PATCH" {
+			contentType := c.Get("Content-Type")
+			if contentType != "" && !strings.HasPrefix(contentType, "application/json") {
+				return c.Status(415).JSON(fiber.Map{
+					"error": "Content-Type must be application/json",
+				})
+			}
+		}
+		return c.Next()
+	})
+
 	app.Use(middleware.HTTPLogger())
 
 	internal.SetupOpenAPIUI(app)
