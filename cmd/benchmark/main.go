@@ -168,11 +168,11 @@ func main() {
 	testDuration := 5 * time.Second
 
 	for _, limit := range counts {
-		fmt.Printf("Benchmarking GET /api/benchmark_items?limit=%d\n", limit)
+		fmt.Printf("Benchmarking GET /benchmarkitems?limit=%d\n", limit)
 		fmt.Println("─────────────────────────────────────────────────────────────────")
 
 		for _, concurrency := range concurrencyLevels {
-			url := fmt.Sprintf("http://localhost:3001/api/benchmark_items?limit=%d", limit)
+			url := fmt.Sprintf("http://localhost:3001/benchmarkitems?limit=%d", limit)
 
 			// Create target
 			target := vegeta.Target{
@@ -203,11 +203,16 @@ func main() {
 
 			if len(metrics.Errors) > 0 {
 				errorRate := float64(len(metrics.Errors)) / float64(metrics.Requests) * 100
-				fmt.Printf("Errors: %.2f%%", errorRate)
+				fmt.Printf("Errors: %.2f%% ", errorRate)
+				// Show first error for debugging
+				for _, err := range metrics.Errors {
+					fmt.Printf("(%s)", err)
+					break
+				}
 			} else {
 				fmt.Printf("Errors: 0")
 			}
-			fmt.Println()
+			fmt.Printf(" | Total: %d\n", metrics.Requests)
 		}
 		fmt.Println()
 	}
