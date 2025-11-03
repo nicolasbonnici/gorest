@@ -87,8 +87,14 @@ generate: modelgen
 .PHONY: test test-up test-schema test-generate
 test-up:
 	docker compose -f compose.yml -f compose.override.test.yml up -d db_test mysql_test
-	@echo "Waiting 5s for DBs to be ready..."
-	sleep 5
+	@echo "Waiting for databases to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		docker exec $(DB_TEST_CONTAINER) pg_isready -U postgres >/dev/null 2>&1 && \
+		docker exec gorest_mysql_test mysqladmin ping -h 127.0.0.1 -utestuser -ptestpass >/dev/null 2>&1 && \
+		echo "✓ Databases ready" && break || \
+		(echo "⏳ Waiting for databases... ($$i/10)" && sleep 1); \
+		if [ $$i -eq 10 ]; then echo "❌ Timeout waiting for databases"; exit 1; fi; \
+	done
 
 test-schema:
 	@echo "[INFO] Loading PostgreSQL test schema..."
