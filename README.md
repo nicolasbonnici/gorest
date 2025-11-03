@@ -1,25 +1,26 @@
-# gorest
+# GoREST
 
-🚀 **gorest** is a code generator for PostgreSQL REST APIs in Go.
+🚀 **GoREST** is a code generator for PostgreSQL REST APIs in Go.
 It introspects your database schema and generates type-safe **CRUD endpoints automatically**.
 
 ## ✨ Features
+
 - 🔎 Auto-discovery of tables, relations, columns & types
-- ⚡ Type-safe generic CRUD operations with hooks system
 - 🛠 Scaffold REST endpoints for each table
+- ⚡ Offer Type-safe generic CRUD operations with hooks system
 - 🔐 Full DTO support with field-level control (`dto` tags)
 - 🔑 JWT authentication with context-aware middleware
-- 🎭 Auto-population of fields from authentication context
+- 🎭 Hook layer to add your business logic onto your API resources
 - 🌐 JSON-LD support with semantic web context (@context, @type, @id)
-- 🔗 Automatic foreign key to IRI conversion (e.g., `/users/{uuid}`)
-- 🔍 Advanced filtering & ordering (equality, comparison, text search, multiple fields)
-- 📄 Page-based pagination with Hydra collections
+- 🔗 Automatic relation to IRI conversion (e.g., `/users/{uuid}`)
+- 🔍 Advanced filtering & ordering 
+- 📄 Page based pagination with Hydra collections
 - 👨🏻‍💻 DAL for PostgreSQL, MySQL and SQLite engines
 - 🛡️ Production grade errors and processes management
 - 🐳 Docker support with multi-database testing
 - 🧪 Full test coverage with automated testing
 - 💚 Health check endpoint (`/health`)
-- 📜 OpenAPI 3.0 spec generation
+- 📜 OpenAPI 3 spec generation
 
 ---
 
@@ -186,7 +187,7 @@ This separation allows:
 
 ## 🪝 Hooks System
 
-gorest provides a powerful hooks system to customize business logic without modifying generated code. Hooks allow you to:
+GoREST provides a powerful hooks system to customize business logic without modifying generated code. Hooks allow you to:
 
 - **Validate and transform data** before/after database operations
 - **Override SQL queries** for custom filtering or joins
@@ -251,7 +252,7 @@ For complete documentation, see [HOOKS.md](HOOKS.md)
 
 ## 🔐 DTOs & Field Control
 
-gorest automatically generates Data Transfer Objects (DTOs) for enhanced security and API clarity:
+GoREST automatically generates Data Transfer Objects (DTOs) for enhanced security and API clarity:
 
 ### DTO Types
 
@@ -379,7 +380,7 @@ curl http://localhost:3000/health
 
 ## 🌐 JSON-LD Support
 
-gorest automatically supports **JSON-LD** (Linked Data) format, providing semantic web context to your API responses. This makes your API machine-readable and interoperable with semantic web technologies.
+GoREST automatically supports **JSON-LD** (Linked Data) format, providing semantic web context to your API responses. This makes your API machine-readable and interoperable with semantic web technologies.
 
 ### What is JSON-LD?
 
@@ -465,7 +466,7 @@ func (f *Formatter) formatItem(item interface{}, baseType string) map[string]int
 
 ## 🔍 Filtering & Ordering
 
-gorest provides powerful filtering and ordering capabilities for collection endpoints, allowing clients to query and sort data efficiently.
+GoREST provides powerful filtering and ordering capabilities for collection endpoints, allowing clients to query and sort data efficiently.
 
 ### Filtering
 
@@ -570,7 +571,7 @@ Filtering and ordering are restricted to database fields only:
 
 ## 🛡️ Graceful Shutdown
 
-gorest handles shutdown signals gracefully:
+GoREST handles shutdown signals gracefully:
 - Listens for `SIGTERM` and `SIGINT` (Ctrl+C)
 - 30-second timeout for in-flight requests
 - Cleanly closes database connections
@@ -580,7 +581,7 @@ gorest handles shutdown signals gracefully:
 
 ## 🔐 Authentication & Context System
 
-gorest provides a sophisticated context system that bridges JWT authentication with your business logic hooks, enabling secure server-side field population.
+GoREST provides a sophisticated context system that bridges JWT authentication with your business logic hooks, enabling secure server-side field population.
 
 ### How It Works
 
@@ -732,7 +733,7 @@ func ContextWithUser(c *fiber.Ctx) context.Context {
 
 ### Password Security
 
-gorest uses **bcrypt** for password hashing with automatic salt generation:
+GoREST uses **bcrypt** for password hashing with automatic salt generation:
 - Resistant to brute-force attacks (cost factor 10)
 - Random salt per password
 - Constant-time comparison prevents timing attacks
@@ -802,7 +803,7 @@ app.Use("/login", limiter.New(limiter.Config{
 1. **HTTPS Only**: Always use HTTPS in production
 2. **Environment Variables**: Never hardcode secrets
 3. **Input Validation**: Validate all user inputs
-4. **SQL Injection**: Use parameterized queries (gorest handles this)
+4. **SQL Injection**: Use parameterized queries (GoREST handles this)
 5. **Update Dependencies**: Regularly update dependencies
 6. **Audit Logs**: Log authentication attempts and sensitive operations
 
@@ -812,7 +813,7 @@ app.Use("/login", limiter.New(limiter.Config{
 
 ### Input Validation
 
-gorest includes validation support via `go-playground/validator`:
+GoREST includes validation support via `go-playground/validator`:
 
 ```go
 import (
@@ -897,7 +898,7 @@ Request IDs appear in:
 
 ### Structured Logging
 
-gorest uses Go's `log/slog` for structured JSON logging:
+GoREST uses Go's `log/slog` for structured JSON logging:
 
 ```go
 import "github.com/nicolasbonnici/gorest/internal/logger"
@@ -1091,7 +1092,7 @@ server {
 
 ```ini
 [Unit]
-Description=gorest API Server
+Description=GoREST API Server
 After=network.target postgresql.service
 
 [Service]
@@ -1191,7 +1192,9 @@ logger.Info("server starting", "port", cfg.Port)
 
 ## 🤝 Contributing
 
-We welcome contributions from developers of all experience levels! Whether you're fixing bugs, adding features, improving documentation, or sharing ideas, your input helps make **gorest** better for everyone.
+We welcome contributions from developers of all experience levels! Whether you're fixing bugs, adding features, improving documentation, or sharing ideas, your input helps make **GoREST** better for everyone.
+
+📖 **See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.**
 
 ### 🌟 Why Contribute?
 

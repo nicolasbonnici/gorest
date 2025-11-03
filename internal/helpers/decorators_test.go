@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -76,6 +77,21 @@ func TestRequireAuth(t *testing.T) {
 			},
 			expectedStatus: 401,
 			expectedError:  "missing token",
+		},
+		{
+			name: "expired token",
+			setupAuth: func() string {
+				// Create token that expired 1 hour ago
+				claims := jwt.MapClaims{
+					"userId": "123",
+					"exp":    time.Now().Add(-1 * time.Hour).Unix(),
+				}
+				token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+				tokenStr, _ := token.SignedString([]byte(jwtSecret))
+				return "Bearer " + tokenStr
+			},
+			expectedStatus: 401,
+			expectedError:  "token expired",
 		},
 	}
 
