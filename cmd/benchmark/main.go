@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"time"
+
+	vegeta "github.com/tsenart/vegeta/v12/lib"
 
 	"github.com/nicolasbonnici/gorest/pkg/database"
 	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
@@ -56,7 +55,7 @@ func main() {
 
 	// Generate test data
 	fmt.Println("[INFO] Generating test data...")
-	counts := []int{10, 100, 1000, 10000}
+	counts := []int{10, 100, 1000}
 	maxCount := counts[len(counts)-1]
 
 	for i := 1; i <= maxCount; i++ {
@@ -103,13 +102,20 @@ func main() {
 	fmt.Println("[INFO] Starting API server...")
 	serverCmd := exec.Command("./bin/gorest")
 	serverCmd.Env = append(os.Environ(),
+		"DATABASE_URL="+dbURL,
 		"PORT=3001",
-		"JWT_SECRET="+os.Getenv("JWT_SECRET"),
+		"JWT_SECRET=bmk-jwt-k3y-f0r-4p1-p3rf0rm4nc3-m34sur3m3nts-0nly",
 		"JWT_TTL=3600",
 		"PAGINATION_LIMIT=50",
 		"PAGINATION_MAX_LIMIT=10000",
+		"CORS_ORIGINS=*",
 		"ENVIRONMENT=test",
 	)
+
+	// Discard server output (we don't need it unless debugging)
+	serverCmd.Stdout = nil
+	serverCmd.Stderr = nil
+
 	if err := serverCmd.Start(); err != nil {
 		fmt.Printf("ERROR: Failed to start server: %v\n", err)
 		os.Exit(1)
@@ -119,9 +125,36 @@ func main() {
 		serverCmd.Wait()
 	}()
 
-	// Wait for server to be ready
+	// Wait for server to be ready with health check polling
 	fmt.Println("[INFO] Waiting for server to be ready...")
-	time.Sleep(2 * time.Second)
+	serverReady := false
+	for i := 0; i < 30; i++ {
+		time.Sleep(500 * time.Millisecond)
+
+		// Use Vegeta for health check
+		target := vegeta.Target{
+			Method: "GET",
+			URL:    "http://localhost:3001/health",
+		}
+		attacker := vegeta.NewAttacker()
+
+		for res := range attacker.Attack(vegeta.NewStaticTargeter(target), vegeta.Rate{Freq: 1, Per: time.Second}, 1*time.Second, "Health Check") {
+			if res.Code == 200 {
+				serverReady = true
+				break
+			}
+		}
+
+		if serverReady {
+			break
+		}
+	}
+
+	if !serverReady {
+		fmt.Println("ERROR: Server failed to start within 15 seconds")
+		os.Exit(1)
+	}
+	fmt.Println("[INFO] Server is ready")
 
 	// Run benchmarks
 	fmt.Println()
@@ -130,46 +163,57 @@ func main() {
 	fmt.Println("=========================================")
 	fmt.Println()
 
+	// Test different limits with multiple concurrency levels
+	concurrencyLevels := []int{1, 10, 50}
+	testDuration := 5 * time.Second
+
 	for _, limit := range counts {
-		fmt.Printf("Benchmarking GET /api/benchmark_items?limit=%d\n", limit)
+		fmt.Printf("Benchmarking GET /benchmarkitems?limit=%d\n", limit)
+		fmt.Println("─────────────────────────────────────────────────────────────────")
 
-		url := fmt.Sprintf("http://localhost:3001/api/benchmark_items?limit=%d", limit)
+		for _, concurrency := range concurrencyLevels {
+			url := fmt.Sprintf("http://localhost:3001/benchmarkitems?limit=%d", limit)
 
-		// Warm-up request
-		http.Get(url)
-
-		// Measure 5 requests and average
-		var totalDuration time.Duration
-		for i := 0; i < 5; i++ {
-			start := time.Now()
-			resp, err := http.Get(url)
-			if err != nil {
-				fmt.Printf("  ERROR: Request failed: %v\n", err)
-				continue
+			// Create target
+			target := vegeta.Target{
+				Method: "GET",
+				URL:    url,
 			}
+			targeter := vegeta.NewStaticTargeter(target)
 
-			body, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			// Configure attack rate
+			rate := vegeta.Rate{Freq: concurrency, Per: time.Second}
 
-			if err != nil {
-				fmt.Printf("  ERROR: Failed to read response: %v\n", err)
-				continue
+			// Create attacker
+			attacker := vegeta.NewAttacker()
+
+			// Run attack and collect metrics
+			var metrics vegeta.Metrics
+			for res := range attacker.Attack(targeter, rate, testDuration, fmt.Sprintf("Load Test (concurrency=%d)", concurrency)) {
+				metrics.Add(res)
 			}
+			metrics.Close()
 
-			duration := time.Since(start)
-			totalDuration += duration
+			// Display results
+			fmt.Printf("  Concurrency: %-3d | ", concurrency)
+			fmt.Printf("RPS: %7.0f | ", metrics.Rate)
+			fmt.Printf("p50: %8s | ", metrics.Latencies.P50)
+			fmt.Printf("p95: %8s | ", metrics.Latencies.P95)
+			fmt.Printf("p99: %8s | ", metrics.Latencies.P99)
 
-			// Parse to verify response
-			var result map[string]interface{}
-			if err := json.Unmarshal(body, &result); err != nil {
-				fmt.Printf("  ERROR: Failed to parse response: %v\n", err)
-				continue
+			if len(metrics.Errors) > 0 {
+				errorRate := float64(len(metrics.Errors)) / float64(metrics.Requests) * 100
+				fmt.Printf("Errors: %.2f%% ", errorRate)
+				// Show first error for debugging
+				for _, err := range metrics.Errors {
+					fmt.Printf("(%s)", err)
+					break
+				}
+			} else {
+				fmt.Printf("Errors: 0")
 			}
+			fmt.Printf(" | Total: %d\n", metrics.Requests)
 		}
-
-		avgDuration := totalDuration / 5
-		fmt.Printf("  Average response time: %v\n", avgDuration)
-		fmt.Printf("  Throughput: %.2f req/s\n", 1.0/avgDuration.Seconds())
 		fmt.Println()
 	}
 
