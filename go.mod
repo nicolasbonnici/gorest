@@ -12,7 +12,7 @@ require (
 	github.com/tsenart/vegeta/v12 v12.13.0
 	golang.org/x/crypto v0.43.0
 	golang.org/x/text v0.30.0
-	modernc.org/sqlite v1.39.1
+	modernc.org/sqlite v1.40.0
 )
 
 require (
