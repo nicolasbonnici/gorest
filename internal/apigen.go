@@ -95,7 +95,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/internal"
 	"github.com/nicolasbonnici/gorest/internal/api/resources"
-	"github.com/nicolasbonnici/gorest/pkg/database"
+	"github.com/nicolasbonnici/gorest/database"
 )
 
 func RegisterGeneratedRoutes(app *fiber.App, db database.Database, tables map[string]internal.TableSchema, jwtSecret string, paginationLimit, paginationMaxLimit int) {

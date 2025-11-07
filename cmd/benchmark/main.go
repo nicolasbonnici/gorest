@@ -9,10 +9,10 @@ import (
 
 	vegeta "github.com/tsenart/vegeta/v12/lib"
 
-	"github.com/nicolasbonnici/gorest/pkg/database"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/sqlite"
+	"github.com/nicolasbonnici/gorest/database"
+	_ "github.com/nicolasbonnici/gorest/database/mysql"
+	_ "github.com/nicolasbonnici/gorest/database/postgres"
+	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 )
 
 func main() {

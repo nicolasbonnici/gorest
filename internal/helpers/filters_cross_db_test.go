@@ -4,9 +4,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nicolasbonnici/gorest/pkg/database/mysql"
-	"github.com/nicolasbonnici/gorest/pkg/database/postgres"
-	"github.com/nicolasbonnici/gorest/pkg/database/sqlite"
+	"github.com/nicolasbonnici/gorest/database/mysql"
+	"github.com/nicolasbonnici/gorest/database/postgres"
+	"github.com/nicolasbonnici/gorest/database/sqlite"
 )
 
 func TestFilterSet_ILike_PostgreSQL(t *testing.T) {

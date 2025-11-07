@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nicolasbonnici/gorest/pkg/database"
+	"github.com/nicolasbonnici/gorest/database"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )

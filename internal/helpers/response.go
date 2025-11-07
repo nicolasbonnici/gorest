@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/internal/formatter"
+	"github.com/nicolasbonnici/gorest/formatter"
 )
 
 func SendFormatted(c *fiber.Ctx, statusCode int, data interface{}) error {

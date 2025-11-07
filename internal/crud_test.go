@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nicolasbonnici/gorest/internal/crud"
+	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/internal/models"
 )
 

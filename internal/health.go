@@ -6,7 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/internal/logger"
-	"github.com/nicolasbonnici/gorest/pkg/database"
+	"github.com/nicolasbonnici/gorest/database"
 )
 
 func SetupHealthCheck(app *fiber.App, db database.Database) {

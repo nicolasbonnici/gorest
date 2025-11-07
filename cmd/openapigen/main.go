@@ -8,10 +8,10 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/nicolasbonnici/gorest/internal"
-	"github.com/nicolasbonnici/gorest/pkg/database"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/sqlite"
+	"github.com/nicolasbonnici/gorest/database"
+	_ "github.com/nicolasbonnici/gorest/database/mysql"
+	_ "github.com/nicolasbonnici/gorest/database/postgres"
+	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 )
 
 func main() {

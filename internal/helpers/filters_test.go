@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nicolasbonnici/gorest/pkg/database/postgres"
+	"github.com/nicolasbonnici/gorest/database/postgres"
 )
 
 func TestFilterSet_ParseFromQuery(t *testing.T) {

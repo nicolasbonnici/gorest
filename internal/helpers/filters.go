@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nicolasbonnici/gorest/pkg/database"
+	"github.com/nicolasbonnici/gorest/database"
 )
 
 type FilterOperator string

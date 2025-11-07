@@ -100,16 +100,16 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	"net/url"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/internal/crud"
-	"github.com/nicolasbonnici/gorest/internal/helpers"
+	"github.com/nicolasbonnici/gorest/crud"
+	"github.com/nicolasbonnici/gorest/filter"
 	"github.com/nicolasbonnici/gorest/internal/logger"
 	"github.com/nicolasbonnici/gorest/internal/models"
 	"github.com/nicolasbonnici/gorest/internal/api/dtos"
-	"github.com/nicolasbonnici/gorest/pkg/database"`
+	"github.com/nicolasbonnici/gorest/database"`
 
 	if hasHooks {
 		importsSection += `
-	"github.com/nicolasbonnici/gorest/internal/hooks"`
+	"github.com/nicolasbonnici/gorest/hooks"`
 	}
 	importsSection += `
 )`

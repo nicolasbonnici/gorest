@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/nicolasbonnici/gorest/pkg/database"
+	"github.com/nicolasbonnici/gorest/database"
 	"golang.org/x/crypto/bcrypt"
 )
 
