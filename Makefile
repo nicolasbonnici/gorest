@@ -111,7 +111,7 @@ test: test-up test-schema test-generate
 	@echo "[INFO] Running Go tests..."
 	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -v -timeout=5m ./...
 	@echo "[INFO] Restoring auth-enabled resources after tests..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen ARGS=-y
+	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen ARGS=-y >/dev/null 2>&1
 
 .PHONY: test-coverage
 test-coverage: test-up test-schema test-generate

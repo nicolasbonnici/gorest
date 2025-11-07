@@ -1,7 +1,11 @@
 # GoREST
 
-🚀 **GoREST** is a code generator for PostgreSQL REST APIs in Go.
+🚀 **GoREST** is a code generator and library for PostgreSQL REST APIs in Go.
 It introspects your database schema and generates type-safe **CRUD endpoints automatically**.
+
+**Use GoREST as:**
+- 📦 **A Go library** - Import packages for CRUD operations, filters, pagination, auth helpers
+- 🛠️ **A code generator** - Scaffold complete REST APIs from your database schema
 
 ## ✨ Features
 
@@ -24,14 +28,104 @@ It introspects your database schema and generates type-safe **CRUD endpoints aut
 
 ---
 
-## ⚙️ Requirements
+## 📦 Using GoREST as a Library
+
+Since **v0.2.0**, GoREST is a fully importable Go library. All core packages are now exportable and can be used in any Go project.
+
+### Installation
+
+```bash
+go get github.com/nicolasbonnici/gorest@latest
+```
+
+Or specify a version:
+```bash
+go get github.com/nicolasbonnici/gorest@v0.2.0
+```
+
+### Available Packages
+
+| Package | Description |
+|---------|-------------|
+| `auth` | JWT authentication, middleware & context helpers |
+| `crud` | Generic type-safe CRUD operations with lifecycle hooks |
+| `database` | Multi-database abstraction (PostgreSQL, MySQL, SQLite) |
+| `filter` | Query filtering with multiple operators & ordering |
+| `formatter` | JSON-LD response formatting with IRI conversion |
+| `hooks` | Extensible lifecycle hooks for business logic |
+| `middleware` | HTTP middleware utilities (logging, etc.) |
+| `pagination` | Hydra-compliant pagination & collection responses |
+| `response` | HTTP response helpers & validation |
+
+**Import example:**
+```go
+import (
+    "github.com/nicolasbonnici/gorest/auth"
+    "github.com/nicolasbonnici/gorest/crud"
+    "github.com/nicolasbonnici/gorest/database"
+    "github.com/nicolasbonnici/gorest/filter"
+    "github.com/nicolasbonnici/gorest/pagination"
+)
+```
+
+📚 **[View full API documentation on pkg.go.dev](https://pkg.go.dev/github.com/nicolasbonnici/gorest)**
+
+### Quick Example
+
+```go
+package main
+
+import (
+    "github.com/gofiber/fiber/v2"
+    "github.com/nicolasbonnici/gorest/database"
+    "github.com/nicolasbonnici/gorest/crud"
+    "github.com/nicolasbonnici/gorest/auth"
+)
+
+type User struct {
+    ID    string `json:"id" db:"id"`
+    Email string `json:"email" db:"email"`
+}
+
+func (User) TableName() string { return "users" }
+
+func main() {
+    // Open database connection
+    db, _ := database.Open("postgres", "postgres://...")
+    defer db.Close()
+
+    // Create CRUD handler
+    userCRUD := crud.New[User](db)
+
+    app := fiber.New()
+
+    // Add routes with auth middleware
+    app.Get("/users", auth.RequireAuth("secret", func(c *fiber.Ctx) error {
+        ctx := auth.Context(c)
+        result, _ := userCRUD.GetAllPaginated(ctx, crud.PaginationOptions{
+            Limit: 10,
+        })
+        return c.JSON(result.Items)
+    }))
+
+    app.Listen(":3000")
+}
+```
+
+---
+
+## 🛠️ Using GoREST as a Code Generator
+
+GoREST can scaffold complete REST APIs from your database schema:
+
+### ⚙️ Requirements
 - Go **1.25+**
 - Docker & Docker Compose
 - Any relational database engine (PostgreSQL, MySQL and SQLlite supported)
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Generator)
 
 ### 1. Clone & Setup
 ```bash
