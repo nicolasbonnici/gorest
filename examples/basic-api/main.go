@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
+	"github.com/nicolasbonnici/gorest"
 	"github.com/nicolasbonnici/gorest/internal/logger"
-	"github.com/nicolasbonnici/gorest/pkg"
 )
 
 func main() {

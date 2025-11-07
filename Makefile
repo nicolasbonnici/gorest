@@ -43,7 +43,7 @@ help:
 build: tidy
 	@echo "[INFO] Building Go binary..."
 	@mkdir -p bin
-	go build -o bin/$(BINARY) ./pkg/gorest
+	go build -o bin/$(BINARY) ./examples/basic-api
 
 .PHONY: run
 run: build

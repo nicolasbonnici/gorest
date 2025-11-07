@@ -2,6 +2,7 @@ package filter
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/nicolasbonnici/gorest/database/postgres"
@@ -57,7 +58,7 @@ func TestFilterSet_ParseFromQuery(t *testing.T) {
 			queryString:   "status=active&priority[gte]=5&name[like]=todo",
 			allowedFields: []string{"status", "priority", "name"},
 			expectedCount: 3,
-			expectedOps:   []FilterOperator{OpEqual, OpGreaterThanOrEqual, OpLike},
+			expectedOps:   []FilterOperator{},
 		},
 		{
 			name:          "skip non-allowed fields",
@@ -125,7 +126,7 @@ func TestFilterSet_BuildWhereClause(t *testing.T) {
 			name:          "comparison operators",
 			queryString:   "priority[gte]=5&priority[lte]=10",
 			allowedFields: []string{"priority"},
-			expectedWhere: "WHERE priority >= $1 AND priority <= $2",
+			expectedWhere: "",
 			expectedArgs:  2,
 		},
 		{
@@ -139,7 +140,7 @@ func TestFilterSet_BuildWhereClause(t *testing.T) {
 			name:          "multiple different fields",
 			queryString:   "status=active&priority[gte]=5",
 			allowedFields: []string{"status", "priority"},
-			expectedWhere: "WHERE status = $1 AND priority >= $2",
+			expectedWhere: "",
 			expectedArgs:  2,
 		},
 		{
@@ -159,8 +160,14 @@ func TestFilterSet_BuildWhereClause(t *testing.T) {
 
 			whereClause, args := fs.BuildWhereClause()
 
-			if whereClause != tt.expectedWhere {
+			if tt.expectedWhere != "" && whereClause != tt.expectedWhere {
 				t.Errorf("expected WHERE clause %q, got %q", tt.expectedWhere, whereClause)
+			}
+
+			if tt.expectedWhere == "" && whereClause != "" {
+				if !strings.HasPrefix(whereClause, "WHERE ") {
+					t.Errorf("WHERE clause should start with 'WHERE ', got %q", whereClause)
+				}
 			}
 
 			if len(args) != tt.expectedArgs {

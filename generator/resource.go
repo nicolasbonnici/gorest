@@ -36,7 +36,7 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 
 	wrapHandler := func(handler string, requireAuth bool) string {
 		if requireAuth {
-			return fmt.Sprintf("helpers.RequireAuth(jwtSecret, res.%s)", handler)
+			return fmt.Sprintf("auth.RequireAuth(jwtSecret, res.%s)", handler)
 		}
 		return fmt.Sprintf("res.%s", handler)
 	}
@@ -68,7 +68,7 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	if hasUserIdField {
 		userIdAutoPopulate = `
 	// Auto-populate user_id from authenticated user
-	if user := helpers.GetAuthenticatedUser(c); user != nil {
+	if user := auth.GetAuthenticatedUser(c); user != nil {
 		item.UserId = &user.UserID
 	}
 `
@@ -100,12 +100,15 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	"net/url"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/crud"
+	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/filter"
+	"github.com/nicolasbonnici/gorest/internal/api/dtos"
 	"github.com/nicolasbonnici/gorest/internal/logger"
 	"github.com/nicolasbonnici/gorest/internal/models"
-	"github.com/nicolasbonnici/gorest/internal/api/dtos"
-	"github.com/nicolasbonnici/gorest/database"`
+	"github.com/nicolasbonnici/gorest/pagination"
+	"github.com/nicolasbonnici/gorest/response"`
 
 	if hasHooks {
 		importsSection += `
@@ -153,11 +156,11 @@ func Register%sRoutes(%s) {
 // @Summary List %s
 // @Tags %s
 // @Produce json,application/ld+json
-// @Success 200 {object} helpers.HydraCollection
+// @Success 200 {object} pagination.HydraCollection
 // @Router /%s [get]
 func (r *%sResource) List(c *fiber.Ctx) error {
-	limit := helpers.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
-	page := helpers.ParseIntQuery(c, "page", 1, 10000)
+	limit := response.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
+	page := response.ParseIntQuery(c, "page", 1, 10000)
 	if page < 1 {
 		page = 1
 	}
@@ -171,19 +174,19 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 		queryParams.Add(string(key), string(value))
 	})
 
-	filters := helpers.NewFilterSet(allowedFields, r.DB.Dialect())
+	filters := filter.NewFilterSet(allowedFields, r.DB.Dialect())
 	if err := filters.ParseFromQuery(queryParams); err != nil {
-		return helpers.SendPaginatedError(c, 400, err.Error())
+		return pagination.SendPaginatedError(c, 400, err.Error())
 	}
 	whereClause, whereArgs := filters.BuildWhereClause()
 
-	ordering := helpers.NewOrderSet(allowedFields)
+	ordering := filter.NewOrderSet(allowedFields)
 	if err := ordering.ParseFromQuery(queryParams); err != nil {
-		return helpers.SendPaginatedError(c, 400, err.Error())
+		return pagination.SendPaginatedError(c, 400, err.Error())
 	}
 	orderByClause := ordering.BuildOrderByClause()
 
-	result, err := r.CRUD.GetAllPaginated(helpers.Context(c), crud.PaginationOptions{
+	result, err := r.CRUD.GetAllPaginated(auth.Context(c), crud.PaginationOptions{
 		Limit:         limit,
 		Offset:        offset,
 		IncludeCount:  includeCount,
@@ -192,7 +195,7 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 		OrderByClause: orderByClause,
 	})
 	if err != nil {
-		return helpers.SendPaginatedError(c, 500, err.Error())
+		return pagination.SendPaginatedError(c, 500, err.Error())
 	}
 
 	dtoItems := make([]dtos.%sDTO, len(result.Items))
@@ -200,7 +203,7 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 		dtoItems[i] = modelTo%sDTO(item)
 	}
 
-	return helpers.SendHydraCollection(c, dtoItems, result.Total, limit, page, r.PaginationLimit)
+	return pagination.SendHydraCollection(c, dtoItems, result.Total, limit, page, r.PaginationLimit)
 }
 
 // Get %s by ID
@@ -212,13 +215,13 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 // @Router /%s/{id} [get]
 func (r *%sResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
-	item, err := r.CRUD.GetByID(helpers.Context(c), id)
+	item, err := r.CRUD.GetByID(auth.Context(c), id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
 	}
 
 	dto := modelTo%sDTO(*item)
-	return helpers.SendFormatted(c,200, dto)
+	return response.SendFormatted(c,200, dto)
 }
 
 // Create %s
@@ -238,7 +241,7 @@ func (r *%sResource) Create(c *fiber.Ctx) error {
 
 	item := %sCreateDTOToModel(createDTO)
 %s
-	ctx := helpers.Context(c)
+	ctx := auth.Context(c)
 	if err := r.CRUD.Create(ctx, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -246,11 +249,11 @@ func (r *%sResource) Create(c *fiber.Ctx) error {
 	created, err := r.CRUD.GetByID(ctx, item.Id)
 	if err != nil {
 		dto := modelTo%sDTO(item)
-		return helpers.SendFormatted(c,201, dto)
+		return response.SendFormatted(c,201, dto)
 	}
 
 	dto := modelTo%sDTO(*created)
-	return helpers.SendFormatted(c,201, dto)
+	return response.SendFormatted(c,201, dto)
 }
 
 // Update %s
@@ -271,12 +274,12 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 
 	item := %sUpdateDTOToModel(updateDTO)
 %s
-	if err := r.CRUD.Update(helpers.Context(c), id, item); err != nil {
+	if err := r.CRUD.Update(auth.Context(c), id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	dto := modelTo%sDTO(item)
-	return helpers.SendFormatted(c,200, dto)
+	return response.SendFormatted(c,200, dto)
 }
 
 // Delete %s
@@ -287,7 +290,7 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 // @Router /%s/{id} [delete]
 func (r *%sResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
-	if err := r.CRUD.Delete(helpers.Context(c), id); err != nil {
+	if err := r.CRUD.Delete(auth.Context(c), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(204)
