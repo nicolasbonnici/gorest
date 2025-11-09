@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/nicolasbonnici/gorest/database"
@@ -69,12 +70,15 @@ func LoadSchema(db database.Database) map[string]TableSchema {
 }
 
 func GenerateStructs(tables map[string]TableSchema) {
-	projectRoot, err := findProjectRoot()
+	cfg, err := LoadConfig()
 	if err != nil {
-		log.Fatalf("failed to find project root: %v", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 
-	modelsDir := fmt.Sprintf("%s/internal/models", projectRoot)
+	modelsDir, err := cfg.GetModelsPath()
+	if err != nil {
+		log.Fatalf("failed to get models path: %v", err)
+	}
 	os.MkdirAll(modelsDir, 0755)
 
 	for _, table := range tables {
@@ -85,7 +89,7 @@ func GenerateStructs(tables map[string]TableSchema) {
             continue
         }
 
-		filePath := fmt.Sprintf("%s/internal/models/%s.go", projectRoot, strings.ToLower(structName))
+		filePath := filepath.Join(modelsDir, strings.ToLower(structName)+".go")
 
 		needsTime := false
 		for _, col := range table.Columns {
@@ -128,14 +132,17 @@ func GenerateStructs(tables map[string]TableSchema) {
 }
 
 func GenerateOpenAPI(tables map[string]TableSchema) {
-	projectRoot, err := findProjectRoot()
+	cfg, err := LoadConfig()
 	if err != nil {
-		log.Fatalf("failed to find project root: %v", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 
-	apiDir := fmt.Sprintf("%s/internal/openapi", projectRoot)
+	apiDir, err := cfg.GetOpenAPIPath()
+	if err != nil {
+		log.Fatalf("failed to get OpenAPI path: %v", err)
+	}
 	os.MkdirAll(apiDir, 0755)
-	filePath := fmt.Sprintf("%s/internal/openapi/openapi_gen.go", projectRoot)
+	filePath := filepath.Join(apiDir, "openapi_gen.go")
 
 	var b strings.Builder
 	b.WriteString("package api\n\n")
@@ -149,7 +156,7 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 	}
 
 	os.WriteFile(filePath, []byte(b.String()), 0644)
-	fmt.Println("✅ Generated OpenAPI resource stubs → internal/openapi/openapi_gen.go")
+	fmt.Printf("✅ Generated OpenAPI resource stubs → %s\n", filePath)
 }
 
 func pgToGoType(pgType string, nullable bool) string {

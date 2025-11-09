@@ -1,0 +1,21 @@
+# GoREST Configuration File
+# This file controls where generated code is placed in your project
+
+output:
+  # Directory for generated model structs from database schema
+  models: "models"
+
+  # Directory for generated REST API resource handlers
+  resources: "resources"
+
+  # Directory for generated Data Transfer Objects (DTOs)
+  dtos: "dtos"
+
+  # Directory for generated OpenAPI specification files
+  openapi: "openapi"
+
+  # Directory for configuration files (like auth.json)
+  config: "config"
+
+# Note: All paths are relative to your project root (where go.mod is located)
+# If this file doesn't exist, GoREST will use the defaults shown above

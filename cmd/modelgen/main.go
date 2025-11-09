@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/nicolasbonnici/gorest/internal"
+	"github.com/nicolasbonnici/gorest/generator"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
@@ -41,7 +41,7 @@ func main() {
 	log.Printf("✅ Database connection verified (%s)", db.DriverName())
 
 	log.Println("🔄 Generating models from database schema...")
-	tables := internal.LoadSchema(db)
-	internal.GenerateStructs(tables)
+	tables := generator.LoadSchema(db)
+	generator.GenerateStructs(tables)
 	log.Println("✅ Model generation completed successfully")
 }

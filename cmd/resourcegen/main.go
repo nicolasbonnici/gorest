@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/nicolasbonnici/gorest/internal"
+	"github.com/nicolasbonnici/gorest/generator"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
@@ -39,12 +39,15 @@ func main() {
 		log.Fatalf("❌ Invalid DATABASE_URL format: %v", err)
 	}
 
-	projectRoot, err := internal.FindProjectRoot()
+	cfg, err := generator.LoadConfig()
 	if err != nil {
-		log.Fatalf("❌ Failed to find project root: %v", err)
+		log.Fatalf("❌ Failed to load config: %v", err)
 	}
 
-	modelsDir := filepath.Join(projectRoot, "internal", "models")
+	modelsDir, err := cfg.GetModelsPath()
+	if err != nil {
+		log.Fatalf("❌ Failed to get models path: %v", err)
+	}
 	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
 		log.Fatal("❌ Models directory not found. Run 'make modelgen' first to generate models.")
 	}
@@ -66,7 +69,10 @@ func main() {
 		log.Fatal("❌ No model files found. Run 'make modelgen' first to generate models.")
 	}
 
-	resourcesDir := filepath.Join(projectRoot, "internal", "api", "resources")
+	resourcesDir, err := cfg.GetResourcesPath()
+	if err != nil {
+		log.Fatalf("❌ Failed to get resources path: %v", err)
+	}
 	existingResources := make(map[string]bool)
 	resourcesToGenerate := []string{}
 
@@ -121,8 +127,12 @@ func main() {
 		return
 	}
 
-	authConfigPath := filepath.Join(projectRoot, "config", "auth.json")
-	authCfg := internal.NoAuthConfig()
+	configPath, err := cfg.GetConfigPath()
+	if err != nil {
+		log.Fatalf("❌ Failed to get config path: %v", err)
+	}
+	authConfigPath := filepath.Join(configPath, "auth.json")
+	authCfg := generator.NoAuthConfig()
 
 	db, err := database.Open("", dbURL)
 	if err != nil {
@@ -137,11 +147,11 @@ func main() {
 	log.Printf("✅ Database connection verified (%s)", db.DriverName())
 
 	log.Println("🔄 Generating API resources from models...")
-	tables := internal.LoadSchema(db)
+	tables := generator.LoadSchema(db)
 
 	tableToResourceMap := make(map[string]string)
 	for tableName := range tables {
-		singularName := internal.SingularizeExported(tableName)
+		singularName := generator.SingularizeExported(tableName)
 		resourceName := strings.ToLower(singularName)
 		tableToResourceMap[tableName] = resourceName
 	}
@@ -156,13 +166,13 @@ func main() {
 		}
 	}
 
-	if err := internal.SaveAuthConfig(authCfg, authConfigPath); err != nil {
+	if err := generator.SaveAuthConfig(authCfg, authConfigPath); err != nil {
 		log.Printf("⚠️  Warning: Failed to save auth config: %v", err)
 	} else {
 		log.Printf("💾 Auth configuration saved to: %s", authConfigPath)
 	}
 
-	internal.GenerateAPIWithSkip(authCfg, resourcesToSkip)
+	generator.GenerateAPIWithSkip(authCfg, resourcesToSkip)
 	log.Println("✅ Resource generation completed successfully")
 }
 

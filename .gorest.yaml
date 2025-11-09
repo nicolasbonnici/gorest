@@ -1,0 +1,6 @@
+output:
+  models: "test/generated/models"
+  resources: "test/generated/resources"
+  dtos: "test/generated/dtos"
+  openapi: "test/generated/openapi"
+  config: "test/generated/config"

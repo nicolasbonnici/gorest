@@ -1,6 +1,6 @@
 //go:build integration
 
-package internal
+package health
 
 import (
 	"encoding/json"

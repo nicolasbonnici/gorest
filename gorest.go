@@ -20,9 +20,8 @@ import (
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
-	"github.com/nicolasbonnici/gorest/internal"
-	"github.com/nicolasbonnici/gorest/internal/api"
-	"github.com/nicolasbonnici/gorest/internal/logger"
+	"github.com/nicolasbonnici/gorest/generator"
+	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/middleware"
 )
 
@@ -35,6 +34,7 @@ type Config struct {
 	PaginationLimit    int
 	PaginationMaxLimit int
 	CORSOrigins        string
+	RegisterRoutes     func(app *fiber.App, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int)
 }
 
 func validateJWTSecretStrength(secret string) error {
@@ -120,25 +120,38 @@ func validateConfig(cfg Config) {
 
 func Start(cfg Config) {
 	validateConfig(cfg)
-	projectRoot, err := FindProjectRoot()
+
+	genCfg, err := generator.LoadConfig()
 	if err != nil {
-		logger.Log.Error("Failed to find project root", "error", err)
+		logger.Log.Error("Failed to load generator config", "error", err)
 		os.Exit(1)
 	}
 
-	modelsDir := filepath.Join(projectRoot, "internal", "models")
+	modelsDir, err := genCfg.GetModelsPath()
+	if err != nil {
+		logger.Log.Error("Failed to get models path", "error", err)
+		os.Exit(1)
+	}
 	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
 		logger.Log.Error("Models not found. Run 'make modelgen' first to generate models from database schema")
 		os.Exit(1)
 	}
 
-	resourcesDir := filepath.Join(projectRoot, "internal", "api", "resources")
+	resourcesDir, err := genCfg.GetResourcesPath()
+	if err != nil {
+		logger.Log.Error("Failed to get resources path", "error", err)
+		os.Exit(1)
+	}
 	if _, err := os.Stat(resourcesDir); os.IsNotExist(err) {
 		logger.Log.Error("Resources not found. Run 'make resourcegen' first to generate API resources")
 		os.Exit(1)
 	}
 
-	openapiDir := filepath.Join(projectRoot, "internal", "openapi")
+	openapiDir, err := genCfg.GetOpenAPIPath()
+	if err != nil {
+		logger.Log.Error("Failed to get OpenAPI path", "error", err)
+		os.Exit(1)
+	}
 	if _, err := os.Stat(openapiDir); os.IsNotExist(err) {
 		logger.Log.Error("OpenAPI schema not found. Run 'make openapigen' first to generate OpenAPI schema")
 		os.Exit(1)
@@ -157,9 +170,9 @@ func Start(cfg Config) {
 		os.Exit(1)
 	}
 
-	tables := make(map[string]internal.TableSchema)
+	tables := make(map[string]generator.TableSchema)
 	for _, t := range schemaSlice {
-		tables[t.TableName] = internal.TableSchema{
+		tables[t.TableName] = generator.TableSchema{
 			TableName: t.TableName,
 			Columns:   convertColumns(t.Columns),
 			Relations: convertRelations(t.Relations),
@@ -243,9 +256,15 @@ func Start(cfg Config) {
 	SetupOpenAPIUI(app)
 	SetupHealthCheck(app, db, logger.Log)
 	auth.SetupAuth(app, db, cfg.JWTSecret, cfg.JWTTTL)
-	api.RegisterGeneratedRoutes(app, db, tables, cfg.JWTSecret, cfg.PaginationLimit, cfg.PaginationMaxLimit)
 
-	internal.SetupOpenAPI(app, tables, cfg.PaginationLimit, cfg.PaginationMaxLimit)
+	// Register user's generated routes
+	if cfg.RegisterRoutes != nil {
+		cfg.RegisterRoutes(app, db, cfg.JWTSecret, cfg.PaginationLimit, cfg.PaginationMaxLimit)
+	} else {
+		logger.Log.Warn("No routes registered. Set Config.RegisterRoutes to register your API endpoints.")
+	}
+
+	generator.SetupOpenAPI(app, tables, cfg.PaginationLimit, cfg.PaginationMaxLimit)
 
 	// Channel to listen for shutdown signal
 	quit := make(chan os.Signal, 1)
@@ -275,10 +294,10 @@ func Start(cfg Config) {
 	logger.Log.Info("Server shutdown complete")
 }
 
-func convertColumns(dbCols []database.Column) []internal.Column {
-	cols := make([]internal.Column, len(dbCols))
+func convertColumns(dbCols []database.Column) []generator.Column {
+	cols := make([]generator.Column, len(dbCols))
 	for i, c := range dbCols {
-		cols[i] = internal.Column{
+		cols[i] = generator.Column{
 			Name:       c.Name,
 			Type:       c.Type,
 			IsNullable: c.IsNullable,
@@ -287,10 +306,10 @@ func convertColumns(dbCols []database.Column) []internal.Column {
 	return cols
 }
 
-func convertRelations(dbRels []database.Relation) []internal.Relation {
-	rels := make([]internal.Relation, len(dbRels))
+func convertRelations(dbRels []database.Relation) []generator.Relation {
+	rels := make([]generator.Relation, len(dbRels))
 	for i, r := range dbRels {
-		rels[i] = internal.Relation{
+		rels[i] = generator.Relation{
 			ChildTable:   r.ChildTable,
 			ChildColumn:  r.ChildColumn,
 			ParentTable:  r.ParentTable,

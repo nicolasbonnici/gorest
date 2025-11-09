@@ -156,6 +156,23 @@ func main() {
 	}
 	fmt.Println("[INFO] Server is ready")
 
+	// Give server extra time to fully initialize all routes
+	time.Sleep(2 * time.Second)
+
+	// Verify the endpoint exists with a test request
+	target := vegeta.Target{
+		Method: "GET",
+		URL:    "http://localhost:3001/benchmarkitems?limit=1",
+	}
+	attacker := vegeta.NewAttacker()
+	for res := range attacker.Attack(vegeta.NewStaticTargeter(target), vegeta.Rate{Freq: 1, Per: time.Second}, 1*time.Second, "Endpoint Check") {
+		if res.Code != 200 {
+			fmt.Printf("WARNING: Endpoint check failed with status %d\n", res.Code)
+			time.Sleep(2 * time.Second)
+		}
+		break
+	}
+
 	// Run benchmarks
 	fmt.Println()
 	fmt.Println("=========================================")

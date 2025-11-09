@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/internal/logger"
+	"github.com/nicolasbonnici/gorest/logger"
 )
 
 func HTTPLogger() fiber.Handler {

@@ -1,11 +1,11 @@
-package internal
+package health
 
 import (
 	"context"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/internal/logger"
+	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/database"
 )
 

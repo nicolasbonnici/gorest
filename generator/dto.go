@@ -43,8 +43,13 @@ type ResourceDTOs struct {
 func generateDTOForStruct(dtosDir string, structName string) {
 	dtoFile := filepath.Join(dtosDir, strings.ToLower(structName)+".go")
 
+	cfg, _ := LoadConfig()
 	projectRoot, _ := findProjectRoot()
-	modelPath := filepath.Join(projectRoot, "internal", "models", strings.ToLower(structName)+".go")
+	modelsDir := cfg.Output.Models
+	if !filepath.IsAbs(modelsDir) {
+		modelsDir = filepath.Join(projectRoot, modelsDir)
+	}
+	modelPath := filepath.Join(modelsDir, strings.ToLower(structName)+".go")
 	fields := extractStructFields(modelPath, structName)
 
 	code := generateDTOsFromModel(structName, fields)
@@ -164,12 +169,16 @@ func generateUpdateDTOFields(fields []StructField) string {
 }
 
 func LoadResourceDTOs() map[string]ResourceDTOs {
+	cfg, _ := LoadConfig()
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
-	dtosDir := filepath.Join(projectRoot, "internal", "api", "dtos")
+	dtosDir := cfg.Output.DTOs
+	if !filepath.IsAbs(dtosDir) {
+		dtosDir = filepath.Join(projectRoot, dtosDir)
+	}
 	if _, err := os.Stat(dtosDir); os.IsNotExist(err) {
 		log.Fatal("❌ DTOs directory not found. Run 'make resourcegen' first.")
 	}

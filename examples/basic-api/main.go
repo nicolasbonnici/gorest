@@ -4,9 +4,10 @@ import (
 	"os"
 	"strconv"
 
+	"example.com/basic-api/generated/resources"
 	"github.com/joho/godotenv"
 	"github.com/nicolasbonnici/gorest"
-	"github.com/nicolasbonnici/gorest/internal/logger"
+	"github.com/nicolasbonnici/gorest/logger"
 )
 
 func main() {
@@ -71,6 +72,7 @@ func main() {
 		PaginationLimit:    paginationLimit,
 		PaginationMaxLimit: paginationMaxLimit,
 		CORSOrigins:        corsOrigins,
+		RegisterRoutes:     resources.RegisterGeneratedRoutes,
 	}
 
 	gorest.Start(cfg)

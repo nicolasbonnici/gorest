@@ -12,8 +12,13 @@ import (
 func generateResourceForStruct(apiDir string, structName string, authCfg *AuthConfig) {
 	resourceFile := filepath.Join(apiDir, strings.ToLower(structName)+".go")
 
+	cfg, _ := LoadConfig()
 	projectRoot, _ := findProjectRoot()
-	modelPath := filepath.Join(projectRoot, "internal", "models", strings.ToLower(structName)+".go")
+	modelsDir := cfg.Output.Models
+	if !filepath.IsAbs(modelsDir) {
+		modelsDir = filepath.Join(projectRoot, modelsDir)
+	}
+	modelPath := filepath.Join(modelsDir, strings.ToLower(structName)+".go")
 	fields := extractStructFields(modelPath, structName)
 
 	code := generateResourceFromModel(structName, fields, authCfg)
@@ -89,30 +94,55 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 
 	// Check if hook file exists for this model
 	projectRoot, _ := findProjectRoot()
-	hookFilePath := filepath.Join(projectRoot, "internal", "hooks", lowerStructName+".go")
+	hookFilePath := filepath.Join(projectRoot, "hooks", lowerStructName+".go")
 	hasHooks := false
 	if _, err := os.Stat(hookFilePath); err == nil {
 		hasHooks = true
 	}
 
+	// Get module name and construct import paths
+	moduleName := getModuleName()
+	cfg, _ := LoadConfig()
+	_, _ = findProjectRoot()
+
+	// Build import paths relative to project root
+	modelsImport := moduleName
+	dtosImport := moduleName
+
+	// If models/dtos are in subdirectories, append the path
+	if cfg.Output.Models != "models" && cfg.Output.Models != "" {
+		modelsPath := strings.TrimPrefix(cfg.Output.Models, "./")
+		modelsImport = moduleName + "/" + strings.ReplaceAll(modelsPath, string(filepath.Separator), "/")
+	}
+	if cfg.Output.DTOs != "dtos" && cfg.Output.DTOs != "" {
+		dtosPath := strings.TrimPrefix(cfg.Output.DTOs, "./")
+		dtosImport = moduleName + "/" + strings.ReplaceAll(dtosPath, string(filepath.Separator), "/")
+	}
+
+	// Remove /models and /dtos suffix since we add it manually
+	modelsImport = strings.TrimSuffix(modelsImport, "/models") + "/models"
+	dtosImport = strings.TrimSuffix(dtosImport, "/dtos") + "/dtos"
+
 	// Generate imports - add hooks import if hook file exists
-	importsSection := `import (
+	importsSection := fmt.Sprintf(`import (
 	"net/url"
+
+	"%s"
+	"%s"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/filter"
-	"github.com/nicolasbonnici/gorest/internal/api/dtos"
-	"github.com/nicolasbonnici/gorest/internal/logger"
-	"github.com/nicolasbonnici/gorest/internal/models"
+	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/pagination"
-	"github.com/nicolasbonnici/gorest/response"`
+	"github.com/nicolasbonnici/gorest/response"`, dtosImport, modelsImport)
 
 	if hasHooks {
-		importsSection += `
-	"github.com/nicolasbonnici/gorest/hooks"`
+		hooksImport := moduleName + "/hooks"
+		importsSection += fmt.Sprintf(`
+	"%s"`, hooksImport)
 	}
 	importsSection += `
 )`
@@ -159,8 +189,8 @@ func Register%sRoutes(%s) {
 // @Success 200 {object} pagination.HydraCollection
 // @Router /%s [get]
 func (r *%sResource) List(c *fiber.Ctx) error {
-	limit := response.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
-	page := response.ParseIntQuery(c, "page", 1, 10000)
+	limit := pagination.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
+	page := pagination.ParseIntQuery(c, "page", 1, 10000)
 	if page < 1 {
 		page = 1
 	}

@@ -116,124 +116,174 @@ func main() {
 
 ## 🛠️ Using GoREST as a Code Generator
 
-GoREST can scaffold complete REST APIs from your database schema:
+GoREST can scaffold complete REST APIs from your database schema. The generators create code in **your project**, not in the library itself.
 
 ### ⚙️ Requirements
 - Go **1.25+**
-- Docker & Docker Compose
-- Any relational database engine (PostgreSQL, MySQL and SQLlite supported)
+- Any relational database engine (PostgreSQL, MySQL and SQLite supported)
 
 ---
 
 ## 🚀 Quick Start (Generator)
 
-### 1. Clone & Setup
+### 1. Create Your Project
 ```bash
-git clone https://github.com/nicolasbonnici/gorest.git
-cd gorest
+mkdir my-api && cd my-api
+go mod init github.com/yourusername/my-api
+go get github.com/nicolasbonnici/gorest@latest
 ```
 
 ### 2. Configure Environment
+Create a `.env` file:
 ```bash
-cp .env.example .env
-# Edit .env with your database connection details
+DATABASE_URL=postgres://user:password@localhost:5432/mydb?sslmode=disable
+JWT_SECRET=your-super-secret-jwt-key-min-32-chars-long
+JWT_TTL=900
+PORT=3000
+PAGINATION_LIMIT=100
+PAGINATION_MAX_LIMIT=1000
+CORS_ORIGINS=http://localhost:3000
 ```
 
-Required environment variables:
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - Secret key for JWT authentication
-- `PORT` - Server port (default: 3000)
-
-### 3. Start Test Database
-```bash
-make test-up
-make test-schema
+### 3. Optional: Configure Output Directories
+Create `.gorest.yaml` to customize where code is generated:
+```yaml
+output:
+  models: "models"          # Default: "models"
+  resources: "resources"    # Default: "resources"
+  dtos: "dtos"             # Default: "dtos"
+  openapi: "openapi"       # Default: "openapi"
+  config: "config"         # Default: "config"
 ```
 
-### 3. Generate Code
-```bash
-# Generate all code (models → resources → openapi)
-make generate
+If you don't create this file, GoREST uses the defaults shown above (project root level).
 
-# Or run individually:
-make modelgen      # Generate models from database schema
-make resourcegen   # Generate REST API resources
-make openapigen    # Generate OpenAPI schema
+### 4. Generate Code from Your Database
+```bash
+# Generate models from database schema
+go run github.com/nicolasbonnici/gorest/cmd/modelgen@latest
+
+# Generate REST API resources (interactive - prompts for auth config)
+go run github.com/nicolasbonnici/gorest/cmd/resourcegen@latest
+
+# Generate OpenAPI specification
+go run github.com/nicolasbonnici/gorest/cmd/openapigen@latest
 ```
 
-This generates:
-- `internal/models/*.go` - Type-safe model structs
-- `internal/api/dtos/*.go` - Data Transfer Objects (Create/Update/Response)
-- `internal/api/resources/*.go` - REST API endpoints with DTO conversion
-- `internal/api/routes.go` - Auto-generated route registration
-- `internal/openapi/*.go` - OpenAPI schema stubs
+This generates (in your project):
+- `models/*.go` - Type-safe model structs from your DB schema
+- `resources/*.go` - REST API endpoints with CRUD operations
+- `resources/routes.go` - Auto-generated route registration
+- `dtos/*.go` - Data Transfer Objects (Create/Update/Response)
+- `openapi/*.go` - OpenAPI schema components
+- `config/auth.json` - Authentication configuration
 
-### 4. Build & Run
-```bash
-make build
-./bin/gorest
+### 5. Create Your Main Application
+Create `main.go`:
+```go
+package main
+
+import (
+    "os"
+    "strconv"
+
+    "github.com/joho/godotenv"
+    "github.com/nicolasbonnici/gorest"
+    "github.com/nicolasbonnici/gorest/logger"
+)
+
+func main() {
+    godotenv.Load()
+
+    cfg := gorest.Config{
+        DBUrl:              os.Getenv("DATABASE_URL"),
+        JWTSecret:          os.Getenv("JWT_SECRET"),
+        JWTTTL:             900,  // or parse from env
+        Port:               os.Getenv("PORT"),
+        PaginationLimit:    100,  // or parse from env
+        PaginationMaxLimit: 1000, // or parse from env
+        CORSOrigins:        os.Getenv("CORS_ORIGINS"),
+    }
+
+    gorest.Start(cfg)
+}
 ```
 
-**API Spec**
+### 6. Run Your API
+```bash
+go run main.go
+```
+
+**Your API is now running!**
 - 📚 API Docs: **http://localhost:3000/openapi**
 - 📄 OpenAPI JSON: **http://localhost:3000/openapi.json**
-
-
-**Health check**
 - 💚 Health check: **http://localhost:3000/health**
 
 
 ---
 
 ## 📂 Project Structure
+
+### GoREST Library Structure
 ```
-gorest/
-├── cmd/                      # CLI tools
-│   ├── modelgen/main.go      # Model generator CLI
-│   ├── resourcegen/main.go   # Resource generator CLI
-│   └── openapigen/main.go    # OpenAPI generator CLI
-├── pkg/
-│   ├── gorest/main.go        # API server entrypoint
-│   └── database/             # Database abstraction layer
-│       ├── database.go       # Core interface
-│       ├── postgres/         # PostgreSQL implementation
-│       ├── mysql/            # MySQL implementation
-│       └── sqlite/           # SQLite implementation
-├── internal/                 # Core logic
-│   ├── modelgen.go           # Model generation logic
-│   ├── apigen.go             # REST API generation logic
-│   ├── auth.go               # JWT authentication
-│   ├── openapi.go            # OpenAPI spec setup
-│   ├── crud/                 # Generic CRUD operations
-│   │   ├── crud.go           # Type-safe CRUD with hooks
-│   │   └── model.go          # Model interface
-│   ├── hooks/                # Business logic hooks
-│   │   ├── hooks.go          # Hook interfaces
-│   │   ├── factory.go        # Hook registry
-│   │   ├── user.go           # User resource hooks
-│   │   └── todo.go           # Todo resource hooks
-│   ├── helpers/              # HTTP helpers
-│   │   ├── decorators.go     # Auth middleware & context
-│   │   └── response.go       # Response utilities
-│   ├── formatter/            # Response formatters
-│   │   └── formatter.go      # JSON/JSON-LD with IRI conversion
-│   ├── models/               # Generated database models
-│   │   ├── user.go           # (tracked in git)
-│   │   └── *.go              # (other models gitignored)
-│   ├── api/                  # Generated API code
-│   │   ├── dtos/             # Data Transfer Objects
-│   │   ├── resources/        # REST endpoints
-│   │   └── routes.go         # Route registration
-│   └── openapi/              # Generated OpenAPI stubs
-├── test/
-│   └── sql/schema.sql        # Test database schema
-├── config/
-│   └── auth.json             # Authentication configuration
-├── Makefile
-├── compose.yml
-├── HOOKS.md                  # Hooks documentation
-└── .github/workflows/        # CI/CD
+gorest/                        # The library (github.com/nicolasbonnici/gorest)
+├── auth/                      # JWT authentication & middleware
+├── crud/                      # Generic type-safe CRUD operations
+├── database/                  # Multi-database abstraction
+│   ├── postgres/             # PostgreSQL implementation
+│   ├── mysql/                # MySQL implementation
+│   └── sqlite/               # SQLite implementation
+├── filter/                    # Query filtering & ordering
+├── formatter/                 # JSON-LD response formatting
+├── generator/                 # Code generation logic
+│   ├── config.go             # Configuration loader (.gorest.yaml)
+│   ├── model.go              # Model generation
+│   ├── resource.go           # Resource generation
+│   ├── dto.go                # DTO generation
+│   └── openapi.go            # OpenAPI generation
+├── hooks/                     # Lifecycle hook system
+├── logger/                    # Structured logging
+├── middleware/                # HTTP middleware
+├── pagination/                # Hydra-compliant pagination
+├── response/                  # HTTP response helpers
+├── cmd/                       # CLI generator tools
+│   ├── modelgen/             # Model generator CLI
+│   ├── resourcegen/          # Resource generator CLI
+│   └── openapigen/           # OpenAPI generator CLI
+├── examples/
+│   └── basic-api/            # Complete working example
+└── gorest.go                 # Main library entrypoint
 ```
+
+### Your Generated Project Structure
+When you use the generators, your project will look like:
+```
+my-api/                       # Your project
+├── go.mod
+├── go.sum
+├── .env                      # Environment configuration
+├── .gorest.yaml             # Optional: output path configuration
+├── main.go                   # Your application entrypoint
+├── models/                   # Generated model structs
+│   ├── user.go
+│   ├── post.go
+│   └── ...
+├── resources/                # Generated REST handlers
+│   ├── user.go              # User CRUD endpoints
+│   ├── post.go              # Post CRUD endpoints
+│   ├── routes.go            # Auto-generated route registration
+│   └── ...
+├── dtos/                     # Generated Data Transfer Objects
+│   ├── user.go
+│   ├── post.go
+│   └── ...
+├── openapi/                  # Generated OpenAPI components
+│   └── openapi_gen.go
+└── config/
+    └── auth.json            # Generated auth configuration
+```
+
+**Key Difference**: The library itself contains **NO generated code**. All generated code lives in **your project**.
 
 ---
 
@@ -255,6 +305,114 @@ make test             # Run all tests
 
 ---
 
+## 🔄 Migration Guide (v0.1.x → v0.2.x)
+
+If you're upgrading from an earlier version of GoREST, here are the breaking changes and migration steps:
+
+### Key Changes in v0.2.0
+
+1. **Generated code moved from `internal/` to project root**
+   - Old: `internal/models/`, `internal/api/resources/`, `internal/api/dtos/`
+   - New: `models/`, `resources/`, `dtos/` (configurable via `.gorest.yaml`)
+
+2. **Generator package is now public**
+   - Old: `internal.GenerateStructs()`, `internal.GenerateAPI()`
+   - New: `generator.GenerateStructs()`, `generator.GenerateAPI()`
+
+3. **Configuration file support**
+   - New: `.gorest.yaml` file to configure output directories
+   - Default paths: project root level (models/, resources/, etc.)
+
+4. **Logger moved to public package**
+   - Old: `internal/logger`
+   - New: `logger` (public package)
+
+### Migration Steps
+
+#### Step 1: Update Your go.mod
+```bash
+go get github.com/nicolasbonnici/gorest@v0.2.0
+```
+
+#### Step 2: Create .gorest.yaml (Optional)
+If you want to keep using `internal/` directories:
+```yaml
+output:
+  models: "internal/models"
+  resources: "internal/api/resources"
+  dtos: "internal/api/dtos"
+  openapi: "internal/openapi"
+  config: "config"
+```
+
+Or use the new defaults (recommended):
+```yaml
+output:
+  models: "models"
+  resources: "resources"
+  dtos: "dtos"
+  openapi: "openapi"
+  config: "config"
+```
+
+#### Step 3: Move Generated Code (if using new structure)
+```bash
+# Move generated code to new locations
+mv internal/models models
+mv internal/api/resources resources
+mv internal/api/dtos dtos
+mv internal/openapi openapi
+
+# Update package names in moved files
+# models: package models (no change needed)
+# resources: package resources (change from 'package resources' if different)
+# dtos: package dtos (change from 'package dtos' if different)
+```
+
+#### Step 4: Update Imports
+If you were importing internal packages:
+```go
+// Old
+import "github.com/nicolasbonnici/gorest/internal/logger"
+
+// New
+import "github.com/nicolasbonnici/gorest/logger"
+```
+
+#### Step 5: Regenerate Code
+```bash
+# Regenerate with new structure
+go run github.com/nicolasbonnici/gorest/cmd/modelgen@latest
+go run github.com/nicolasbonnici/gorest/cmd/resourcegen@latest
+go run github.com/nicolasbonnici/gorest/cmd/openapigen@latest
+```
+
+#### Step 6: Update .gitignore
+The library's `.gitignore` now excludes generated code at project root. Update your project's `.gitignore`:
+```gitignore
+# Generated code (you should commit this in your repo)
+# Comment out or remove these lines - generated code should be tracked
+# models/
+# resources/
+# dtos/
+# openapi/
+
+# But keep these:
+config/auth.json
+.env
+.env.local
+```
+
+### What's Better in v0.2.0?
+
+- ✅ **Cleaner library**: No generated code in the library itself
+- ✅ **Flexible structure**: Configure output paths via `.gorest.yaml`
+- ✅ **Public generator package**: Use generators programmatically
+- ✅ **Better separation**: Clear distinction between library and user code
+- ✅ **Easier integration**: Generated code at project root follows Go best practices
+
+---
+
 ## 📚 How It Works
 
 1. **Schema Introspection**: Reads PostgreSQL `information_schema` to discover tables and columns
@@ -267,15 +425,18 @@ make test             # Run all tests
 ### Code Generation Architecture
 
 The generators are separate CLI tools that enforce proper ordering:
-- **cmd/modelgen** → generates `internal/models/`
-- **cmd/resourcegen** → generates `internal/api/resources/` and `internal/api/dtos/` (requires models)
-- **cmd/openapigen** → generates `internal/openapi/`
+- **cmd/modelgen** → generates `models/` (configurable)
+- **cmd/resourcegen** → generates `resources/` and `dtos/` (requires models, configurable)
+- **cmd/openapigen** → generates `openapi/` (configurable)
+
+Output paths are controlled by `.gorest.yaml`. If the file doesn't exist, defaults are used.
 
 This separation allows:
 - Running generators independently during development
 - Clear dependency management (resources depend on models)
 - Better testing and validation of each generation step
 - Regeneration without losing custom business logic in hooks
+- Flexible project structure based on your preferences
 
 ---
 
