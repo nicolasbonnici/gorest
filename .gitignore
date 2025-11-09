@@ -31,11 +31,3 @@ coverage/
 
 # Generated code for tests (regenerated on each test run)
 /test/generated/
-
-# Generated code at project root (should not exist - kept for backwards compat)
-/models/
-/resources/
-/dtos/
-/openapi/
-/config/
-routes.go
