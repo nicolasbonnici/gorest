@@ -20,10 +20,9 @@ jobs:
 
       - name: Create test environment file
         run: |
-          cat > .env.test << EOF
+          cat > test/.env.test << EOF
           DATABASE_URL=postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable
-          JWT_SECRET=test-secret-key
-          PORT=3000
+          JWT_SECRET=test-secret-key-minimum-32-characters-long-for-jwt-testing
           EOF
 
       - name: Start databases and wait for health checks
