@@ -14,7 +14,7 @@ func generateResourceForStruct(apiDir string, structName string, authCfg *AuthCo
 
 	cfg, _ := LoadConfig()
 	projectRoot, _ := findProjectRoot()
-	modelsDir := cfg.Output.Models
+	modelsDir := cfg.Generate.Output.Models
 	if !filepath.IsAbs(modelsDir) {
 		modelsDir = filepath.Join(projectRoot, modelsDir)
 	}
@@ -110,12 +110,12 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	dtosImport := moduleName
 
 	// If models/dtos are in subdirectories, append the path
-	if cfg.Output.Models != "models" && cfg.Output.Models != "" {
-		modelsPath := strings.TrimPrefix(cfg.Output.Models, "./")
+	if cfg.Generate.Output.Models != "models" && cfg.Generate.Output.Models != "" {
+		modelsPath := strings.TrimPrefix(cfg.Generate.Output.Models, "./")
 		modelsImport = moduleName + "/" + strings.ReplaceAll(modelsPath, string(filepath.Separator), "/")
 	}
-	if cfg.Output.DTOs != "dtos" && cfg.Output.DTOs != "" {
-		dtosPath := strings.TrimPrefix(cfg.Output.DTOs, "./")
+	if cfg.Generate.Output.DTOs != "dtos" && cfg.Generate.Output.DTOs != "" {
+		dtosPath := strings.TrimPrefix(cfg.Generate.Output.DTOs, "./")
 		dtosImport = moduleName + "/" + strings.ReplaceAll(dtosPath, string(filepath.Separator), "/")
 	}
 

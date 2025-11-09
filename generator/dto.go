@@ -45,7 +45,7 @@ func generateDTOForStruct(dtosDir string, structName string) {
 
 	cfg, _ := LoadConfig()
 	projectRoot, _ := findProjectRoot()
-	modelsDir := cfg.Output.Models
+	modelsDir := cfg.Generate.Output.Models
 	if !filepath.IsAbs(modelsDir) {
 		modelsDir = filepath.Join(projectRoot, modelsDir)
 	}
@@ -175,7 +175,7 @@ func LoadResourceDTOs() map[string]ResourceDTOs {
 		log.Fatalf("failed to find project root: %v", err)
 	}
 
-	dtosDir := cfg.Output.DTOs
+	dtosDir := cfg.Generate.Output.DTOs
 	if !filepath.IsAbs(dtosDir) {
 		dtosDir = filepath.Join(projectRoot, dtosDir)
 	}

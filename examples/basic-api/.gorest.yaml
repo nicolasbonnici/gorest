@@ -1,6 +1,39 @@
-output:
-  models: "generated/models"
-  resources: "generated/resources"
-  dtos: "generated/dtos"
-  openapi: "generated/openapi"
-  config: "generated/config"
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+    openapi: "generated/openapi"
+    config: "generated/config"
+  auth:
+    enabled: true
+    endpoints:
+      list: true
+      get: true
+      create: true
+      update: true
+      delete: true
+
+server:
+  port: 3000
+  environment: "development"
+
+database:
+  url: "${DATABASE_URL}"
+
+auth:
+  jwt:
+    secret: "${JWT_SECRET}"
+    ttl: 900
+
+pagination:
+  default_limit: 10
+  max_limit: 1000
+
+cors:
+  origins: "*"
+
+rate_limit:
+  enabled: true
+  requests_per_second: 100
+  burst: 200

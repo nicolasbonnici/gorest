@@ -16,6 +16,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
 	"github.com/nicolasbonnici/gorest/auth"
+	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
@@ -25,145 +26,47 @@ import (
 	"github.com/nicolasbonnici/gorest/middleware"
 )
 
+// Config holds the path to configuration file and optional route registration function
 type Config struct {
-	DBDriver           string
-	DBUrl              string
-	JWTSecret          string
-	JWTTTL             int
-	Port               string
-	PaginationLimit    int
-	PaginationMaxLimit int
-	CORSOrigins        string
-	RegisterRoutes     func(app *fiber.App, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int)
+	// ConfigPath is the directory containing .gorest.yaml (default: ".")
+	ConfigPath string
+	// RegisterRoutes is an optional callback to register generated routes
+	RegisterRoutes func(app *fiber.App, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int)
 }
 
-func validateJWTSecretStrength(secret string) error {
-	if len(secret) < 32 {
-		return fmt.Errorf("JWT_SECRET must be at least 32 characters long (current: %d)", len(secret))
-	}
-
-	weakPatterns := []string{"secret", "password", "test", "admin", "123"}
-	secretLower := strings.ToLower(secret)
-	for _, pattern := range weakPatterns {
-		if strings.Contains(secretLower, pattern) {
-			return fmt.Errorf("JWT_SECRET contains common word '%s'. Generate secure secret: openssl rand -base64 32", pattern)
-		}
-	}
-
-	uniqueChars := make(map[rune]bool)
-	for _, c := range secret {
-		uniqueChars[c] = true
-	}
-	if len(uniqueChars) < 16 {
-		return fmt.Errorf("JWT_SECRET has low entropy (only %d unique characters). Use: openssl rand -base64 32", len(uniqueChars))
-	}
-
-	for i := 0; i < len(secret)-4; i++ {
-		if secret[i] == secret[i+1] && secret[i] == secret[i+2] && secret[i] == secret[i+3] {
-			return fmt.Errorf("JWT_SECRET has repeated characters pattern. Use: openssl rand -base64 32")
-		}
-	}
-
-	return nil
-}
-
-func validateConfig(cfg Config) {
-	if cfg.DBUrl == "" {
-		logger.Log.Error("DATABASE_URL is required")
-		os.Exit(1)
-	}
-
-	if strings.Contains(cfg.DBUrl, "sslmode=disable") {
-		env := os.Getenv("ENVIRONMENT")
-		if env == "production" || env == "prod" {
-			logger.Log.Error("❌ FATAL: Database SSL is DISABLED in production! This is a critical security violation.")
-			os.Exit(1)
-		}
-		logger.Log.Warn("Database SSL is DISABLED! This is insecure for production. Use sslmode=require or sslmode=verify-full")
-	}
-
-	if cfg.JWTSecret == "" {
-		logger.Log.Error("JWT_SECRET is required")
-		os.Exit(1)
-	}
-
-	if err := validateJWTSecretStrength(cfg.JWTSecret); err != nil {
-		logger.Log.Error("JWT_SECRET validation failed", "error", err)
-		os.Exit(1)
-	}
-
-	if cfg.JWTTTL <= 0 {
-		logger.Log.Error("JWT_TTL must be a positive integer (seconds)", "current_value", cfg.JWTTTL)
-		os.Exit(1)
-	}
-
-	if cfg.PaginationLimit <= 0 {
-		logger.Log.Error("PAGINATION_LIMIT must be a positive integer", "current_value", cfg.PaginationLimit)
-		os.Exit(1)
-	}
-
-	if cfg.PaginationMaxLimit <= 0 {
-		logger.Log.Error("PAGINATION_MAX_LIMIT must be a positive integer", "current_value", cfg.PaginationMaxLimit)
-		os.Exit(1)
-	}
-
-	if cfg.PaginationLimit > cfg.PaginationMaxLimit {
-		logger.Log.Error("PAGINATION_LIMIT cannot exceed PAGINATION_MAX_LIMIT", "limit", cfg.PaginationLimit, "max", cfg.PaginationMaxLimit)
-		os.Exit(1)
-	}
-
-	if cfg.Port == "" {
-		logger.Log.Error("PORT is required")
-		os.Exit(1)
-	}
-}
-
+// Start starts the GoREST server with the given configuration
+// If cfg.ConfigPath is empty, it defaults to the current directory
 func Start(cfg Config) {
-	validateConfig(cfg)
+	// Default config path to current directory
+	if cfg.ConfigPath == "" {
+		cfg.ConfigPath = "."
+	}
 
-	genCfg, err := generator.LoadConfig()
+	// Load unified configuration
+	appConfig, err := config.Load(cfg.ConfigPath)
 	if err != nil {
-		logger.Log.Error("Failed to load generator config", "error", err)
+		logger.Log.Error("Failed to load configuration", "error", err)
 		os.Exit(1)
 	}
 
-	modelsDir, err := genCfg.GetModelsPath()
-	if err != nil {
-		logger.Log.Error("Failed to get models path", "error", err)
-		os.Exit(1)
-	}
-	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
-		logger.Log.Error("Models not found. Run 'make modelgen' first to generate models from database schema")
+	// Validate configuration
+	if err := appConfig.Validate(); err != nil {
+		logger.Log.Error("Invalid configuration", "error", err)
 		os.Exit(1)
 	}
 
-	resourcesDir, err := genCfg.GetResourcesPath()
-	if err != nil {
-		logger.Log.Error("Failed to get resources path", "error", err)
-		os.Exit(1)
-	}
-	if _, err := os.Stat(resourcesDir); os.IsNotExist(err) {
-		logger.Log.Error("Resources not found. Run 'make resourcegen' first to generate API resources")
-		os.Exit(1)
-	}
+	// Check for generated code
+	checkGeneratedCode(appConfig)
 
-	openapiDir, err := genCfg.GetOpenAPIPath()
-	if err != nil {
-		logger.Log.Error("Failed to get OpenAPI path", "error", err)
-		os.Exit(1)
-	}
-	if _, err := os.Stat(openapiDir); os.IsNotExist(err) {
-		logger.Log.Error("OpenAPI schema not found. Run 'make openapigen' first to generate OpenAPI schema")
-		os.Exit(1)
-	}
-
-	db, err := database.Open(cfg.DBDriver, cfg.DBUrl)
+	// Connect to database
+	db, err := database.Open("", appConfig.Database.URL)
 	if err != nil {
 		logger.Log.Error("DB connection failed", "error", err)
 		os.Exit(1)
 	}
 	defer db.Close()
 
+	// Load database schema
 	schemaSlice, err := db.Introspector().LoadSchema(context.Background())
 	if err != nil {
 		logger.Log.Error("Failed to load schema", "error", err)
@@ -179,6 +82,7 @@ func Start(cfg Config) {
 		}
 	}
 
+	// Create Fiber app
 	app := fiber.New(fiber.Config{
 		BodyLimit:    4 * 1024 * 1024,
 		ReadTimeout:  10 * time.Second,
@@ -195,39 +99,45 @@ func Start(cfg Config) {
 		},
 	})
 
+	// Add middleware
 	app.Use(requestid.New())
 
-	app.Use(limiter.New(limiter.Config{
-		Max:        50,
-		Expiration: 1 * time.Minute,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(429).JSON(fiber.Map{
-				"error": "Rate limit exceeded. Please try again later.",
-			})
-		},
-	}))
+	// Rate limiting middleware (if enabled)
+	if appConfig.RateLimit.Enabled {
+		app.Use(limiter.New(limiter.Config{
+			Max:        appConfig.RateLimit.RequestsPerSecond,
+			Expiration: 1 * time.Minute,
+			KeyGenerator: func(c *fiber.Ctx) string {
+				return c.IP()
+			},
+			LimitReached: func(c *fiber.Ctx) error {
+				return c.Status(429).JSON(fiber.Map{
+					"error": "Rate limit exceeded. Please try again later.",
+				})
+			},
+		}))
+	}
 
-	corsOrigins := cfg.CORSOrigins
-	if corsOrigins == "" {
-		corsOrigins = "*"
-		logger.Log.Warn("CORS_ORIGINS not set, defaulting to '*' (allow all). Set CORS_ORIGINS in production!")
+	// CORS middleware
+	corsOrigins := appConfig.GetCORSOrigins()
+	corsOriginsStr := strings.Join(corsOrigins, ",")
+	if corsOriginsStr == "*" {
+		logger.Log.Warn("CORS_ORIGINS is set to '*' (allow all). Not recommended for production!")
 	}
 
 	corsConfig := cors.Config{
-		AllowOrigins: corsOrigins,
+		AllowOrigins: corsOriginsStr,
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
 	}
 
-	if corsOrigins != "*" {
+	if corsOriginsStr != "*" {
 		corsConfig.AllowCredentials = true
 	}
 
 	app.Use(cors.New(corsConfig))
 
+	// Security headers middleware
 	app.Use(func(c *fiber.Ctx) error {
 		c.Set("X-Content-Type-Options", "nosniff")
 		c.Set("X-Frame-Options", "DENY")
@@ -238,6 +148,7 @@ func Start(cfg Config) {
 		return c.Next()
 	})
 
+	// Content-Type validation middleware
 	app.Use(func(c *fiber.Ctx) error {
 		method := c.Method()
 		if method == "POST" || method == "PUT" || method == "PATCH" {
@@ -251,20 +162,23 @@ func Start(cfg Config) {
 		return c.Next()
 	})
 
+	// HTTP request logging middleware
 	app.Use(middleware.HTTPLogger())
 
+	// Setup routes
 	SetupOpenAPIUI(app)
 	SetupHealthCheck(app, db, logger.Log)
-	auth.SetupAuth(app, db, cfg.JWTSecret, cfg.JWTTTL)
+	auth.SetupAuth(app, db, appConfig.Auth.JWT.Secret, appConfig.Auth.JWT.TTL)
 
 	// Register user's generated routes
 	if cfg.RegisterRoutes != nil {
-		cfg.RegisterRoutes(app, db, cfg.JWTSecret, cfg.PaginationLimit, cfg.PaginationMaxLimit)
+		cfg.RegisterRoutes(app, db, appConfig.Auth.JWT.Secret, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit)
 	} else {
 		logger.Log.Warn("No routes registered. Set Config.RegisterRoutes to register your API endpoints.")
 	}
 
-	generator.SetupOpenAPI(app, tables, cfg.PaginationLimit, cfg.PaginationMaxLimit)
+	// Setup OpenAPI documentation
+	generator.SetupOpenAPI(app, tables, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit)
 
 	// Channel to listen for shutdown signal
 	quit := make(chan os.Signal, 1)
@@ -272,14 +186,17 @@ func Start(cfg Config) {
 
 	// Start server in a goroutine
 	go func() {
-		logger.Log.Info("REST API running", "port", cfg.Port, "url", "http://localhost:"+cfg.Port)
-		logger.Log.Info("Health check available", "url", "http://localhost:"+cfg.Port+"/health")
-		if err := app.Listen(":" + cfg.Port); err != nil {
+		port := fmt.Sprintf("%d", appConfig.Server.Port)
+		logger.Log.Info("REST API running", "port", port, "url", "http://localhost:"+port)
+		logger.Log.Info("Health check available", "url", "http://localhost:"+port+"/health")
+		logger.Log.Info("Environment", "env", appConfig.Server.Environment)
+		if err := app.Listen(":" + port); err != nil {
 			logger.Log.Error("Server failed", "error", err)
 			os.Exit(1)
 		}
 	}()
 
+	// Wait for shutdown signal
 	<-quit
 	logger.Log.Info("Shutting down server gracefully")
 
@@ -292,6 +209,36 @@ func Start(cfg Config) {
 
 	db.Close()
 	logger.Log.Info("Server shutdown complete")
+}
+
+// checkGeneratedCode verifies that required generated code exists
+func checkGeneratedCode(cfg *config.Config) {
+	projectRoot, err := FindProjectRoot()
+	if err != nil {
+		logger.Log.Error("Failed to find project root", "error", err)
+		os.Exit(1)
+	}
+
+	modelsDir := filepath.Join(projectRoot, cfg.Generate.Output.Models)
+	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
+		logger.Log.Error("Models not found. Run model generation first to generate models from database schema",
+			"expected_path", modelsDir)
+		os.Exit(1)
+	}
+
+	resourcesDir := filepath.Join(projectRoot, cfg.Generate.Output.Resources)
+	if _, err := os.Stat(resourcesDir); os.IsNotExist(err) {
+		logger.Log.Error("Resources not found. Run resource generation first to generate API resources",
+			"expected_path", resourcesDir)
+		os.Exit(1)
+	}
+
+	openapiDir := filepath.Join(projectRoot, cfg.Generate.Output.OpenAPI)
+	if _, err := os.Stat(openapiDir); os.IsNotExist(err) {
+		logger.Log.Error("OpenAPI schema not found. Run OpenAPI generation first to generate OpenAPI schema",
+			"expected_path", openapiDir)
+		os.Exit(1)
+	}
 }
 
 func convertColumns(dbCols []database.Column) []generator.Column {
@@ -319,6 +266,7 @@ func convertRelations(dbRels []database.Relation) []generator.Relation {
 	return rels
 }
 
+// FindProjectRoot finds the project root by looking for go.mod
 func FindProjectRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -338,6 +286,7 @@ func FindProjectRoot() (string, error) {
 	}
 }
 
+// SetupHealthCheck sets up the /health endpoint
 func SetupHealthCheck(app *fiber.App, db database.Database, logger interface{ Error(string, ...interface{}) }) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
@@ -361,6 +310,7 @@ func SetupHealthCheck(app *fiber.App, db database.Database, logger interface{ Er
 	})
 }
 
+// SetupOpenAPIUI sets up the /openapi UI endpoint
 func SetupOpenAPIUI(app *fiber.App) {
 	app.Get("/openapi", func(c *fiber.Ctx) error {
 		html := `<!DOCTYPE html>

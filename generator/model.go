@@ -75,7 +75,7 @@ func GenerateStructs(tables map[string]TableSchema) {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	modelsDir, err := cfg.GetModelsPath()
+	modelsDir, err := GetModelsPath(cfg)
 	if err != nil {
 		log.Fatalf("failed to get models path: %v", err)
 	}
@@ -137,7 +137,7 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	apiDir, err := cfg.GetOpenAPIPath()
+	apiDir, err := GetOpenAPIPath(cfg)
 	if err != nil {
 		log.Fatalf("failed to get OpenAPI path: %v", err)
 	}

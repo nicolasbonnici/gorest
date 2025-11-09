@@ -8,7 +8,6 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/joho/godotenv v1.5.1
 	github.com/tsenart/vegeta/v12 v12.13.0
 	golang.org/x/crypto v0.43.0
 	golang.org/x/text v0.30.0

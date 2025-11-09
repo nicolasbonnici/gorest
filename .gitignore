@@ -19,18 +19,15 @@ go.work
 .vscode/
 .idea/
 
-# Environment variables
-.env
-.env.local
-
 # Compiled binary
 bin/*
 
 # Test coverage
 coverage/
 
-# User-specific GoREST config (optional - users may want to commit this)
-# .gorest.yaml
+# Environment-specific GoREST config overrides
+.gorest.*.yaml
+!.gorest.yaml.example
 
 # Generated code for tests (regenerated on each test run)
 /test/generated/

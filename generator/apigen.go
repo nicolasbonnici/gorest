@@ -18,17 +18,17 @@ func GenerateAPIWithSkip(authCfg *AuthConfig, resourcesToSkip map[string]bool) {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	modelsDir, err := cfg.GetModelsPath()
+	modelsDir, err := GetModelsPath(cfg)
 	if err != nil {
 		log.Fatalf("failed to get models path: %v", err)
 	}
 
-	apiDir, err := cfg.GetResourcesPath()
+	apiDir, err := GetResourcesPath(cfg)
 	if err != nil {
 		log.Fatalf("failed to get resources path: %v", err)
 	}
 
-	dtosDir, err := cfg.GetDTOsPath()
+	dtosDir, err := GetDTOsPath(cfg)
 	if err != nil {
 		log.Fatalf("failed to get DTOs path: %v", err)
 	}
@@ -80,7 +80,7 @@ func generateRoutesFile(resources []string, authCfg *AuthConfig) {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	routesPath, err := cfg.GetRoutesPath()
+	routesPath, err := GetRoutesPath(cfg)
 	if err != nil {
 		log.Fatalf("failed to get routes path: %v", err)
 	}

@@ -1,17 +1,63 @@
 package generator
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
+	"github.com/nicolasbonnici/gorest/config"
 )
 
 // AuthConfig defines which endpoints require authentication
+// This is now derived from the unified config.Config
 type AuthConfig struct {
-	RequireAuth map[string][]string `json:"require_auth"` // resource -> HTTP methods requiring auth
+	RequireAuth map[string][]string // resource -> HTTP methods requiring auth
+}
+
+// GetAuthConfigFromConfig creates an AuthConfig from the unified config
+// Uses the generate.auth.endpoints settings to determine which methods require auth
+func GetAuthConfigFromConfig(cfg *config.Config, resourceName string) *AuthConfig {
+	ac := &AuthConfig{
+		RequireAuth: make(map[string][]string),
+	}
+
+	// If auth is not enabled in config, return empty auth config
+	if !cfg.Generate.Auth.Enabled {
+		return ac
+	}
+
+	var methods []string
+
+	// Build list of methods that require auth based on config
+	if cfg.Generate.Auth.Endpoints.List {
+		methods = append(methods, "GET")
+	}
+	if cfg.Generate.Auth.Endpoints.Get {
+		// GET is already added for List, no need to duplicate
+	}
+	if cfg.Generate.Auth.Endpoints.Create {
+		methods = append(methods, "POST")
+	}
+	if cfg.Generate.Auth.Endpoints.Update {
+		methods = append(methods, "PUT")
+	}
+	if cfg.Generate.Auth.Endpoints.Delete {
+		methods = append(methods, "DELETE")
+	}
+
+	// Deduplicate GET if needed
+	uniqueMethods := make(map[string]bool)
+	for _, m := range methods {
+		uniqueMethods[m] = true
+	}
+
+	finalMethods := make([]string, 0, len(uniqueMethods))
+	for m := range uniqueMethods {
+		finalMethods = append(finalMethods, m)
+	}
+
+	ac.RequireAuth[resourceName] = finalMethods
+	return ac
 }
 
 // DefaultAuthConfig returns a configuration that requires auth for all CRUD operations
+// This is kept for backwards compatibility with tests
 func DefaultAuthConfig() *AuthConfig {
 	return &AuthConfig{
 		RequireAuth: map[string][]string{
@@ -22,40 +68,11 @@ func DefaultAuthConfig() *AuthConfig {
 }
 
 // NoAuthConfig returns a configuration with no authentication requirements
+// This is kept for backwards compatibility with tests
 func NoAuthConfig() *AuthConfig {
 	return &AuthConfig{
 		RequireAuth: map[string][]string{},
 	}
-}
-
-// LoadAuthConfig loads auth configuration from a JSON file
-func LoadAuthConfig(path string) (*AuthConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var cfg AuthConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-
-	return &cfg, nil
-}
-
-// SaveAuthConfig saves auth configuration to a JSON file
-func SaveAuthConfig(cfg *AuthConfig, path string) error {
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, data, 0644)
 }
 
 // RequiresAuth checks if a specific resource and HTTP method requires authentication

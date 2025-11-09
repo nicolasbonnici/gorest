@@ -4,42 +4,41 @@ import (
 	"context"
 	"log"
 	"net/url"
-	"os"
 
-	"github.com/joho/godotenv"
-	"github.com/nicolasbonnici/gorest/generator"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/generator"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+	// Load configuration
+	cfg, err := generator.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Failed to load configuration: %v", err)
 	}
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("❌ DATABASE_URL environment variable is required")
-	}
-
-	if _, err := url.Parse(dbURL); err != nil {
+	// Validate database URL
+	if _, err := url.Parse(cfg.Database.URL); err != nil {
 		log.Fatalf("❌ Invalid DATABASE_URL format: %v", err)
 	}
 
-	db, err := database.Open("", dbURL)
+	// Connect to database
+	db, err := database.Open("", cfg.Database.URL)
 	if err != nil {
 		log.Fatalf("❌ DB connection failed: %v", err)
 	}
 	defer db.Close()
 
+	// Verify connection
 	ctx := context.Background()
 	if err := db.Ping(ctx); err != nil {
 		log.Fatalf("❌ DB ping failed: %v", err)
 	}
 	log.Printf("✅ Database connection verified (%s)", db.DriverName())
 
+	// Generate OpenAPI schema
 	log.Println("🔄 Generating OpenAPI schema...")
 	tables := generator.LoadSchema(db)
 	generator.GenerateOpenAPI(tables)
