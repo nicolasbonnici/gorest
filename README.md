@@ -9,18 +9,20 @@
 ## ✨ Features
 
 - 🔎 Auto-discovery of tables, relations, columns & types
-- 🛠 Scaffold REST endpoints for each table  
-- ⚡ Type-safe generic CRUD operations with hooks
+- 🛠 Scaffold REST endpoints for each table
+- ⚡ Offer Type-safe generic CRUD operations with hooks system
 - 🔐 Full DTO support with field-level control (`dto` tags)
 - 🔑 JWT authentication with context-aware middleware
-- 🎭 Hook layer for business logic
-- 🌐 JSON-LD support with semantic web context
-- 🔗 Automatic foreign key to IRI conversion
-- 🔍 Advanced filtering & ordering
-- 📄 Hydra-compliant pagination
-- 👨🏻‍💻 Multi-database support (PostgreSQL, MySQL, SQLite)
-- 🛡️ Production-ready with graceful shutdown
-- 💚 Health check endpoint
+- 🎭 Hook layer to add your business logic onto your API resources
+- 🌐 JSON-LD support with semantic web context (@context, @type, @id)
+- 🔗 Automatic relation to IRI conversion (e.g., `/users/{uuid}`)
+- 🔍 Advanced filtering & ordering 
+- 📄 Page based pagination with Hydra collections
+- 👨🏻‍💻 DAL for PostgreSQL, MySQL and SQLite engines
+- 🛡️ Production grade errors and processes management
+- 🐳 Docker support with multi-database testing
+- 🧪 Full test coverage with automated testing
+- 💚 Health check endpoint (`/health`)
 - 📜 OpenAPI 3 spec generation
 
 ---
