@@ -31,12 +31,6 @@ jobs:
       - name: Load database schemas
         run: make test-schema
 
-      - name: Generate code
-        run: make test-generate
-
-      - name: Build
-        run: make build
-
       - name: Test with coverage
         run: make test-coverage
 
