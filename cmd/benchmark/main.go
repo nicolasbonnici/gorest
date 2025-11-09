@@ -91,7 +91,7 @@ func main() {
 
 	// Build and start API server
 	fmt.Println("[INFO] Building API server...")
-	cmd = exec.Command("make", "build")
+	cmd = exec.Command("go", "build", "-o", "./bin/benchmark-server", "./cmd/benchmark/testserver/main.go")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
@@ -100,7 +100,7 @@ func main() {
 	}
 
 	fmt.Println("[INFO] Starting API server...")
-	serverCmd := exec.Command("./bin/gorest")
+	serverCmd := exec.Command("./bin/benchmark-server")
 	serverCmd.Env = append(os.Environ(),
 		"DATABASE_URL="+dbURL,
 		"PORT=3001",

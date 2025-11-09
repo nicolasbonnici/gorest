@@ -1,0 +1,6 @@
+output:
+  models: "generated/models"
+  resources: "generated/resources"
+  dtos: "generated/dtos"
+  openapi: "generated/openapi"
+  config: "generated/config"
