@@ -104,20 +104,20 @@ test-schema:
 
 test-generate:
 	@echo "[INFO] Code generation for tests..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
+	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
 	@echo "[INFO] Code generation for tests completed"
 
 test: test-up test-schema test-generate
 	@echo "[INFO] Running Go tests..."
-	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -v -timeout=5m ./...
+	@export $$(grep -v '^#' test/.env.test | xargs) && go test -tags=integration -v -timeout=5m ./...
 	@echo "[INFO] Restoring auth-enabled resources after tests..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen ARGS=-y >/dev/null 2>&1
+	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) resourcegen ARGS=-y >/dev/null 2>&1
 
 .PHONY: test-coverage
 test-coverage: test-up test-schema test-generate
 	@echo "[INFO] Running Go tests with coverage..."
 	@mkdir -p coverage
-	@export $$(grep -v '^#' .env.test | xargs) && go test -tags=integration -timeout=5m -coverprofile=coverage/coverage.out -covermode=atomic ./... 2>&1 | grep -v "go: no such tool"
+	@export $$(grep -v '^#' test/.env.test | xargs) && go test -tags=integration -timeout=5m -coverprofile=coverage/coverage.out -covermode=atomic ./... 2>&1 | grep -v "go: no such tool"
 	@echo ""
 	@echo "========================================="
 	@echo "         COVERAGE REPORT"
@@ -126,12 +126,12 @@ test-coverage: test-up test-schema test-generate
 	@echo "========================================="
 	@go tool cover -func=coverage/coverage.out | grep total | awk '{print "\n📊 Total Coverage: " $$3 "\n"}'
 	@echo "[INFO] Restoring auth-enabled resources after tests..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) resourcegen ARGS=-y >/dev/null 2>&1
+	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) resourcegen ARGS=-y >/dev/null 2>&1
 
 .PHONY: ci-setup
 ci-setup: test-up test-schema
 	@echo "[INFO] Generating code for CI..."
-	@export $$(grep -v '^#' .env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
+	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
 	@echo "[INFO] CI setup complete - database and generated code ready"
 
 .PHONY: rebuild
@@ -165,7 +165,7 @@ docker-clean:
 # ----------------------------
 .PHONY: benchmark
 benchmark: test-up test-schema
-	@export $$(grep -v '^#' .env.test | xargs) && go run ./cmd/benchmark/main.go
+	@export $$(grep -v '^#' test/.env.test | xargs) && go run ./cmd/benchmark/main.go
 
 # ----------------------------
 # Database targets
