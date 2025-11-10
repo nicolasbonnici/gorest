@@ -26,7 +26,7 @@ PAGINATION_MAX_LIMIT=1000
 CORS_ORIGINS=http://localhost:3000
 ```
 
-4. **Optional: Create `.gorest.yaml`** to customize output directories:
+4. **Optional: Create `gorest.yaml`** to customize output directories:
 ```yaml
 output:
   models: "models"
@@ -66,7 +66,7 @@ my-api/
 ├── go.mod
 ├── go.sum
 ├── .env
-├── .gorest.yaml (optional)
+├── gorest.yaml (optional)
 ├── main.go
 ├── models/           # Generated model structs
 │   ├── user.go
@@ -126,7 +126,7 @@ go run github.com/nicolasbonnici/gorest/cmd/openapigen@latest
 
 ## Custom Configuration
 
-You can customize output directories by creating a `.gorest.yaml` file:
+You can customize output directories by creating a `gorest.yaml` file:
 
 ```yaml
 output:

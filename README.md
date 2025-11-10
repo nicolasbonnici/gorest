@@ -38,7 +38,7 @@ go get github.com/nicolasbonnici/gorest@latest
 
 ### 2. Configure Your API
 
-Create `.gorest.yaml` in your project root:
+Create `gorest.yaml` in your project root:
 
 ```yaml
 generate:
@@ -126,7 +126,7 @@ Your API is now running at:
 
 ## ⚙️ Configuration
 
-GoREST uses `.gorest.yaml` for all configuration. The file has two main sections:
+GoREST uses `gorest.yaml` for all configuration. The file has two main sections:
 
 ### Code Generation (`generate`)
 
@@ -183,9 +183,9 @@ rate_limit:
 
 ### Environment-Specific Overrides
 
-Create `.gorest.{environment}.yaml` files to override base config:
+Create `gorest.{environment}.yaml` files to override base config:
 
-**.gorest.production.yaml**:
+**gorest.production.yaml**:
 ```yaml
 server:
   environment: "production"
@@ -202,7 +202,7 @@ export ENVIRONMENT=production
 
 ### Template
 
-See [`.gorest.yaml.example`](.gorest.yaml.example) for a complete documented template.
+See [`gorest.yaml.example`](gorest.yaml.example) for a complete documented template.
 
 ---
 
@@ -389,7 +389,7 @@ Foreign keys automatically convert to IRIs (`user_id` → `/users/def-456`).
 ### Generated Project
 ```
 my-api/
-├── .gorest.yaml              # Configuration
+├── gorest.yaml              # Configuration
 ├── main.go                   # Your application
 ├── generated/
 │   ├── models/              # DB models

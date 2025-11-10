@@ -28,37 +28,30 @@ import (
 
 // Config holds the path to configuration file and optional route registration function
 type Config struct {
-	// ConfigPath is the directory containing .gorest.yaml (default: ".")
+	// ConfigPath is the directory containing gorest.yaml (default: ".")
 	ConfigPath string
 	// RegisterRoutes is an optional callback to register generated routes
 	RegisterRoutes func(app *fiber.App, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int)
 }
 
-// Start starts the GoREST server with the given configuration
-// If cfg.ConfigPath is empty, it defaults to the current directory
 func Start(cfg Config) {
-	// Default config path to current directory
 	if cfg.ConfigPath == "" {
 		cfg.ConfigPath = "."
 	}
 
-	// Load unified configuration
 	appConfig, err := config.Load(cfg.ConfigPath)
 	if err != nil {
 		logger.Log.Error("Failed to load configuration", "error", err)
 		os.Exit(1)
 	}
 
-	// Validate configuration
 	if err := appConfig.Validate(); err != nil {
 		logger.Log.Error("Invalid configuration", "error", err)
 		os.Exit(1)
 	}
 
-	// Check for generated code
 	checkGeneratedCode(appConfig)
 
-	// Connect to database
 	db, err := database.Open("", appConfig.Database.URL)
 	if err != nil {
 		logger.Log.Error("DB connection failed", "error", err)
@@ -66,7 +59,6 @@ func Start(cfg Config) {
 	}
 	defer db.Close()
 
-	// Load database schema
 	schemaSlice, err := db.Introspector().LoadSchema(context.Background())
 	if err != nil {
 		logger.Log.Error("Failed to load schema", "error", err)
@@ -82,7 +74,6 @@ func Start(cfg Config) {
 		}
 	}
 
-	// Create Fiber app
 	app := fiber.New(fiber.Config{
 		BodyLimit:    4 * 1024 * 1024,
 		ReadTimeout:  10 * time.Second,
@@ -99,10 +90,8 @@ func Start(cfg Config) {
 		},
 	})
 
-	// Add middleware
 	app.Use(requestid.New())
 
-	// Rate limiting middleware (if enabled)
 	if appConfig.RateLimit.Enabled {
 		app.Use(limiter.New(limiter.Config{
 			Max:        appConfig.RateLimit.RequestsPerSecond,
@@ -118,7 +107,6 @@ func Start(cfg Config) {
 		}))
 	}
 
-	// CORS middleware
 	corsOrigins := appConfig.GetCORSOrigins()
 	corsOriginsStr := strings.Join(corsOrigins, ",")
 	if corsOriginsStr == "*" {
@@ -137,7 +125,6 @@ func Start(cfg Config) {
 
 	app.Use(cors.New(corsConfig))
 
-	// Security headers middleware
 	app.Use(func(c *fiber.Ctx) error {
 		c.Set("X-Content-Type-Options", "nosniff")
 		c.Set("X-Frame-Options", "DENY")
@@ -148,7 +135,6 @@ func Start(cfg Config) {
 		return c.Next()
 	})
 
-	// Content-Type validation middleware
 	app.Use(func(c *fiber.Ctx) error {
 		method := c.Method()
 		if method == "POST" || method == "PUT" || method == "PATCH" {
@@ -162,29 +148,23 @@ func Start(cfg Config) {
 		return c.Next()
 	})
 
-	// HTTP request logging middleware
 	app.Use(middleware.HTTPLogger())
 
-	// Setup routes
 	SetupOpenAPIUI(app)
 	SetupHealthCheck(app, db, logger.Log)
 	auth.SetupAuth(app, db, appConfig.Auth.JWT.Secret, appConfig.Auth.JWT.TTL)
 
-	// Register user's generated routes
 	if cfg.RegisterRoutes != nil {
 		cfg.RegisterRoutes(app, db, appConfig.Auth.JWT.Secret, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit)
 	} else {
 		logger.Log.Warn("No routes registered. Set Config.RegisterRoutes to register your API endpoints.")
 	}
 
-	// Setup OpenAPI documentation
 	generator.SetupOpenAPI(app, tables, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit)
 
-	// Channel to listen for shutdown signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	// Start server in a goroutine
 	go func() {
 		port := fmt.Sprintf("%d", appConfig.Server.Port)
 		logger.Log.Info("REST API running", "port", port, "url", "http://localhost:"+port)
@@ -196,7 +176,6 @@ func Start(cfg Config) {
 		}
 	}()
 
-	// Wait for shutdown signal
 	<-quit
 	logger.Log.Info("Shutting down server gracefully")
 
@@ -211,7 +190,6 @@ func Start(cfg Config) {
 	logger.Log.Info("Server shutdown complete")
 }
 
-// checkGeneratedCode verifies that required generated code exists
 func checkGeneratedCode(cfg *config.Config) {
 	projectRoot, err := FindProjectRoot()
 	if err != nil {
@@ -266,7 +244,6 @@ func convertRelations(dbRels []database.Relation) []generator.Relation {
 	return rels
 }
 
-// FindProjectRoot finds the project root by looking for go.mod
 func FindProjectRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -286,7 +263,6 @@ func FindProjectRoot() (string, error) {
 	}
 }
 
-// SetupHealthCheck sets up the /health endpoint
 func SetupHealthCheck(app *fiber.App, db database.Database, logger interface{ Error(string, ...interface{}) }) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
@@ -310,7 +286,6 @@ func SetupHealthCheck(app *fiber.App, db database.Database, logger interface{ Er
 	})
 }
 
-// SetupOpenAPIUI sets up the /openapi UI endpoint
 func SetupOpenAPIUI(app *fiber.App) {
 	app.Get("/openapi", func(c *fiber.Ctx) error {
 		html := `<!DOCTYPE html>

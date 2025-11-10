@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// generateResourceForStruct generates a resource file for a struct
 func generateResourceForStruct(apiDir string, structName string, authCfg *AuthConfig) {
 	resourceFile := filepath.Join(apiDir, strings.ToLower(structName)+".go")
 
@@ -28,7 +27,6 @@ func generateResourceForStruct(apiDir string, structName string, authCfg *AuthCo
 	log.Printf("🧩 Generated API resource for model: %s → %s", structName, resourceFile)
 }
 
-// generateResourceFromModel generates the resource code from model
 func generateResourceFromModel(structName string, fields []StructField, authCfg *AuthConfig) string {
 	resourceName := strings.ToLower(structName)
 	lowerStructName := strings.ToLower(structName)
@@ -59,7 +57,6 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 		routesSignature = "router fiber.Router, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int"
 	}
 
-	// Check if model has UserId field
 	hasUserIdField := false
 	for _, field := range fields {
 		if field.Name == "UserId" {
@@ -68,7 +65,6 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 		}
 	}
 
-	// Generate user_id auto-population code if the field exists
 	userIdAutoPopulate := ""
 	if hasUserIdField {
 		userIdAutoPopulate = `
@@ -92,7 +88,6 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	}
 	allowedFieldsStr := strings.Join(allowedFieldsList, ", ")
 
-	// Check if hook file exists for this model
 	projectRoot, _ := findProjectRoot()
 	hookFilePath := filepath.Join(projectRoot, "hooks", lowerStructName+".go")
 	hasHooks := false
@@ -100,16 +95,13 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 		hasHooks = true
 	}
 
-	// Get module name and construct import paths
 	moduleName := getModuleName()
 	cfg, _ := LoadConfig()
 	_, _ = findProjectRoot()
 
-	// Build import paths relative to project root
 	modelsImport := moduleName
 	dtosImport := moduleName
 
-	// If models/dtos are in subdirectories, append the path
 	if cfg.Generate.Output.Models != "models" && cfg.Generate.Output.Models != "" {
 		modelsPath := strings.TrimPrefix(cfg.Generate.Output.Models, "./")
 		modelsImport = moduleName + "/" + strings.ReplaceAll(modelsPath, string(filepath.Separator), "/")
@@ -119,11 +111,9 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 		dtosImport = moduleName + "/" + strings.ReplaceAll(dtosPath, string(filepath.Separator), "/")
 	}
 
-	// Remove /models and /dtos suffix since we add it manually
 	modelsImport = strings.TrimSuffix(modelsImport, "/models") + "/models"
 	dtosImport = strings.TrimSuffix(dtosImport, "/dtos") + "/dtos"
 
-	// Generate imports - add hooks import if hook file exists
 	importsSection := fmt.Sprintf(`import (
 	"net/url"
 
@@ -147,7 +137,6 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	importsSection += `
 )`
 
-	// Generate CRUD initialization - use hooks if available
 	crudInit := fmt.Sprintf("crud.New[models.%s](db)", structName)
 	if hasHooks {
 		crudInit = fmt.Sprintf("crud.NewWithHooks[models.%s](db, &hooks.%sHooks{})", structName, structName)

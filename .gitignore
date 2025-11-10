@@ -26,8 +26,8 @@ bin/*
 coverage/
 
 # Environment-specific GoREST config overrides
-.gorest.*.yaml
-!.gorest.yaml.example
+gorest.*.yaml
+!gorest.yaml.example
 
 # Test environment variables
 /test/.env.test
