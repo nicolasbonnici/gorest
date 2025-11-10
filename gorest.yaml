@@ -1,3 +1,8 @@
+# GoREST Library Test Configuration
+# This file is for testing the GoREST library itself (for contributors).
+# End users who import GoREST should create their own gorest.yaml in their projects.
+# See examples/basic-api/gorest.yaml for an example.
+
 generate:
   output:
     models: "test/generated/models"

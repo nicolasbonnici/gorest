@@ -1,11 +1,3 @@
-# Binaries
-/bin/
-gorest
-*.exe
-*.dll
-*.so
-*.dylib
-
 # Test binary
 *.test
 
@@ -18,9 +10,6 @@ go.work
 # IDE
 .vscode/
 .idea/
-
-# Compiled binary
-bin/*
 
 # Test coverage
 coverage/

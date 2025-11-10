@@ -57,6 +57,29 @@ go run github.com/nicolasbonnici/gorest/cmd/openapigen@latest
 go run main.go
 ```
 
+## Docker Setup
+
+This example includes a Docker Compose configuration for running the API with PostgreSQL:
+
+```bash
+# Set environment variables
+export JWT_SECRET="your-secret-key-minimum-32-characters-long"
+export DB_PASSWORD="postgres"
+
+# Start database and API
+docker compose up
+
+# Or build and run in detached mode
+docker compose up -d --build
+```
+
+The API will be available at http://localhost:3000.
+
+To stop:
+```bash
+docker compose down
+```
+
 ## Project Structure
 
 After running the generators, your project will look like:

@@ -1,14 +1,6 @@
 # ----------------------------
 # Configurable variables
 # ----------------------------
-BINARY ?= gorest
-DOCKER_IMAGE ?= gorest:latest
-DB_CONTAINER ?= gorest_db
-API_CONTAINER ?= gorest_api
-API_PORT ?= 3000
-DB_PORT ?= 5432
-DB_URL ?= postgres://postgres:postgres@localhost:$(DB_PORT)/mydb?sslmode=disable
-DB_TEST_SERVICE=db_test
 DB_TEST_CONTAINER=gorest_db_test
 
 # ----------------------------
@@ -17,39 +9,19 @@ DB_TEST_CONTAINER=gorest_db_test
 .PHONY: help
 help:
 	@echo "Usage:"
-	@echo "  make build           - Build the Go binary"
-	@echo "  make run             - Run the API locally"
 	@echo "  make modelgen        - Generate models from database schema"
 	@echo "  make resourcegen     - Generate API resources from models (interactive)"
 	@echo "  make resourcegen ARGS=-y - Generate resources non-interactively (auto-yes)"
 	@echo "  make openapigen      - Generate OpenAPI schema"
 	@echo "  make generate        - Run all code generation (models + resources + openapi)"
-	@echo "  make docker          - Build and run Docker Compose"
-	@echo "  make docker-stop     - Stop Docker Compose"
-	@echo "  make docker-clean    - Stop and remove containers/images"
 	@echo "  make test            - Run Go tests"
 	@echo "  make test-coverage   - Run Go tests with coverage report"
 	@echo "  make benchmark       - Benchmark resource generation (1, 10, 100, 1000 tables)"
 	@echo "  make tidy            - Run go mod tidy"
-	@echo "  make rebuild         - Clean + build binary"
-	@echo ""
-	@echo "Configurable variables:"
-	@echo "  BINARY=$(BINARY), DOCKER_IMAGE=$(DOCKER_IMAGE), API_PORT=$(API_PORT), DB_PORT=$(DB_PORT)"
 
 # ----------------------------
 # Go targets
 # ----------------------------
-.PHONY: build
-build: tidy
-	@echo "[INFO] Building Go binary..."
-	@mkdir -p bin
-	cd examples/basic-api && go build -o ../../bin/$(BINARY) .
-
-.PHONY: run
-run: build
-	@echo "[INFO] Running API locally..."
-	./bin/$(BINARY)
-
 .PHONY: tidy
 tidy:
 	@echo "[INFO] Tidying Go modules..."
@@ -86,7 +58,7 @@ generate: modelgen
 # ----------------------------
 .PHONY: test test-up test-schema test-generate
 test-up:
-	docker compose -f compose.yml -f compose.override.test.yml up -d db_test mysql_test
+	docker compose -f test/compose.yml up -d db_test mysql_test
 	@echo "Waiting for databases to be ready..."
 	@for i in 1 2 3 4 5 6 7 8 9 10; do \
 		docker exec $(DB_TEST_CONTAINER) pg_isready -U postgres >/dev/null 2>&1 && \
@@ -134,43 +106,9 @@ ci-setup: test-up test-schema
 	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
 	@echo "[INFO] CI setup complete - database and generated code ready"
 
-.PHONY: rebuild
-rebuild: clean build
-
-.PHONY: clean
-clean:
-	@echo "[INFO] Cleaning binary..."
-	-rm -f ./bin/$(BINARY)
-
-# ----------------------------
-# Docker targets
-# ----------------------------
-.PHONY: docker
-docker:
-	@echo "[INFO] Building and running Docker Compose..."
-	docker compose up --build
-
-.PHONY: docker-stop
-docker-stop:
-	@echo "[INFO] Stopping Docker Compose..."
-	docker compose down
-
-.PHONY: docker-clean
-docker-clean:
-	@echo "[INFO] Stopping and removing Docker Compose containers and images..."
-	docker compose down --rmi all --volumes --remove-orphans
-
 # ----------------------------
 # Benchmark targets
 # ----------------------------
 .PHONY: benchmark
 benchmark: test-up test-schema
 	@export $$(grep -v '^#' test/.env.test | xargs) && go run ./cmd/benchmark/main.go
-
-# ----------------------------
-# Database targets
-# ----------------------------
-.PHONY: db-connect
-db-connect:
-	@echo "[INFO] Connecting to database..."
-	psql "$(DB_URL)"

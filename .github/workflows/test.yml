@@ -26,7 +26,7 @@ jobs:
           EOF
 
       - name: Start databases and wait for health checks
-        run: docker compose -f compose.yml -f compose.override.test.yml up -d --wait db_test mysql_test
+        run: docker compose -f test/compose.yml up -d --wait db_test mysql_test
 
       - name: Load database schemas
         run: make test-schema
