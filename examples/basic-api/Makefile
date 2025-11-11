@@ -20,9 +20,9 @@ test-schema:
 	@psql $(DATABASE_URL) -f ../../test/sql/schema.sql
 
 generate:
-	@DATABASE_URL=$(DATABASE_URL) go run github.com/nicolasbonnici/gorest/cmd/modelgen@latest
-	@DATABASE_URL=$(DATABASE_URL) go run github.com/nicolasbonnici/gorest/cmd/resourcegen@latest
-	@DATABASE_URL=$(DATABASE_URL) go run github.com/nicolasbonnici/gorest/cmd/openapigen@latest
+	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run ../../cmd/modelgen/main.go
+	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) yes | go run ../../cmd/resourcegen/main.go
+	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run ../../cmd/openapigen/main.go
 
 run:
 	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run .

@@ -2,6 +2,17 @@
 
 This example demonstrates how to use GoREST to build a REST API from your database schema.
 
+## Development vs Production
+
+**For development** (within the GoREST repository):
+- This example uses `replace github.com/nicolasbonnici/gorest => ../..` in `go.mod`
+- Allows testing unreleased changes locally
+
+**For production** (standalone projects):
+- Use `go.mod.production` as reference
+- Import the published module: `github.com/nicolasbonnici/gorest v0.2.0`
+- No replace directive needed
+
 ## Setup
 
 1. **Create your project structure**:

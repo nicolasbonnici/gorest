@@ -2,11 +2,14 @@ module example.com/basic-api
 
 go 1.25.1
 
+// For production use, replace the line below with the published version
+// require github.com/nicolasbonnici/gorest v0.2.0
 replace github.com/nicolasbonnici/gorest => ../..
 
 require (
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/nicolasbonnici/gorest v0.2.0
+	golang.org/x/crypto v0.43.0
 )
 
 require (
@@ -37,7 +40,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
