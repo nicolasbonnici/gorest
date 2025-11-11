@@ -20,23 +20,16 @@ jobs:
 
       - name: Create test environment file
         run: |
-          cat > .env.test << EOF
+          cat > test/.env.test << EOF
           DATABASE_URL=postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable
-          JWT_SECRET=test-secret-key
-          PORT=3000
+          JWT_SECRET=test-secret-key-minimum-32-characters-long-for-jwt-testing
           EOF
 
       - name: Start databases and wait for health checks
-        run: docker compose -f compose.yml -f compose.override.test.yml up -d --wait db_test mysql_test
+        run: docker compose -f test/compose.yml up -d --wait db_test mysql_test
 
       - name: Load database schemas
         run: make test-schema
-
-      - name: Generate code
-        run: make test-generate
-
-      - name: Build
-        run: make build
 
       - name: Test with coverage
         run: make test-coverage

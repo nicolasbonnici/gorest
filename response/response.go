@@ -1,0 +1,73 @@
+package response
+
+import (
+	"strings"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/nicolasbonnici/gorest/formatter"
+)
+
+func SendFormatted(c *fiber.Ctx, statusCode int, data interface{}) error {
+	format := DetermineFormat(c)
+	f := formatter.GetFormatter(format)
+
+	formatted, err := f.Format(data, c.Path())
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to format response"})
+	}
+
+	c.Set("Content-Type", f.ContentType())
+	return c.Status(statusCode).Send(formatted)
+}
+
+func DetermineFormat(c *fiber.Ctx) string {
+	accept := c.Get("Accept", "")
+	contentTypes := parseAcceptHeader(accept)
+
+	for _, ct := range contentTypes {
+		switch {
+		case strings.Contains(ct, "application/json") && !strings.Contains(ct, "application/ld+json"):
+			return "json"
+		case strings.Contains(ct, "application/ld+json"):
+			return "jsonld"
+		}
+	}
+
+	return "jsonld"
+}
+
+func parseAcceptHeader(accept string) []string {
+	if accept == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(accept, ",")
+	contentTypes := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		mediaTypeParts := strings.Split(trimmed, ";")
+		if len(mediaTypeParts) > 0 && mediaTypeParts[0] != "" {
+			contentTypes = append(contentTypes, mediaTypeParts[0])
+		}
+	}
+
+	return contentTypes
+}
+
+func SendError(c *fiber.Ctx, statusCode int, message string) error {
+	return c.Status(statusCode).JSON(fiber.Map{
+		"error": message,
+	})
+}
+
+func SendSuccess(c *fiber.Ctx, data interface{}) error {
+	return c.Status(fiber.StatusOK).JSON(data)
+}
+
+func SendCreated(c *fiber.Ctx, data interface{}) error {
+	return c.Status(fiber.StatusCreated).JSON(data)
+}

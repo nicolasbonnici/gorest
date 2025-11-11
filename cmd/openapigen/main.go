@@ -4,31 +4,25 @@ import (
 	"context"
 	"log"
 	"net/url"
-	"os"
 
-	"github.com/joho/godotenv"
-	"github.com/nicolasbonnici/gorest/internal"
-	"github.com/nicolasbonnici/gorest/pkg/database"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/sqlite"
+	"github.com/nicolasbonnici/gorest/database"
+	_ "github.com/nicolasbonnici/gorest/database/mysql"
+	_ "github.com/nicolasbonnici/gorest/database/postgres"
+	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/generator"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+	cfg, err := generator.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Failed to load configuration: %v", err)
 	}
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("❌ DATABASE_URL environment variable is required")
-	}
-
-	if _, err := url.Parse(dbURL); err != nil {
+	if _, err := url.Parse(cfg.Database.URL); err != nil {
 		log.Fatalf("❌ Invalid DATABASE_URL format: %v", err)
 	}
 
-	db, err := database.Open("", dbURL)
+	db, err := database.Open("", cfg.Database.URL)
 	if err != nil {
 		log.Fatalf("❌ DB connection failed: %v", err)
 	}
@@ -41,7 +35,7 @@ func main() {
 	log.Printf("✅ Database connection verified (%s)", db.DriverName())
 
 	log.Println("🔄 Generating OpenAPI schema...")
-	tables := internal.LoadSchema(db)
-	internal.GenerateOpenAPI(tables)
+	tables := generator.LoadSchema(db)
+	generator.GenerateOpenAPI(tables)
 	log.Println("✅ OpenAPI generation completed successfully")
 }

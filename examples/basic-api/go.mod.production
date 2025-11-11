@@ -1,0 +1,9 @@
+module example.com/basic-api
+
+go 1.25.1
+
+require (
+	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/nicolasbonnici/gorest v0.2.0
+	golang.org/x/crypto v0.43.0
+)

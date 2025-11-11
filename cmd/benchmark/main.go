@@ -9,10 +9,10 @@ import (
 
 	vegeta "github.com/tsenart/vegeta/v12/lib"
 
-	"github.com/nicolasbonnici/gorest/pkg/database"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/sqlite"
+	"github.com/nicolasbonnici/gorest/database"
+	_ "github.com/nicolasbonnici/gorest/database/mysql"
+	_ "github.com/nicolasbonnici/gorest/database/postgres"
+	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 )
 
 func main() {
@@ -91,7 +91,7 @@ func main() {
 
 	// Build and start API server
 	fmt.Println("[INFO] Building API server...")
-	cmd = exec.Command("make", "build")
+	cmd = exec.Command("go", "build", "-o", "./bin/benchmark-server", "./cmd/benchmark/testserver/main.go")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
@@ -100,7 +100,7 @@ func main() {
 	}
 
 	fmt.Println("[INFO] Starting API server...")
-	serverCmd := exec.Command("./bin/gorest")
+	serverCmd := exec.Command("./bin/benchmark-server")
 	serverCmd.Env = append(os.Environ(),
 		"DATABASE_URL="+dbURL,
 		"PORT=3001",
@@ -155,6 +155,23 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("[INFO] Server is ready")
+
+	// Give server extra time to fully initialize all routes
+	time.Sleep(2 * time.Second)
+
+	// Verify the endpoint exists with a test request
+	target := vegeta.Target{
+		Method: "GET",
+		URL:    "http://localhost:3001/benchmarkitems?limit=1",
+	}
+	attacker := vegeta.NewAttacker()
+	for res := range attacker.Attack(vegeta.NewStaticTargeter(target), vegeta.Rate{Freq: 1, Per: time.Second}, 1*time.Second, "Endpoint Check") {
+		if res.Code != 200 {
+			fmt.Printf("WARNING: Endpoint check failed with status %d\n", res.Code)
+			time.Sleep(2 * time.Second)
+		}
+		break
+	}
 
 	// Run benchmarks
 	fmt.Println()
