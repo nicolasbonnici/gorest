@@ -67,6 +67,10 @@ func (f *JSONLDFormatter) wrapWithContext(data interface{}, path string) map[str
 	return result
 }
 
+func (f *JSONLDFormatter) AddTypeToItemExported(data interface{}, path string) map[string]interface{} {
+	return f.addTypeToItem(data, path)
+}
+
 func (f *JSONLDFormatter) addTypeToItem(data interface{}, path string) map[string]interface{} {
 	jsonBytes, _ := json.Marshal(data)
 	var itemMap map[string]interface{}

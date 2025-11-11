@@ -5,8 +5,8 @@ go 1.25.1
 replace github.com/nicolasbonnici/gorest => ../..
 
 require (
-	github.com/joho/godotenv v1.5.1
-	github.com/nicolasbonnici/gorest v0.0.0-00010101000000-000000000000
+	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/nicolasbonnici/gorest v0.2.0
 )
 
 require (
@@ -18,7 +18,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.28.0 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
-	github.com/gofiber/fiber/v2 v2.52.9 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

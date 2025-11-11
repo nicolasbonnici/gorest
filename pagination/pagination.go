@@ -1,11 +1,15 @@
 package pagination
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
+	"reflect"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nicolasbonnici/gorest/formatter"
+	"github.com/nicolasbonnici/gorest/response"
 )
 
 type HydraView struct {
@@ -102,12 +106,14 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, pag
 		view.Last = &lastURL
 	}
 
+	formattedItems := formatItems(items, basePath, response.DetermineFormat(c))
+
 	collection := HydraCollection{
 		Context:    "http://www.w3.org/ns/hydra/context.jsonld",
 		ID:         basePath,
 		Type:       "hydra:Collection",
 		TotalItems: total,
-		Member:     items,
+		Member:     formattedItems,
 		View:       view,
 	}
 
@@ -117,6 +123,31 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, pag
 	}
 
 	return c.Status(fiber.StatusOK).JSON(collection)
+}
+
+func formatItems(items interface{}, path string, format string) interface{} {
+	val := reflect.ValueOf(items)
+	if val.Kind() != reflect.Slice {
+		return items
+	}
+
+	f := formatter.GetFormatter(format)
+	formattedItems := make([]interface{}, val.Len())
+
+	for i := 0; i < val.Len(); i++ {
+		item := val.Index(i).Interface()
+		jsonBytes, _ := json.Marshal(item)
+		var itemMap map[string]interface{}
+		json.Unmarshal(jsonBytes, &itemMap)
+
+		if format == "jsonld" {
+			formattedItems[i] = f.(*formatter.JSONLDFormatter).AddTypeToItemExported(item, path)
+		} else {
+			formattedItems[i] = itemMap
+		}
+	}
+
+	return formattedItems
 }
 
 func SendPaginatedError(c *fiber.Ctx, statusCode int, message string) error {
