@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-11-07
+
+### Breaking Changes
+- **Major restructuring**: Transformed from application-focused to library-first architecture
+- All core packages moved from `internal/` to root level for public export
+- Package imports changed:
+  - `github.com/nicolasbonnici/gorest/pkg/database` → `github.com/nicolasbonnici/gorest/database`
+  - `github.com/nicolasbonnici/gorest/internal/crud` → `github.com/nicolasbonnici/gorest/crud`
+  - `github.com/nicolasbonnici/gorest/internal/hooks` → `github.com/nicolasbonnici/gorest/hooks`
+  - `github.com/nicolasbonnici/gorest/internal/formatter` → `github.com/nicolasbonnici/gorest/formatter`
+  - `github.com/nicolasbonnici/gorest/internal/middleware` → `github.com/nicolasbonnici/gorest/middleware`
+
+### Added
+- New exportable packages at root level:
+  - `auth/` - Authentication and authorization functionality
+  - `filter/` - Query filtering and ordering
+  - `pagination/` - Pagination helpers and Hydra collections
+  - `response/` - HTTP response formatting and validation
+  - `generator/` - Code generation utilities
+- Example application in `examples/basic-api/`
+
+### Changed
+- Main library entry point moved to root `gorest.go`
+- Package structure optimized for library consumption
+- All tests and imports updated to new package paths
+
 ## [0.1.0-RC] - 2025-10-19
 
 ### Initial Release

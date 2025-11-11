@@ -1,0 +1,5 @@
+# Environment variables
+.env
+
+# Generated code (regenerated from database schema)
+/generated/

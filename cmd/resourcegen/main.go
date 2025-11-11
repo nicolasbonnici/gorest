@@ -1,50 +1,34 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"flag"
-	"fmt"
 	"log"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/joho/godotenv"
-	"github.com/nicolasbonnici/gorest/internal"
-	"github.com/nicolasbonnici/gorest/pkg/database"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/mysql"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/postgres"
-	_ "github.com/nicolasbonnici/gorest/pkg/database/sqlite"
-)
-
-var (
-	autoYes = flag.Bool("y", false, "Automatic yes to prompts (non-interactive mode)")
+	"github.com/nicolasbonnici/gorest/config"
+	"github.com/nicolasbonnici/gorest/database"
+	_ "github.com/nicolasbonnici/gorest/database/mysql"
+	_ "github.com/nicolasbonnici/gorest/database/postgres"
+	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/generator"
 )
 
 func main() {
-	flag.Parse()
-
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+	cfg, err := generator.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Failed to load configuration: %v", err)
 	}
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("❌ DATABASE_URL environment variable is required")
-	}
-
-	if _, err := url.Parse(dbURL); err != nil {
+	if _, err := url.Parse(cfg.Database.URL); err != nil {
 		log.Fatalf("❌ Invalid DATABASE_URL format: %v", err)
 	}
 
-	projectRoot, err := internal.FindProjectRoot()
+	modelsDir, err := generator.GetModelsPath(cfg)
 	if err != nil {
-		log.Fatalf("❌ Failed to find project root: %v", err)
+		log.Fatalf("❌ Failed to get models path: %v", err)
 	}
-
-	modelsDir := filepath.Join(projectRoot, "internal", "models")
 	if _, err := os.Stat(modelsDir); os.IsNotExist(err) {
 		log.Fatal("❌ Models directory not found. Run 'make modelgen' first to generate models.")
 	}
@@ -66,65 +50,7 @@ func main() {
 		log.Fatal("❌ No model files found. Run 'make modelgen' first to generate models.")
 	}
 
-	resourcesDir := filepath.Join(projectRoot, "internal", "api", "resources")
-	existingResources := make(map[string]bool)
-	resourcesToGenerate := []string{}
-
-	if _, err := os.Stat(resourcesDir); err == nil {
-		existingFiles, _ := os.ReadDir(resourcesDir)
-		for _, file := range existingFiles {
-			if strings.HasSuffix(file.Name(), ".go") {
-				existingResources[file.Name()] = true
-			}
-		}
-	}
-
-	for _, file := range files {
-		if strings.HasSuffix(file.Name(), ".go") && file.Name() != "model.go" {
-			resourceName := strings.TrimSuffix(file.Name(), ".go")
-			resourcesToGenerate = append(resourcesToGenerate, resourceName)
-		}
-	}
-
-	resourcesToSkip := make(map[string]bool)
-	resourceAuthConfig := make(map[string]bool)
-
-	if *autoYes {
-		log.Println("🤖 Non-interactive mode enabled (-y flag)")
-		for _, resourceName := range resourcesToGenerate {
-			resourceFile := resourceName + ".go"
-			if existingResources[resourceFile] {
-				log.Printf("✅ Auto-overriding: %s", resourceFile)
-			}
-			resourceAuthConfig[resourceName] = true
-			log.Printf("✅ Auto-enabling authentication for: %s", resourceName)
-		}
-	} else {
-		for _, resourceName := range resourcesToGenerate {
-			resourceFile := resourceName + ".go"
-
-			if existingResources[resourceFile] {
-				if !promptYesNo(fmt.Sprintf("⚠️  Resource '%s' already exists. Override?", resourceFile), true) {
-					resourcesToSkip[resourceName] = true
-					log.Printf("⏭️  Skipping %s", resourceFile)
-					continue
-				}
-			}
-
-			requireAuth := promptYesNo(fmt.Sprintf("🔐 Require authentication for '%s' endpoints (GET/POST/PUT/DELETE)?", resourceName), true)
-			resourceAuthConfig[resourceName] = requireAuth
-		}
-	}
-
-	if len(resourcesToSkip) == len(resourcesToGenerate) && len(resourcesToGenerate) > 0 {
-		log.Println("❌ All resources skipped. Nothing to generate.")
-		return
-	}
-
-	authConfigPath := filepath.Join(projectRoot, "config", "auth.json")
-	authCfg := internal.NoAuthConfig()
-
-	db, err := database.Open("", dbURL)
+	db, err := database.Open("", cfg.Database.URL)
 	if err != nil {
 		log.Fatalf("❌ DB connection failed: %v", err)
 	}
@@ -137,76 +63,58 @@ func main() {
 	log.Printf("✅ Database connection verified (%s)", db.DriverName())
 
 	log.Println("🔄 Generating API resources from models...")
-	tables := internal.LoadSchema(db)
-
-	tableToResourceMap := make(map[string]string)
-	for tableName := range tables {
-		singularName := internal.SingularizeExported(tableName)
-		resourceName := strings.ToLower(singularName)
-		tableToResourceMap[tableName] = resourceName
-	}
-
-	for _, resourceName := range tableToResourceMap {
-		if requireAuth, exists := resourceAuthConfig[resourceName]; exists && requireAuth {
-			pluralResourceName := pluralizeResourceName(resourceName)
-			authCfg.SetResourceAuth(pluralResourceName, []string{"GET", "POST", "PUT", "DELETE"})
-			log.Printf("🔒 Authentication enabled for resource: %s", resourceName)
-		} else {
-			log.Printf("🔓 No authentication for resource: %s", resourceName)
+	log.Printf("   Auth enabled: %v", cfg.Generate.Auth.Enabled)
+	if cfg.Generate.Auth.Enabled {
+		log.Println("   Endpoints requiring auth:")
+		if cfg.Generate.Auth.Endpoints.List {
+			log.Println("     - List (GET)")
+		}
+		if cfg.Generate.Auth.Endpoints.Get {
+			log.Println("     - Get (GET /:id)")
+		}
+		if cfg.Generate.Auth.Endpoints.Create {
+			log.Println("     - Create (POST)")
+		}
+		if cfg.Generate.Auth.Endpoints.Update {
+			log.Println("     - Update (PUT /:id)")
+		}
+		if cfg.Generate.Auth.Endpoints.Delete {
+			log.Println("     - Delete (DELETE /:id)")
 		}
 	}
 
-	if err := internal.SaveAuthConfig(authCfg, authConfigPath); err != nil {
-		log.Printf("⚠️  Warning: Failed to save auth config: %v", err)
-	} else {
-		log.Printf("💾 Auth configuration saved to: %s", authConfigPath)
-	}
-
-	internal.GenerateAPIWithSkip(authCfg, resourcesToSkip)
+	tables := generator.LoadSchema(db)
+	authCfg := createAuthConfigFromUnified(cfg, tables)
+	generator.GenerateAPI(authCfg)
 	log.Println("✅ Resource generation completed successfully")
 }
 
-func pluralizeResourceName(word string) string {
-	if strings.HasSuffix(word, "y") && len(word) > 1 && !isVowel(word[len(word)-2]) {
-		return word[:len(word)-1] + "ies"
-	}
-	if strings.HasSuffix(word, "fe") {
-		return word[:len(word)-2] + "ves"
-	}
-	if strings.HasSuffix(word, "f") {
-		return word[:len(word)-1] + "ves"
-	}
-	if strings.HasSuffix(word, "s") || strings.HasSuffix(word, "x") ||
-		strings.HasSuffix(word, "z") || strings.HasSuffix(word, "ch") ||
-		strings.HasSuffix(word, "sh") {
-		return word + "es"
-	}
-	return word + "s"
-}
-
-func isVowel(c byte) bool {
-	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
-}
-
-func promptYesNo(prompt string, defaultYes bool) bool {
-	reader := bufio.NewReader(os.Stdin)
-
-	defaultText := "Y/n"
-	if !defaultYes {
-		defaultText = "y/N"
+func createAuthConfigFromUnified(cfg *config.Config, tables map[string]generator.TableSchema) *generator.AuthConfig {
+	authCfg := &generator.AuthConfig{
+		RequireAuth: make(map[string][]string),
 	}
 
-	fmt.Printf("%s [%s]: ", prompt, defaultText)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		log.Fatalf("❌ Failed to read input: %v", err)
+	if !cfg.Generate.Auth.Enabled {
+		return authCfg
 	}
 
-	input = strings.TrimSpace(strings.ToLower(input))
-
-	if input == "" {
-		return defaultYes
+	var methods []string
+	if cfg.Generate.Auth.Endpoints.List || cfg.Generate.Auth.Endpoints.Get {
+		methods = append(methods, "GET")
+	}
+	if cfg.Generate.Auth.Endpoints.Create {
+		methods = append(methods, "POST")
+	}
+	if cfg.Generate.Auth.Endpoints.Update {
+		methods = append(methods, "PUT")
+	}
+	if cfg.Generate.Auth.Endpoints.Delete {
+		methods = append(methods, "DELETE")
 	}
 
-	return input == "y" || input == "yes"
+	for tableName := range tables {
+		authCfg.RequireAuth[tableName] = methods
+	}
+
+	return authCfg
 }

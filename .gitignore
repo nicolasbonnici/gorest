@@ -1,11 +1,3 @@
-# Binaries
-/bin/
-gorest
-*.exe
-*.dll
-*.so
-*.dylib
-
 # Test binary
 *.test
 
@@ -19,37 +11,15 @@ go.work
 .vscode/
 .idea/
 
-# Environment variables
-.env
-.env.local
-
-# Coompiled binary
-bin/*
-
 # Test coverage
 coverage/
 
-# OpenAPI spec resource schemas generation
-internal/openapi/*
-!internal/openapi/.gitkeep
+# Environment-specific GoREST config overrides
+gorest.*.yaml
+!gorest.yaml.example
 
-# Models scaffolded from database schema
-internal/models/*
-!internal/models/.gitkeep
+# Test environment variables
+/test/.env.test
 
-# API resources scaffolded from models
-internal/api/resources/*
-!internal/api/resources/.gitkeep
-
-# DTOs scaffolded from models
-internal/api/dtos/*
-!internal/api/dtos/.gitkeep
-
-# Generated route registration
-internal/api/routes.go
-
-# Custom business logic hooks
-internal/hooks/*
-!internal/hooks/.gitkeep
-!internal/hooks/factory.go
-!internal/hooks/hooks.go
+# Generated code for tests (regenerated on each test run)
+/test/generated/

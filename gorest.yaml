@@ -1,0 +1,44 @@
+# GoREST Library Test Configuration
+# This file is for testing the GoREST library itself (for contributors).
+# End users who import GoREST should create their own gorest.yaml in their projects.
+# See examples/basic-api/gorest.yaml for an example.
+
+generate:
+  output:
+    models: "test/generated/models"
+    resources: "test/generated/resources"
+    dtos: "test/generated/dtos"
+    openapi: "test/generated/openapi"
+    config: "test/generated/config"
+  auth:
+    enabled: false
+    endpoints:
+      list: false
+      get: false
+      create: false
+      update: false
+      delete: false
+
+server:
+  port: 3001
+  environment: "test"
+
+database:
+  url: "${DATABASE_URL}"
+
+auth:
+  jwt:
+    secret: "${JWT_SECRET}"
+    ttl: 3600
+
+pagination:
+  default_limit: 50
+  max_limit: 10000
+
+cors:
+  origins: "*"
+
+rate_limit:
+  enabled: true
+  requests_per_second: 100
+  burst: 200
