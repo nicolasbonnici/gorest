@@ -23,3 +23,6 @@ gorest.*.yaml
 
 # Generated code for tests (regenerated on each test run)
 /test/generated/
+
+# bin folder mostly for benchmark
+bin
