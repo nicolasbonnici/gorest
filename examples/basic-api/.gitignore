@@ -3,3 +3,6 @@
 
 # Generated code (regenerated from database schema)
 /generated/
+
+# Build artifacts
+/bin/
