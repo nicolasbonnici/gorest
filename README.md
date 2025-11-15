@@ -1,6 +1,6 @@
 # GoREST
 
-🚀 **GoREST** is a code generator and library for building type-safe REST APIs in Go from your database schema.
+🚀 **GoREST** is a Go library for building type-safe REST APIs in Go from your database schema.
 
 **Use GoREST as:**
 - 📦 **A Go library** - Import packages for CRUD, filters, pagination, auth
@@ -118,8 +118,8 @@ func main() {
 go run main.go
 ```
 
-Your API is now running at:
-- 📚 API Docs: **http://localhost:3000/openapi**
+Your API is now running at: **http://localhost:3000/**
+- 📚 API specs: **http://localhost:3000/openapi** (JSON format **http://localhost:3000/openapi.json**)
 - 💚 Health: **http://localhost:3000/health**
 
 ---

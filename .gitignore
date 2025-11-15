@@ -17,6 +17,7 @@ coverage/
 # Environment-specific GoREST config overrides
 gorest.*.yaml
 !gorest.yaml.example
+!gorest.test.yaml
 
 # Test environment variables
 /test/.env.test
