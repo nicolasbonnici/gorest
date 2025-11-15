@@ -26,15 +26,34 @@ go mod init github.com/yourusername/my-api
 go get github.com/nicolasbonnici/gorest
 ```
 
-3. **Create environment file** (`.env`):
+3. **Configure environment variables**:
+```bash
+# Initialize .env from template
+make init
+
+# Edit .env with your settings
+nano .env
+```
+
+Or manually:
+```bash
+cp .env.dist .env
+nano .env
+```
+
+Minimum required variables:
 ```bash
 DATABASE_URL=postgres://user:password@localhost:5432/mydb?sslmode=disable
 JWT_SECRET=your-super-secret-jwt-key-min-32-chars
-JWT_TTL=900
+```
+
+Optional variables (defaults from `gorest.yaml` will be used if not set):
+```bash
 PORT=3000
-PAGINATION_LIMIT=100
+ENVIRONMENT=development
+PAGINATION_LIMIT=10
 PAGINATION_MAX_LIMIT=1000
-CORS_ORIGINS=http://localhost:3000
+CORS_ORIGINS=*
 ```
 
 4. **Optional: Create `gorest.yaml`** to customize output directories:

@@ -26,6 +26,8 @@ import (
 	"github.com/nicolasbonnici/gorest/middleware"
 )
 
+var Version = "dev"
+
 // Config holds the path to configuration file and optional route registration function
 type Config struct {
 	// ConfigPath is the directory containing gorest.yaml (default: ".")
@@ -126,6 +128,7 @@ func Start(cfg Config) {
 	app.Use(cors.New(corsConfig))
 
 	app.Use(func(c *fiber.Ctx) error {
+		c.Set("X-Powered-By", "GoREST/"+Version)
 		c.Set("X-Content-Type-Options", "nosniff")
 		c.Set("X-Frame-Options", "DENY")
 		c.Set("X-XSS-Protection", "1; mode=block")
@@ -167,7 +170,7 @@ func Start(cfg Config) {
 
 	go func() {
 		port := fmt.Sprintf("%d", appConfig.Server.Port)
-		logger.Log.Info("REST API running", "port", port, "url", "http://localhost:"+port)
+		logger.Log.Info("REST API running", "port", port, "url", "http://localhost:"+port, "version", Version)
 		logger.Log.Info("Health check available", "url", "http://localhost:"+port+"/health")
 		logger.Log.Info("Environment", "env", appConfig.Server.Environment)
 		if err := app.Listen(":" + port); err != nil {
