@@ -51,6 +51,18 @@ func testConcurrentParallelReads(t *testing.T, db database.Database) {
 		}
 	}
 
+	// Ensure MySQL commits data before concurrent reads
+	// MySQL may need time to make inserted data visible to other connections
+	if db.DriverName() == "mysql" {
+		time.Sleep(100 * time.Millisecond)
+		// Verify all data is visible
+		var count int
+		db.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
+		if count != 10 {
+			t.Fatalf("Expected 10 users after insert, got %d", count)
+		}
+	}
+
 	var wg sync.WaitGroup
 	numReaders := 50
 	errChan := make(chan error, numReaders)
