@@ -181,6 +181,9 @@ func TestMySQL_Update(t *testing.T) {
 		t.Fatalf("Insert failed, expected 1 row affected, got %d", insertAffected)
 	}
 
+	// Allow MySQL to commit the insert
+	time.Sleep(10 * time.Millisecond)
+
 	// Verify the row exists before update
 	var countBefore int
 	if err := db.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE email = ?", "charlie@example.com").Scan(&countBefore); err != nil {
@@ -203,6 +206,9 @@ func TestMySQL_Update(t *testing.T) {
 	if affected != 1 {
 		t.Errorf("Expected 1 row affected by update, got %d", affected)
 	}
+
+	// Allow MySQL to commit the update
+	time.Sleep(10 * time.Millisecond)
 
 	var lastname string
 	row := db.QueryRow(ctx, "SELECT lastname FROM users WHERE email = ?", "charlie@example.com")

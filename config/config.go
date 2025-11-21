@@ -13,6 +13,18 @@ type Config struct {
 	Pagination PaginationConfig `yaml:"pagination"`
 	CORS       CORSConfig       `yaml:"cors"`
 	RateLimit  RateLimitConfig  `yaml:"rate_limit"`
+	Plugins    PluginsConfig    `yaml:"plugins"`
+}
+
+type PluginsConfig struct {
+	Global []PluginConfig `yaml:"global"`
+	Route  []PluginConfig `yaml:"route"`
+}
+
+type PluginConfig struct {
+	Name    string                 `yaml:"name"`
+	Enabled bool                   `yaml:"enabled"`
+	Config  map[string]interface{} `yaml:"config"`
 }
 
 type GenerateConfig struct {
@@ -215,4 +227,46 @@ func (c *Config) SetDefaults() {
 	if c.Generate.Output.Config == "" {
 		c.Generate.Output.Config = "generated/config"
 	}
+
+	// Populate plugins config if not specified (for backward compatibility)
+	c.PopulatePluginsFromLegacyConfig()
+}
+
+// PopulatePluginsFromLegacyConfig creates plugin configurations from legacy config values
+// This ensures backward compatibility with existing gorest.yaml files
+func (c *Config) PopulatePluginsFromLegacyConfig() {
+	// If plugins are already configured, don't override
+	if len(c.Plugins.Global) > 0 || len(c.Plugins.Route) > 0 {
+		return
+	}
+
+	// Create default plugin configuration
+	c.Plugins.Global = []PluginConfig{
+		{Name: "requestid", Enabled: true, Config: make(map[string]interface{})},
+		{Name: "ratelimit", Enabled: c.RateLimit.Enabled, Config: map[string]interface{}{
+			"requests_per_second": c.RateLimit.RequestsPerSecond,
+			"burst":               c.RateLimit.Burst,
+		}},
+		{Name: "cors", Enabled: true, Config: map[string]interface{}{
+			"origins": c.GetCORSOriginsString(),
+		}},
+		{Name: "security", Enabled: true, Config: make(map[string]interface{})},
+		{Name: "contenttype", Enabled: true, Config: make(map[string]interface{})},
+		{Name: "logger", Enabled: true, Config: make(map[string]interface{})},
+	}
+
+	c.Plugins.Route = []PluginConfig{
+		{Name: "auth", Enabled: c.Generate.Auth.Enabled, Config: map[string]interface{}{
+			"jwt_secret": c.Auth.JWT.Secret,
+		}},
+	}
+}
+
+// GetCORSOriginsString returns CORS origins as a string for plugin configuration
+func (c *Config) GetCORSOriginsString() string {
+	origins := c.GetCORSOrigins()
+	if len(origins) == 1 {
+		return origins[0]
+	}
+	return strings.Join(origins, ",")
 }
