@@ -12,8 +12,9 @@
 - 🛠 Scaffold REST endpoints for each table
 - ⚡ Offer Type-safe generic CRUD operations with hooks system
 - 🔐 Full DTO support with field-level control (`dto` tags)
-- 🔑 JWT authentication with context-aware middleware
+- 🔑 JWT authentication with context-aware plugins
 - 🎭 Hook layer to add your business logic onto your API resources
+- 🧩 Modular plugin system for easy customization
 - 🌐 JSON-LD support with semantic web context (@context, @type, @id)
 - 🔗 Automatic relation to IRI conversion (e.g., `/users/{uuid}`)
 - 🔍 Advanced filtering & ordering 
@@ -179,6 +180,32 @@ rate_limit:
   enabled: true
   requests_per_second: 100
   burst: 200
+
+# Optional: Configure plugins (automatically configured from legacy settings if not specified)
+plugins:
+  global:                   # Plugins applied to all routes
+    - name: requestid
+      enabled: true
+    - name: ratelimit
+      enabled: true
+      config:
+        requests_per_second: 100
+        burst: 200
+    - name: cors
+      enabled: true
+      config:
+        origins: "*"
+    - name: security        # Security headers
+      enabled: true
+    - name: contenttype     # Content-Type validation
+      enabled: true
+    - name: logger          # HTTP request logging
+      enabled: true
+  route:                    # Plugins applied to specific routes
+    - name: auth            # JWT authentication
+      enabled: true
+      config:
+        jwt_secret: "${JWT_SECRET}"
 ```
 
 ### Environment-Specific Overrides
@@ -218,13 +245,13 @@ go get github.com/nicolasbonnici/gorest@latest
 
 | Package | Description |
 |---------|-------------|
-| `auth` | JWT authentication & middleware |
+| `auth` | JWT authentication & plugins |
 | `crud` | Type-safe CRUD operations with hooks |
 | `database` | Multi-database abstraction |
 | `filter` | Query filtering & ordering |
 | `formatter` | JSON-LD response formatting |
 | `hooks` | Lifecycle hooks for business logic |
-| `middleware` | HTTP middleware utilities |
+| `plugin` | Modular plugin system |
 | `pagination` | Hydra-compliant pagination |
 | `response` | HTTP response helpers |
 
@@ -263,6 +290,135 @@ func main() {
 ```
 
 📚 [Full API documentation on pkg.go.dev](https://pkg.go.dev/github.com/nicolasbonnici/gorest)
+
+---
+
+## 🧩 Plugin System
+
+GoREST uses a modular plugin system for API customization. Plugins can be global (applied to all routes) or route-level (applied to specific handlers).
+
+### Built-in Plugins
+
+**Global Plugins:**
+- **requestid** - Adds unique request ID tracking
+- **ratelimit** - Per-IP rate limiting
+- **cors** - Cross-Origin Resource Sharing
+- **security** - Security headers (X-Frame-Options, CSP, etc.)
+- **contenttype** - Validates Content-Type for mutations
+- **logger** - HTTP request/response logging
+
+**Route Plugins:**
+- **auth** - JWT authentication for protected routes
+
+### Configuration
+
+Plugins are configured in `gorest.yaml`:
+
+```yaml
+plugins:
+  global:
+    - name: ratelimit
+      enabled: true
+      config:
+        requests_per_second: 100
+        burst: 200
+  route:
+    - name: auth
+      enabled: true
+      config:
+        jwt_secret: "${JWT_SECRET}"
+```
+
+### Creating Custom Plugins
+
+#### Global Plugin Example
+
+```go
+package myplugin
+
+import (
+    "github.com/gofiber/fiber/v2"
+    "github.com/nicolasbonnici/gorest/plugin"
+)
+
+type CustomPlugin struct {
+    config map[string]interface{}
+}
+
+func NewCustomPlugin() plugin.GlobalPlugin {
+    return &CustomPlugin{}
+}
+
+func (p *CustomPlugin) Name() string {
+    return "custom"
+}
+
+func (p *CustomPlugin) Initialize(config map[string]interface{}) error {
+    p.config = config
+    return nil
+}
+
+func (p *CustomPlugin) Handler() fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        // Your plugin logic here
+        c.Set("X-Custom-Header", "value")
+        return c.Next()
+    }
+}
+```
+
+#### Route Plugin Example
+
+```go
+type CustomAuthPlugin struct {
+    apiKey string
+}
+
+func (p *CustomAuthPlugin) Name() string {
+    return "apikey"
+}
+
+func (p *CustomAuthPlugin) Initialize(config map[string]interface{}) error {
+    if key, ok := config["api_key"].(string); ok {
+        p.apiKey = key
+    }
+    return nil
+}
+
+func (p *CustomAuthPlugin) Wrap(handler fiber.Handler) fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        key := c.Get("X-API-Key")
+        if key != p.apiKey {
+            return c.Status(401).JSON(fiber.Map{"error": "Invalid API key"})
+        }
+        return handler(c)
+    }
+}
+```
+
+### Registering Custom Plugins
+
+Register your custom plugins in your main application:
+
+```go
+import (
+    "github.com/nicolasbonnici/gorest/plugin"
+    "yourapp/myplugin"
+)
+
+func main() {
+    // Load default plugins
+    registry, _ := plugin.LoadPlugins(config.Plugins.Global, config.Plugins.Route, version)
+
+    // Register your custom plugin
+    customPlugin := myplugin.NewCustomPlugin()
+    customPlugin.Initialize(map[string]interface{}{"key": "value"})
+    registry.RegisterGlobal(customPlugin)
+
+    // Use registry in your app
+    // ...
+}
+```
 
 ---
 
@@ -401,7 +557,7 @@ my-api/
 ### GoREST Library
 ```
 gorest/
-├── auth/                    # JWT & middleware
+├── auth/                    # JWT & authentication
 ├── crud/                    # Generic CRUD
 ├── database/               # Multi-DB abstraction
 │   ├── postgres/
@@ -410,6 +566,8 @@ gorest/
 ├── filter/                 # Query filtering
 ├── generator/              # Code generation
 ├── hooks/                  # Lifecycle hooks
+├── plugin/                 # Plugin system
+│   └── builtin/           # Built-in plugins
 ├── pagination/             # Hydra pagination
 └── cmd/                    # CLI generators
 ```

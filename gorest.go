@@ -6,14 +6,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
-	"github.com/gofiber/fiber/v2/middleware/requestid"
 
 	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/config"
@@ -23,7 +19,8 @@ import (
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 	"github.com/nicolasbonnici/gorest/generator"
 	"github.com/nicolasbonnici/gorest/logger"
-	"github.com/nicolasbonnici/gorest/middleware"
+	"github.com/nicolasbonnici/gorest/plugin"
+	_ "github.com/nicolasbonnici/gorest/plugin/builtin" // Register built-in plugins
 )
 
 var Version = "dev"
@@ -33,7 +30,7 @@ type Config struct {
 	// ConfigPath is the directory containing gorest.yaml (default: ".")
 	ConfigPath string
 	// RegisterRoutes is an optional callback to register generated routes
-	RegisterRoutes func(app *fiber.App, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int)
+	RegisterRoutes func(app *fiber.App, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry)
 }
 
 func Start(cfg Config) {
@@ -92,73 +89,25 @@ func Start(cfg Config) {
 		},
 	})
 
-	app.Use(requestid.New())
-
-	if appConfig.RateLimit.Enabled {
-		app.Use(limiter.New(limiter.Config{
-			Max:        appConfig.RateLimit.RequestsPerSecond,
-			Expiration: 1 * time.Minute,
-			KeyGenerator: func(c *fiber.Ctx) string {
-				return c.IP()
-			},
-			LimitReached: func(c *fiber.Ctx) error {
-				return c.Status(429).JSON(fiber.Map{
-					"error": "Rate limit exceeded. Please try again later.",
-				})
-			},
-		}))
+	// Load and apply plugins
+	pluginRegistry, err := plugin.LoadPlugins(appConfig.Plugins.Global, appConfig.Plugins.Route, Version)
+	if err != nil {
+		logger.Log.Error("Failed to load plugins", "error", err)
+		os.Exit(1)
 	}
 
-	corsOrigins := appConfig.GetCORSOrigins()
-	corsOriginsStr := strings.Join(corsOrigins, ",")
-	if corsOriginsStr == "*" {
-		logger.Log.Warn("CORS_ORIGINS is set to '*' (allow all). Not recommended for production!")
+	// Apply all global plugins in order
+	if err := pluginRegistry.ApplyGlobal(app); err != nil {
+		logger.Log.Error("Failed to apply global plugins", "error", err)
+		os.Exit(1)
 	}
-
-	corsConfig := cors.Config{
-		AllowOrigins: corsOriginsStr,
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
-	}
-
-	if corsOriginsStr != "*" {
-		corsConfig.AllowCredentials = true
-	}
-
-	app.Use(cors.New(corsConfig))
-
-	app.Use(func(c *fiber.Ctx) error {
-		c.Set("X-Powered-By", "GoREST/"+Version)
-		c.Set("X-Content-Type-Options", "nosniff")
-		c.Set("X-Frame-Options", "DENY")
-		c.Set("X-XSS-Protection", "1; mode=block")
-		c.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		c.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		c.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-		return c.Next()
-	})
-
-	app.Use(func(c *fiber.Ctx) error {
-		method := c.Method()
-		if method == "POST" || method == "PUT" || method == "PATCH" {
-			contentType := c.Get("Content-Type")
-			if contentType != "" && !strings.HasPrefix(contentType, "application/json") {
-				return c.Status(415).JSON(fiber.Map{
-					"error": "Content-Type must be application/json",
-				})
-			}
-		}
-		return c.Next()
-	})
-
-	app.Use(middleware.HTTPLogger())
 
 	SetupOpenAPIUI(app)
 	SetupHealthCheck(app, db, logger.Log)
 	auth.SetupAuth(app, db, appConfig.Auth.JWT.Secret, appConfig.Auth.JWT.TTL)
 
 	if cfg.RegisterRoutes != nil {
-		cfg.RegisterRoutes(app, db, appConfig.Auth.JWT.Secret, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit)
+		cfg.RegisterRoutes(app, db, appConfig.Auth.JWT.Secret, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
 	} else {
 		logger.Log.Warn("No routes registered. Set Config.RegisterRoutes to register your API endpoints.")
 	}
