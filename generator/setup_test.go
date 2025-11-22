@@ -28,6 +28,14 @@ func TestMain(m *testing.M) {
 		log.Printf("DATABASE_URL_TEST not set, using default: %s", testDBURL)
 	}
 
+	if os.Getenv("DATABASE_URL") == "" {
+		os.Setenv("DATABASE_URL", testDBURL)
+	}
+
+	if os.Getenv("JWT_SECRET") == "" {
+		os.Setenv("JWT_SECRET", "test-secret-key-minimum-32-characters-long")
+	}
+
 	var err error
 	db, err = database.Open("", testDBURL)
 	if err != nil {
