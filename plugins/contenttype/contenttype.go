@@ -5,15 +5,12 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/pluginloader"
 )
 
 type ContentTypePlugin struct{}
 
-func init() {
-	pluginloader.RegisterGlobalPluginFactory("contenttype", func() plugin.GlobalPlugin {
-		return &ContentTypePlugin{}
-	})
+func NewPlugin() plugin.GlobalPlugin {
+	return &ContentTypePlugin{}
 }
 
 func (p *ContentTypePlugin) Name() string {

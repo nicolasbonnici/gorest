@@ -7,7 +7,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/pluginloader"
 )
 
 type RateLimitPlugin struct {
@@ -15,13 +14,11 @@ type RateLimitPlugin struct {
 	burst             int
 }
 
-func init() {
-	pluginloader.RegisterGlobalPluginFactory("ratelimit", func() plugin.GlobalPlugin {
-		return &RateLimitPlugin{
-			requestsPerSecond: 100,
-			burst:             200,
-		}
-	})
+func NewPlugin() plugin.GlobalPlugin {
+	return &RateLimitPlugin{
+		requestsPerSecond: 100,
+		burst:             200,
+	}
 }
 
 func (p *RateLimitPlugin) Name() string {

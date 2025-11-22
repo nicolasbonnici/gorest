@@ -3,7 +3,9 @@ package pluginloader
 import (
 	"fmt"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/config"
+	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
@@ -32,16 +34,25 @@ func LoadPlugins(globalConfigs []config.PluginConfig, routeConfigs []config.Plug
 			continue
 		}
 
-		plugin, err := createGlobalPlugin(cfg.Name, version, cfg.Config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create global plugin '%s': %w", cfg.Name, err)
+		factory, exists := globalPluginFactories[cfg.Name]
+		if !exists {
+			return nil, fmt.Errorf("unknown global plugin '%s' - did you forget to register it?", cfg.Name)
 		}
 
-		if err := plugin.Initialize(cfg.Config); err != nil {
+		p := factory()
+
+		// Inject version into config for all plugins
+		enrichedConfig := make(map[string]interface{})
+		for k, v := range cfg.Config {
+			enrichedConfig[k] = v
+		}
+		enrichedConfig["__version"] = version
+
+		if err := p.Initialize(enrichedConfig); err != nil {
 			return nil, fmt.Errorf("failed to initialize global plugin '%s': %w", cfg.Name, err)
 		}
 
-		registry.RegisterGlobal(plugin)
+		registry.RegisterGlobal(p)
 	}
 
 	for _, cfg := range routeConfigs {
@@ -49,42 +60,74 @@ func LoadPlugins(globalConfigs []config.PluginConfig, routeConfigs []config.Plug
 			continue
 		}
 
-		plugin, err := createRoutePlugin(cfg.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create route plugin '%s': %w", cfg.Name, err)
+		factory, exists := routePluginFactories[cfg.Name]
+		if !exists {
+			return nil, fmt.Errorf("unknown route plugin '%s' - did you forget to register it?", cfg.Name)
 		}
 
-		if err := plugin.Initialize(cfg.Config); err != nil {
+		p := factory()
+
+		// Inject version into config for all plugins
+		enrichedConfig := make(map[string]interface{})
+		for k, v := range cfg.Config {
+			enrichedConfig[k] = v
+		}
+		enrichedConfig["__version"] = version
+
+		if err := p.Initialize(enrichedConfig); err != nil {
 			return nil, fmt.Errorf("failed to initialize route plugin '%s': %w", cfg.Name, err)
 		}
 
-		registry.RegisterRoute(plugin)
+		registry.RegisterRoute(p)
 	}
 
 	return registry, nil
 }
 
-func createGlobalPlugin(name string, version string, config map[string]interface{}) (plugin.GlobalPlugin, error) {
-	factory, exists := globalPluginFactories[name]
-	if !exists {
-		return nil, fmt.Errorf("unknown global plugin: %s", name)
-	}
-
-	p := factory()
-
-	if name == "security" {
-		if versionPlugin, ok := p.(interface{ SetVersion(string) }); ok {
-			versionPlugin.SetVersion(version)
+// SetupPluginEndpoints calls SetupEndpoints on all plugins that implement the EndpointSetup interface
+func SetupPluginEndpoints(registry *plugin.PluginRegistry, app *fiber.App) error {
+	// Check global plugins
+	for _, p := range registry.GetGlobalPlugins() {
+		if setupPlugin, ok := p.(plugin.EndpointSetup); ok {
+			if err := setupPlugin.SetupEndpoints(app); err != nil {
+				return fmt.Errorf("failed to setup endpoints for plugin '%s': %w", p.Name(), err)
+			}
 		}
 	}
 
-	return p, nil
+	// Check route plugins
+	for _, p := range registry.GetRoutePlugins() {
+		if setupPlugin, ok := p.(plugin.EndpointSetup); ok {
+			if err := setupPlugin.SetupEndpoints(app); err != nil {
+				return fmt.Errorf("failed to setup endpoints for plugin '%s': %w", p.Name(), err)
+			}
+		}
+	}
+
+	return nil
 }
 
-func createRoutePlugin(name string) (plugin.RoutePlugin, error) {
-	factory, exists := routePluginFactories[name]
-	if !exists {
-		return nil, fmt.Errorf("unknown route plugin: %s", name)
+// InjectSharedConfig adds shared configuration (database, version, etc.) to route plugin configs
+func InjectSharedConfig(routeConfigs []config.PluginConfig, db database.Database, authConfig *config.AuthConfig) []config.PluginConfig {
+	enriched := make([]config.PluginConfig, len(routeConfigs))
+	for i, cfg := range routeConfigs {
+		enrichedCfg := make(map[string]interface{})
+		for k, v := range cfg.Config {
+			enrichedCfg[k] = v
+		}
+
+		// Inject shared resources
+		enrichedCfg["database"] = db
+		if authConfig != nil {
+			enrichedCfg["jwt_secret"] = authConfig.JWT.Secret
+			enrichedCfg["jwt_ttl"] = authConfig.JWT.TTL
+		}
+
+		enriched[i] = config.PluginConfig{
+			Name:    cfg.Name,
+			Enabled: cfg.Enabled,
+			Config:  enrichedCfg,
+		}
 	}
-	return factory(), nil
+	return enriched
 }
