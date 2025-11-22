@@ -11,7 +11,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
@@ -20,7 +19,8 @@ import (
 	"github.com/nicolasbonnici/gorest/generator"
 	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/plugin"
-	_ "github.com/nicolasbonnici/gorest/plugin/builtin" // Register built-in plugins
+	"github.com/nicolasbonnici/gorest/pluginloader"
+	_ "github.com/nicolasbonnici/gorest/plugins"
 )
 
 var Version = "dev"
@@ -90,7 +90,7 @@ func Start(cfg Config) {
 	})
 
 	// Load and apply plugins
-	pluginRegistry, err := plugin.LoadPlugins(appConfig.Plugins.Global, appConfig.Plugins.Route, Version)
+	pluginRegistry, err := pluginloader.LoadPlugins(appConfig.Plugins.Global, appConfig.Plugins.Route, Version)
 	if err != nil {
 		logger.Log.Error("Failed to load plugins", "error", err)
 		os.Exit(1)
@@ -104,7 +104,23 @@ func Start(cfg Config) {
 
 	SetupOpenAPIUI(app)
 	SetupHealthCheck(app, db, logger.Log)
-	auth.SetupAuth(app, db, appConfig.Auth.JWT.Secret, appConfig.Auth.JWT.TTL)
+
+	if authPlugin, ok := pluginRegistry.GetRoutePlugin("auth"); ok {
+		authConfig := map[string]interface{}{
+			"jwt_secret": appConfig.Auth.JWT.Secret,
+			"database":   db,
+			"jwt_ttl":    appConfig.Auth.JWT.TTL,
+		}
+		if err := authPlugin.Initialize(authConfig); err != nil {
+			logger.Log.Error("Failed to initialize auth plugin", "error", err)
+		} else {
+			if ap, ok := authPlugin.(interface {
+				SetupLoginEndpoint(app *fiber.App)
+			}); ok {
+				ap.SetupLoginEndpoint(app)
+			}
+		}
+	}
 
 	if cfg.RegisterRoutes != nil {
 		cfg.RegisterRoutes(app, db, appConfig.Auth.JWT.Secret, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
