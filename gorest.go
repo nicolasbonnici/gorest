@@ -20,7 +20,6 @@ import (
 	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/pluginloader"
-	_ "github.com/nicolasbonnici/gorest/plugins"
 )
 
 var Version = "dev"
@@ -89,8 +88,11 @@ func Start(cfg Config) {
 		},
 	})
 
+	// Inject shared config (database, auth settings) into route plugins
+	enrichedRouteConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins.Route, db, &appConfig.Auth)
+
 	// Load and apply plugins
-	pluginRegistry, err := pluginloader.LoadPlugins(appConfig.Plugins.Global, appConfig.Plugins.Route, Version)
+	pluginRegistry, err := pluginloader.LoadPlugins(appConfig.Plugins.Global, enrichedRouteConfigs, Version)
 	if err != nil {
 		logger.Log.Error("Failed to load plugins", "error", err)
 		os.Exit(1)
@@ -105,21 +107,10 @@ func Start(cfg Config) {
 	SetupOpenAPIUI(app)
 	SetupHealthCheck(app, db, logger.Log)
 
-	if authPlugin, ok := pluginRegistry.GetRoutePlugin("auth"); ok {
-		authConfig := map[string]interface{}{
-			"jwt_secret": appConfig.Auth.JWT.Secret,
-			"database":   db,
-			"jwt_ttl":    appConfig.Auth.JWT.TTL,
-		}
-		if err := authPlugin.Initialize(authConfig); err != nil {
-			logger.Log.Error("Failed to initialize auth plugin", "error", err)
-		} else {
-			if ap, ok := authPlugin.(interface {
-				SetupLoginEndpoint(app *fiber.App)
-			}); ok {
-				ap.SetupLoginEndpoint(app)
-			}
-		}
+	// Setup endpoints for any plugins that implement EndpointSetup interface
+	if err := pluginloader.SetupPluginEndpoints(pluginRegistry, app); err != nil {
+		logger.Log.Error("Failed to setup plugin endpoints", "error", err)
+		os.Exit(1)
 	}
 
 	if cfg.RegisterRoutes != nil {

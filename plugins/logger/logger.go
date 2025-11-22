@@ -4,15 +4,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/middleware"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/pluginloader"
 )
 
 type LoggerPlugin struct{}
 
-func init() {
-	pluginloader.RegisterGlobalPluginFactory("logger", func() plugin.GlobalPlugin {
-		return &LoggerPlugin{}
-	})
+func NewPlugin() plugin.GlobalPlugin {
+	return &LoggerPlugin{}
 }
 
 func (p *LoggerPlugin) Name() string {

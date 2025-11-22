@@ -4,15 +4,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/pluginloader"
 )
 
 type RequestIDPlugin struct{}
 
-func init() {
-	pluginloader.RegisterGlobalPluginFactory("requestid", func() plugin.GlobalPlugin {
-		return &RequestIDPlugin{}
-	})
+func NewPlugin() plugin.GlobalPlugin {
+	return &RequestIDPlugin{}
 }
 
 func (p *RequestIDPlugin) Name() string {
