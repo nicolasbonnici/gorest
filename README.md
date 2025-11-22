@@ -245,13 +245,14 @@ go get github.com/nicolasbonnici/gorest@latest
 
 | Package | Description |
 |---------|-------------|
-| `auth` | JWT authentication & plugins |
 | `crud` | Type-safe CRUD operations with hooks |
 | `database` | Multi-database abstraction |
 | `filter` | Query filtering & ordering |
 | `formatter` | JSON-LD response formatting |
 | `hooks` | Lifecycle hooks for business logic |
-| `plugin` | Modular plugin system |
+| `plugin` | Plugin interfaces (core only - no implementations) |
+| `pluginloader` | Plugin factory registration system |
+| `plugins/*` | Built-in plugin implementations (separate from core) |
 | `pagination` | Hydra-compliant pagination |
 | `response` | HTTP response helpers |
 
@@ -262,7 +263,7 @@ import (
     "github.com/gofiber/fiber/v2"
     "github.com/nicolasbonnici/gorest/database"
     "github.com/nicolasbonnici/gorest/crud"
-    "github.com/nicolasbonnici/gorest/auth"
+    auth "github.com/nicolasbonnici/gorest/plugins/auth"
 )
 
 type User struct {
@@ -398,27 +399,42 @@ func (p *CustomAuthPlugin) Wrap(handler fiber.Handler) fiber.Handler {
 
 ### Registering Custom Plugins
 
-Register your custom plugins in your main application:
+Register plugin factories in your main application using `init()`:
 
 ```go
+package main
+
 import (
-    "github.com/nicolasbonnici/gorest/plugin"
-    "yourapp/myplugin"
+    "github.com/nicolasbonnici/gorest"
+    "github.com/nicolasbonnici/gorest/pluginloader"
+
+    // Import built-in plugins you want to use
+    authplugin "github.com/nicolasbonnici/gorest/plugins/auth"
+    loggerplugin "github.com/nicolasbonnici/gorest/plugins/logger"
+
+    // Import your custom plugins
+    customplugins "yourapp/plugins"
 )
 
+func init() {
+    // Register built-in plugins
+    pluginloader.RegisterRoutePluginFactory("auth", authplugin.NewPlugin)
+    pluginloader.RegisterGlobalPluginFactory("logger", loggerplugin.NewPlugin)
+
+    // Register custom plugins
+    pluginloader.RegisterGlobalPluginFactory("myplugin", customplugins.NewMyPlugin)
+}
+
 func main() {
-    // Load default plugins
-    registry, _ := plugin.LoadPlugins(config.Plugins.Global, config.Plugins.Route, version)
-
-    // Register your custom plugin
-    customPlugin := myplugin.NewCustomPlugin()
-    customPlugin.Initialize(map[string]interface{}{"key": "value"})
-    registry.RegisterGlobal(customPlugin)
-
-    // Use registry in your app
-    // ...
+    cfg := gorest.Config{
+        ConfigPath:     ".",
+        RegisterRoutes: resources.RegisterGeneratedRoutes,
+    }
+    gorest.Start(cfg)
 }
 ```
+
+Plugins are configured in `gorest.yaml` and loaded automatically by the core library.
 
 ---
 
