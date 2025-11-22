@@ -47,9 +47,9 @@ func TestGenerateAPI(t *testing.T) {
 		"func (r *UserResource) Create(c *fiber.Ctx) error",
 		"func (r *UserResource) Update(c *fiber.Ctx) error",
 		"func (r *UserResource) Delete(c *fiber.Ctx) error",
-		"r.CRUD.GetAllPaginated(auth.Context(c), crud.PaginationOptions{",
-		"r.CRUD.GetByID(auth.Context(c), id)",
-		"r.CRUD.Delete(auth.Context(c), id)",
+		"r.CRUD.GetAllPaginated(c.Context(), crud.PaginationOptions{",
+		"r.CRUD.GetByID(c.Context(), id)",
+		"r.CRUD.Delete(c.Context(), id)",
 		"filter.NewFilterSet(allowedFields, r.DB.Dialect())",
 		"filter.NewOrderSet(allowedFields)",
 		"pagination.SendHydraCollection(c, dtoItems, result.Total, limit, page, r.PaginationLimit)",
@@ -137,9 +137,9 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		"router.Get(\"/users\"",
 		"router.Post(\"/users\"",
 		"func (r *UserResource) List(c *fiber.Ctx) error",
-		"result, err := r.CRUD.GetAllPaginated(auth.Context(c), crud.PaginationOptions{",
+		"result, err := r.CRUD.GetAllPaginated(c.Context(), crud.PaginationOptions{",
 		"func (r *UserResource) Get(c *fiber.Ctx) error",
-		"item, err := r.CRUD.GetByID(auth.Context(c), id)",
+		"item, err := r.CRUD.GetByID(c.Context(), id)",
 		"func (r *UserResource) Create(c *fiber.Ctx) error",
 		"var createDTO dtos.UserCreateDTO",
 		"item := userCreateDTOToModel(createDTO)",
@@ -147,7 +147,7 @@ func TestGenerateResourceFromModel(t *testing.T) {
 		"var updateDTO dtos.UserUpdateDTO",
 		"item := userUpdateDTOToModel(updateDTO)",
 		"func (r *UserResource) Delete(c *fiber.Ctx) error",
-		"r.CRUD.Delete(auth.Context(c), id)",
+		"r.CRUD.Delete(c.Context(), id)",
 	}
 
 	for _, expected := range expectedStrings {

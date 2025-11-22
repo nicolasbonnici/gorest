@@ -61,6 +61,11 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 		}
 	}
 
+	contextFunc := "c.Context()"
+	if needsAuth || hasUserIdField {
+		contextFunc = "auth.Context(c)"
+	}
+
 	userIdAutoPopulate := ""
 	if hasUserIdField {
 		userIdAutoPopulate = `
@@ -117,7 +122,6 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	"%s"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/filter"
@@ -126,6 +130,10 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/response"`, dtosImport, modelsImport)
 
+	if needsAuth || hasUserIdField {
+		importsSection += `
+	auth "github.com/nicolasbonnici/gorest/plugins/auth"`
+	}
 	if hasHooks {
 		hooksImport := moduleName + "/hooks"
 		importsSection += fmt.Sprintf(`
@@ -215,7 +223,7 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 	}
 	orderByClause := ordering.BuildOrderByClause()
 
-	result, err := r.CRUD.GetAllPaginated(auth.Context(c), crud.PaginationOptions{
+	result, err := r.CRUD.GetAllPaginated(%s, crud.PaginationOptions{
 		Limit:         limit,
 		Offset:        offset,
 		IncludeCount:  includeCount,
@@ -244,7 +252,7 @@ func (r *%sResource) List(c *fiber.Ctx) error {
 // @Router /%s/{id} [get]
 func (r *%sResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
-	item, err := r.CRUD.GetByID(auth.Context(c), id)
+	item, err := r.CRUD.GetByID(%s, id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
 	}
@@ -270,7 +278,7 @@ func (r *%sResource) Create(c *fiber.Ctx) error {
 
 	item := %sCreateDTOToModel(createDTO)
 %s
-	ctx := auth.Context(c)
+	ctx := %s
 	if err := r.CRUD.Create(ctx, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -303,7 +311,7 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 
 	item := %sUpdateDTOToModel(updateDTO)
 %s
-	if err := r.CRUD.Update(auth.Context(c), id, item); err != nil {
+	if err := r.CRUD.Update(%s, id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -319,7 +327,7 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 // @Router /%s/{id} [delete]
 func (r *%sResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
-	if err := r.CRUD.Delete(auth.Context(c), id); err != nil {
+	if err := r.CRUD.Delete(%s, id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(204)
@@ -334,20 +342,25 @@ func (r *%sResource) Delete(c *fiber.Ctx) error {
 		conversionFuncs,
 		structName, structName, structName, pluralResourceName, structName,
 		allowedFieldsStr,
+		contextFunc,
 		structName, structName,
 		structName, structName, structName, structName, pluralResourceName, structName,
+		contextFunc,
 		structName,
 		structName, structName, structName, structName, structName, structName, pluralResourceName, structName,
 		structName,
 		lowerStructName,
 		userIdAutoPopulate,
+		contextFunc,
 		structName, structName,
 		structName, structName, structName, structName, structName, structName, pluralResourceName, structName,
 		structName,
 		lowerStructName,
 		userIdAutoPopulate,
+		contextFunc,
 		structName,
-		structName, structName, structName, pluralResourceName, structName)
+		structName, structName, structName, pluralResourceName, structName,
+		contextFunc)
 }
 
 func generateConversionFunctions(structName string, fields []StructField) string {
