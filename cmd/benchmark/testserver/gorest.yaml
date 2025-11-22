@@ -1,0 +1,65 @@
+generate:
+  output:
+    models: "test/generated/models"
+    resources: "test/generated/resources"
+    dtos: "test/generated/dtos"
+    openapi: "test/generated/openapi"
+    config: "test/generated/config"
+  auth:
+    enabled: true
+    endpoints:
+      list: true
+      get: true
+      create: true
+      update: true
+      delete: true
+
+server:
+  port: 3001
+  environment: "test"
+
+database:
+  url: "${DATABASE_URL}"
+
+auth:
+  jwt:
+    secret: "${JWT_SECRET}"
+    ttl: 3600
+
+pagination:
+  default_limit: 50
+  max_limit: 10000
+
+cors:
+  origins: "*"
+
+rate_limit:
+  enabled: false
+  requests_per_second: 10000
+  burst: 20000
+
+plugins:
+  global:
+    - name: requestid
+      enabled: true
+    - name: logger
+      enabled: false
+    - name: cors
+      enabled: true
+      config:
+        origins: "*"
+    - name: ratelimit
+      enabled: false
+      config:
+        requests_per_second: 10000
+        burst: 20000
+    - name: security
+      enabled: true
+    - name: contenttype
+      enabled: true
+  route:
+    - name: auth
+      enabled: true
+      config:
+        jwt_secret: "${JWT_SECRET}"
+        jwt_ttl: 3600
