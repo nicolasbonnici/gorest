@@ -4,19 +4,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/pluginloader"
 )
 
 type CORSPlugin struct {
 	origins string
 }
 
-func init() {
-	pluginloader.RegisterGlobalPluginFactory("cors", func() plugin.GlobalPlugin {
-		return &CORSPlugin{
-			origins: "*",
-		}
-	})
+func NewPlugin() plugin.GlobalPlugin {
+	return &CORSPlugin{
+		origins: "*",
+	}
 }
 
 func (p *CORSPlugin) Name() string {

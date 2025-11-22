@@ -38,28 +38,33 @@ rate_limit:
   requests_per_second: 100
   burst: 200
 
-# Plugin system configuration (optional - if not specified, legacy config above will be used)
-# plugins:
-#   global:
-#     - name: requestid
-#       enabled: true
-#     - name: ratelimit
-#       enabled: true
-#       config:
-#         requests_per_second: 100
-#         burst: 200
-#     - name: cors
-#       enabled: true
-#       config:
-#         origins: "*"
-#     - name: security
-#       enabled: true
-#     - name: contenttype
-#       enabled: true
-#     - name: logger
-#       enabled: true
-#   route:
-#     - name: auth
-#       enabled: true
-#       config:
-#         jwt_secret: "${JWT_SECRET}"
+# Plugin system configuration
+plugins:
+  global:
+    - name: requestid
+      enabled: true
+    - name: logger
+      enabled: true
+    - name: ratelimit
+      enabled: true
+      config:
+        requests_per_second: 100
+        burst: 200
+    - name: cors
+      enabled: true
+      config:
+        origins: "*"
+    - name: security
+      enabled: true
+    - name: contenttype
+      enabled: true
+    # Custom dummy plugin example
+    - name: dummy
+      enabled: true
+      config:
+        message: "Custom plugin is working!"
+  route:
+    - name: auth
+      enabled: true
+      config:
+        jwt_secret: "${JWT_SECRET}"

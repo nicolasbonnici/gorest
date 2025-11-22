@@ -21,3 +21,8 @@ type RoutePlugin interface {
 
 	Wrap(handler fiber.Handler) fiber.Handler
 }
+
+// EndpointSetup is an optional interface for plugins that need to register endpoints
+type EndpointSetup interface {
+	SetupEndpoints(app *fiber.App) error
+}

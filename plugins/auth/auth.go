@@ -11,7 +11,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/pluginloader"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -34,12 +33,11 @@ type AuthPlugin struct {
 	jwtSecret string
 	db        database.Database
 	jwtTTL    int
+	app       *fiber.App
 }
 
-func init() {
-	pluginloader.RegisterRoutePluginFactory("auth", func() plugin.RoutePlugin {
-		return &AuthPlugin{}
-	})
+func NewPlugin() plugin.RoutePlugin {
+	return &AuthPlugin{}
 }
 
 func (p *AuthPlugin) Name() string {
@@ -63,8 +61,13 @@ func (p *AuthPlugin) Wrap(handler fiber.Handler) fiber.Handler {
 	return RequireAuth(p.jwtSecret, handler)
 }
 
-func (p *AuthPlugin) SetupLoginEndpoint(app *fiber.App) {
+// SetupEndpoints implements the optional EndpointSetup interface
+func (p *AuthPlugin) SetupEndpoints(app *fiber.App) error {
+	if p.db == nil {
+		return nil // Skip if no database configured
+	}
 	SetupAuth(app, p.db, p.jwtSecret, p.jwtTTL)
+	return nil
 }
 
 func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {

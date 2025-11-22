@@ -3,21 +3,14 @@ package security
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/pluginloader"
 )
 
 type SecurityPlugin struct {
 	version string
 }
 
-func init() {
-	pluginloader.RegisterGlobalPluginFactory("security", func() plugin.GlobalPlugin {
-		return &SecurityPlugin{version: "dev"}
-	})
-}
-
-func (p *SecurityPlugin) SetVersion(version string) {
-	p.version = version
+func NewPlugin() plugin.GlobalPlugin {
+	return &SecurityPlugin{version: "dev"}
 }
 
 func (p *SecurityPlugin) Name() string {
@@ -25,6 +18,9 @@ func (p *SecurityPlugin) Name() string {
 }
 
 func (p *SecurityPlugin) Initialize(config map[string]interface{}) error {
+	if version, ok := config["__version"].(string); ok {
+		p.version = version
+	}
 	return nil
 }
 

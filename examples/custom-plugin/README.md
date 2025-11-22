@@ -51,35 +51,46 @@ func (p *APIKeyPlugin) Wrap(handler fiber.Handler) fiber.Handler {
 
 ## Usage
 
-1. Import the plugins in your application
-2. Register them with the plugin registry
-3. Configure them in `gorest.yaml` or programmatically
+### Step 1: Register Plugin Factories
 
-### Programmatic Registration
+In your `main.go`, register the plugin factory with the plugin loader:
 
 ```go
-registry, _ := plugin.LoadPlugins(config.Plugins.Global, config.Plugins.Route, version)
+package main
 
-// Register timing plugin
-timingPlugin := customplugin.NewTimingPlugin()
-timingPlugin.Initialize(map[string]interface{}{"enabled": true})
-registry.RegisterGlobal(timingPlugin)
+import (
+    "github.com/nicolasbonnici/gorest"
+    "github.com/nicolasbonnici/gorest/pluginloader"
+    "example.com/yourapp/generated/resources"
+    customplugin "example.com/yourapp/plugins"
+)
 
-// Register API key plugin
-apikeyPlugin := customplugin.NewAPIKeyPlugin()
-apikeyPlugin.Initialize(map[string]interface{}{"api_key": "your-secret-key"})
-registry.RegisterRoute(apikeyPlugin)
+func init() {
+    // Register custom plugins
+    pluginloader.RegisterGlobalPluginFactory("timing", customplugin.NewTimingPlugin)
+    pluginloader.RegisterRoutePluginFactory("apikey", customplugin.NewAPIKeyPlugin)
+}
+
+func main() {
+    cfg := gorest.Config{
+        ConfigPath:     ".",
+        RegisterRoutes: resources.RegisterGeneratedRoutes,
+    }
+    gorest.Start(cfg)
+}
 ```
 
-### YAML Configuration
+### Step 2: Configure in gorest.yaml
 
-To make your plugin configurable via `gorest.yaml`, register it in the plugin loader:
+Enable and configure your plugins:
 
 ```yaml
 plugins:
   global:
     - name: timing
       enabled: true
+      config:
+        enabled: true
   route:
     - name: apikey
       enabled: true
@@ -87,4 +98,4 @@ plugins:
         api_key: "${API_KEY}"
 ```
 
-Then update `plugin/loader.go` to recognize your plugin names.
+The plugins will be automatically loaded and initialized by GoREST based on your YAML configuration.
