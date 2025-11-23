@@ -65,22 +65,35 @@ server:
 database:
   url: "${DATABASE_URL}"
 
-auth:
-  jwt:
-    secret: "${JWT_SECRET}"
-    ttl: 900
-
 pagination:
   default_limit: 10
   max_limit: 1000
 
-cors:
-  origins: "*"
-
-rate_limit:
-  enabled: true
-  requests_per_second: 100
-  burst: 200
+plugins:
+  global:
+    - name: requestid
+      enabled: true
+    - name: logger
+      enabled: true
+    - name: ratelimit
+      enabled: true
+      config:
+        requests_per_second: 100
+        burst: 200
+    - name: cors
+      enabled: true
+      config:
+        origins: "*"
+    - name: security
+      enabled: true
+    - name: contenttype
+      enabled: true
+  route:
+    - name: auth
+      enabled: true
+      config:
+        jwt_secret: "${JWT_SECRET}"
+        jwt_ttl: 900
 ```
 
 Set required environment variables:
@@ -127,7 +140,7 @@ Your API is now running at: **http://localhost:3000/**
 
 ## ⚙️ Configuration
 
-GoREST uses `gorest.yaml` for all configuration. The file has two main sections:
+GoREST uses `gorest.yaml` for all configuration. The file has three main sections:
 
 ### Code Generation (`generate`)
 
@@ -141,7 +154,7 @@ generate:
     dtos: "generated/dtos"          # Where to generate DTOs
     openapi: "generated/openapi"    # Where to generate OpenAPI
     config: "generated/config"      # Where to generate config files
-  
+
   auth:
     enabled: true                   # Require auth by default?
     endpoints:
@@ -152,36 +165,28 @@ generate:
       delete: true                  # Require auth for DELETE /resource/:id
 ```
 
-### Runtime Configuration (`server`, `database`, `auth`, etc.)
+### Runtime Configuration (`server`, `database`, `pagination`)
 
-Controls server behavior at runtime:
+Basic server settings:
 
 ```yaml
 server:
   port: 3000
-  environment: "development"  # development, staging, production
+  environment: "development"
 
 database:
-  url: "${DATABASE_URL}"     # Use ${VAR} for environment variables
-
-auth:
-  jwt:
-    secret: "${JWT_SECRET}"  # Min 32 characters
-    ttl: 900                 # Token lifetime in seconds
+  url: "${DATABASE_URL}"
 
 pagination:
   default_limit: 10
   max_limit: 1000
+```
 
-cors:
-  origins: "*"              # Use array for production: ["https://app.example.com"]
+### Plugin Configuration
 
-rate_limit:
-  enabled: true
-  requests_per_second: 100
-  burst: 200
+All middleware and features are configured through plugins:
 
-# Optional: Configure plugins (automatically configured from legacy settings if not specified)
+```yaml
 plugins:
   global:                   # Plugins applied to all routes
     - name: requestid
@@ -195,17 +200,18 @@ plugins:
       enabled: true
       config:
         origins: "*"
-    - name: security        # Security headers
+    - name: security
       enabled: true
-    - name: contenttype     # Content-Type validation
+    - name: contenttype
       enabled: true
-    - name: logger          # HTTP request logging
+    - name: logger
       enabled: true
   route:                    # Plugins applied to specific routes
-    - name: auth            # JWT authentication
+    - name: auth
       enabled: true
       config:
         jwt_secret: "${JWT_SECRET}"
+        jwt_ttl: 900
 ```
 
 ### Environment-Specific Overrides
@@ -216,10 +222,18 @@ Create `gorest.{environment}.yaml` files to override base config:
 ```yaml
 server:
   environment: "production"
-cors:
-  origins: ["https://app.example.com"]
-rate_limit:
-  requests_per_second: 50
+
+plugins:
+  global:
+    - name: cors
+      enabled: true
+      config:
+        origins: "https://app.example.com"
+    - name: ratelimit
+      enabled: true
+      config:
+        requests_per_second: 50
+        burst: 100
 ```
 
 Load with `ENVIRONMENT` variable:
@@ -573,19 +587,34 @@ my-api/
 ### GoREST Library
 ```
 gorest/
-├── auth/                    # JWT & authentication
 ├── crud/                    # Generic CRUD
 ├── database/               # Multi-DB abstraction
 │   ├── postgres/
 │   ├── mysql/
 │   └── sqlite/
 ├── filter/                 # Query filtering
+├── formatter/              # JSON-LD formatting
 ├── generator/              # Code generation
+├── health/                 # Health check endpoint
 ├── hooks/                  # Lifecycle hooks
-├── plugin/                 # Plugin system
-│   └── builtin/           # Built-in plugins
+├── logger/                 # Logging utilities
+├── middleware/             # HTTP middleware
 ├── pagination/             # Hydra pagination
+├── plugin/                 # Plugin interfaces (core)
+├── pluginloader/           # Plugin factory & loading system
+├── plugins/                # Built-in plugin implementations
+│   ├── auth/              # JWT authentication
+│   ├── contenttype/       # Content-Type validation
+│   ├── cors/              # CORS handling
+│   ├── logger/            # HTTP logging
+│   ├── ratelimit/         # Rate limiting
+│   ├── requestid/         # Request ID tracking
+│   └── security/          # Security headers
+├── response/               # HTTP response helpers
 └── cmd/                    # CLI generators
+    ├── modelgen/          # Model generation
+    ├── resourcegen/       # Resource generation
+    └── openapigen/        # OpenAPI generation
 ```
 
 ---
