@@ -24,12 +24,9 @@ import (
 
 var Version = "dev"
 
-// Config holds the path to configuration file and optional route registration function
 type Config struct {
-	// ConfigPath is the directory containing gorest.yaml (default: ".")
-	ConfigPath string
-	// RegisterRoutes is an optional callback to register generated routes
-	RegisterRoutes func(app *fiber.App, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry)
+	ConfigPath     string
+	RegisterRoutes func(app *fiber.App, db database.Database, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry)
 }
 
 func Start(cfg Config) {
@@ -88,8 +85,7 @@ func Start(cfg Config) {
 		},
 	})
 
-	// Inject shared config (database, auth settings) into route plugins
-	enrichedRouteConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins.Route, db, &appConfig.Auth)
+	enrichedRouteConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins.Route, db)
 
 	// Load and apply plugins
 	pluginRegistry, err := pluginloader.LoadPlugins(appConfig.Plugins.Global, enrichedRouteConfigs, Version)
@@ -114,7 +110,7 @@ func Start(cfg Config) {
 	}
 
 	if cfg.RegisterRoutes != nil {
-		cfg.RegisterRoutes(app, db, appConfig.Auth.JWT.Secret, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
+		cfg.RegisterRoutes(app, db, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
 	} else {
 		logger.Log.Warn("No routes registered. Set Config.RegisterRoutes to register your API endpoints.")
 	}

@@ -12,9 +12,6 @@ import (
 
 var envVarRegex = regexp.MustCompile(`\$\{([^}]+)\}`)
 
-// Load loads the configuration from gorest.yaml file
-// It supports environment-specific overrides via gorest.{ENVIRONMENT}.yaml
-// and environment variable interpolation via ${VAR} syntax
 func Load(configPath string) (*Config, error) {
 	baseConfigFile := filepath.Join(configPath, "gorest.yaml")
 	if _, err := os.Stat(baseConfigFile); os.IsNotExist(err) {
@@ -53,15 +50,9 @@ func Load(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	warnings := baseConfig.WarnProductionSettings()
-	for _, warning := range warnings {
-		fmt.Fprintf(os.Stderr, "WARNING: %s\n", warning)
-	}
-
 	return baseConfig, nil
 }
 
-// loadConfigFile loads a YAML config file
 func loadConfigFile(filename string) (*Config, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -76,25 +67,33 @@ func loadConfigFile(filename string) (*Config, error) {
 	return &config, nil
 }
 
-// interpolateEnvVars replaces ${VAR} with environment variable values
 func interpolateEnvVars(config *Config) error {
 	config.Database.URL = interpolateString(config.Database.URL)
-	config.Auth.JWT.Secret = interpolateString(config.Auth.JWT.Secret)
+
+	for i := range config.Plugins.Global {
+		interpolatePluginConfig(config.Plugins.Global[i].Config)
+	}
+
+	for i := range config.Plugins.Route {
+		interpolatePluginConfig(config.Plugins.Route[i].Config)
+	}
 
 	if strings.HasPrefix(config.Database.URL, "${") && strings.HasSuffix(config.Database.URL, "}") {
 		varName := strings.TrimSuffix(strings.TrimPrefix(config.Database.URL, "${"), "}")
 		return fmt.Errorf("environment variable %s not found (required for database.url)", varName)
 	}
 
-	if strings.HasPrefix(config.Auth.JWT.Secret, "${") && strings.HasSuffix(config.Auth.JWT.Secret, "}") {
-		varName := strings.TrimSuffix(strings.TrimPrefix(config.Auth.JWT.Secret, "${"), "}")
-		return fmt.Errorf("environment variable %s not found (required for auth.jwt.secret)", varName)
-	}
-
 	return nil
 }
 
-// interpolateString replaces ${VAR} patterns with environment variable values
+func interpolatePluginConfig(cfg map[string]interface{}) {
+	for key, value := range cfg {
+		if strVal, ok := value.(string); ok {
+			cfg[key] = interpolateString(strVal)
+		}
+	}
+}
+
 func interpolateString(s string) string {
 	return envVarRegex.ReplaceAllStringFunc(s, func(match string) string {
 		varName := match[2 : len(match)-1]
@@ -106,8 +105,6 @@ func interpolateString(s string) string {
 	})
 }
 
-// mergeConfigs merges override config into base config
-// Override values take precedence over base values
 func mergeConfigs(base, override *Config) *Config {
 	result := *base
 
@@ -138,13 +135,6 @@ func mergeConfigs(base, override *Config) *Config {
 		result.Database.URL = override.Database.URL
 	}
 
-	if override.Auth.JWT.Secret != "" {
-		result.Auth.JWT.Secret = override.Auth.JWT.Secret
-	}
-	if override.Auth.JWT.TTL != 0 {
-		result.Auth.JWT.TTL = override.Auth.JWT.TTL
-	}
-
 	if override.Pagination.DefaultLimit != 0 {
 		result.Pagination.DefaultLimit = override.Pagination.DefaultLimit
 	}
@@ -152,17 +142,12 @@ func mergeConfigs(base, override *Config) *Config {
 		result.Pagination.MaxLimit = override.Pagination.MaxLimit
 	}
 
-	if override.CORS.Origins != nil {
-		result.CORS.Origins = override.CORS.Origins
+	if len(override.Plugins.Global) > 0 {
+		result.Plugins.Global = override.Plugins.Global
 	}
-
-	if override.RateLimit.RequestsPerSecond != 0 {
-		result.RateLimit.RequestsPerSecond = override.RateLimit.RequestsPerSecond
+	if len(override.Plugins.Route) > 0 {
+		result.Plugins.Route = override.Plugins.Route
 	}
-	if override.RateLimit.Burst != 0 {
-		result.RateLimit.Burst = override.RateLimit.Burst
-	}
-	result.RateLimit.Enabled = override.RateLimit.Enabled
 
 	return &result
 }

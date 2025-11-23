@@ -1,60 +1,55 @@
-# GoREST Configuration File
-# This file configures both code generation and runtime server settings
+# GoREST Configuration
+# All configuration is managed through the plugin system
 
-# Code Generation Settings
 generate:
-  # Output paths for generated code (relative to project root)
   output:
     models: "generated/models"
     resources: "generated/resources"
     dtos: "generated/dtos"
     openapi: "generated/openapi"
     config: "generated/config"
-
-  # Default authentication requirements for generated endpoints
   auth:
-    enabled: true  # Set to false to generate public endpoints
+    enabled: true
     endpoints:
-      list: true    # Require auth for List (GET /resource)
-      get: true     # Require auth for Get (GET /resource/:id)
-      create: true  # Require auth for Create (POST /resource)
-      update: true  # Require auth for Update (PUT /resource/:id)
-      delete: true  # Require auth for Delete (DELETE /resource/:id)
+      list: true
+      get: true
+      create: true
+      update: true
+      delete: true
 
-# Server Runtime Settings
 server:
   port: 3000
-  environment: "development"  # development, staging, production
+  environment: "development"
 
-# Database Configuration
 database:
-  # Use ${VAR} to read from environment variables (recommended for secrets)
   url: "${DATABASE_URL}"
-  # Example formats:
-  # PostgreSQL: "postgres://user:pass@localhost:5432/dbname?sslmode=require"
-  # MySQL: "mysql://user:pass@localhost:3306/dbname"
-  # SQLite: "file:./data.db"
 
-# Authentication Configuration
-auth:
-  jwt:
-    secret: "${JWT_SECRET}"  # REQUIRED: Use environment variable (min 32 chars)
-    ttl: 900  # Token lifetime in seconds (default: 900 = 15 minutes)
-
-# Pagination Configuration
 pagination:
-  default_limit: 10   # Default number of items per page
-  max_limit: 1000     # Maximum allowed items per page
+  default_limit: 10
+  max_limit: 1000
 
-# CORS Configuration
-cors:
-  # For development: use "*" to allow all origins
-  origins: "*"
-  # For production: specify allowed origins as array
-  # origins: ["https://app.example.com", "https://admin.example.com"]
-
-# Rate Limiting Configuration
-rate_limit:
-  enabled: true
-  requests_per_second: 100  # Max requests per IP per second
-  burst: 200                # Allow burst of requests
+plugins:
+  global:
+    - name: requestid
+      enabled: true
+    - name: logger
+      enabled: true
+    - name: ratelimit
+      enabled: true
+      config:
+        requests_per_second: 100
+        burst: 200
+    - name: cors
+      enabled: true
+      config:
+        origins: "*"
+    - name: security
+      enabled: true
+    - name: contenttype
+      enabled: true
+  route:
+    - name: auth
+      enabled: true
+      config:
+        jwt_secret: "${JWT_SECRET}"
+        jwt_ttl: 900
