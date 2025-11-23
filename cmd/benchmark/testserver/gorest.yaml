@@ -21,23 +21,11 @@ server:
 database:
   url: "${DATABASE_URL}"
 
-auth:
-  jwt:
-    secret: "${JWT_SECRET}"
-    ttl: 3600
-
 pagination:
   default_limit: 50
   max_limit: 10000
 
-cors:
-  origins: "*"
-
-rate_limit:
-  enabled: false
-  requests_per_second: 10000
-  burst: 20000
-
+# Plugin system configuration
 plugins:
   global:
     - name: requestid

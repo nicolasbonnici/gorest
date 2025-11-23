@@ -21,19 +21,33 @@ server:
 database:
   url: "${DATABASE_URL}"
 
-auth:
-  jwt:
-    secret: "${JWT_SECRET}"
-    ttl: 900
-
 pagination:
   default_limit: 10
   max_limit: 1000
 
-cors:
-  origins: "*"
-
-rate_limit:
-  enabled: false
-  requests_per_second: 100
-  burst: 200
+# Plugin system configuration
+plugins:
+  global:
+    - name: requestid
+      enabled: true
+    - name: logger
+      enabled: true
+    - name: ratelimit
+      enabled: false
+      config:
+        requests_per_second: 100
+        burst: 200
+    - name: cors
+      enabled: true
+      config:
+        origins: "*"
+    - name: security
+      enabled: true
+    - name: contenttype
+      enabled: true
+  route:
+    - name: auth
+      enabled: false
+      config:
+        jwt_secret: "${JWT_SECRET}"
+        jwt_ttl: 900

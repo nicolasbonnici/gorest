@@ -100,8 +100,7 @@ import (
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
-// RegisterGeneratedRoutes registers all generated API routes
-func RegisterGeneratedRoutes(app *fiber.App, db database.Database, jwtSecret string, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry) {
+func RegisterGeneratedRoutes(app *fiber.App, db database.Database, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry) {
 %s}
 `, registrations.String())
 

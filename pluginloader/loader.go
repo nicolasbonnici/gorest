@@ -107,8 +107,7 @@ func SetupPluginEndpoints(registry *plugin.PluginRegistry, app *fiber.App) error
 	return nil
 }
 
-// InjectSharedConfig adds shared configuration (database, version, etc.) to route plugin configs
-func InjectSharedConfig(routeConfigs []config.PluginConfig, db database.Database, authConfig *config.AuthConfig) []config.PluginConfig {
+func InjectSharedConfig(routeConfigs []config.PluginConfig, db database.Database) []config.PluginConfig {
 	enriched := make([]config.PluginConfig, len(routeConfigs))
 	for i, cfg := range routeConfigs {
 		enrichedCfg := make(map[string]interface{})
@@ -116,12 +115,7 @@ func InjectSharedConfig(routeConfigs []config.PluginConfig, db database.Database
 			enrichedCfg[k] = v
 		}
 
-		// Inject shared resources
 		enrichedCfg["database"] = db
-		if authConfig != nil {
-			enrichedCfg["jwt_secret"] = authConfig.JWT.Secret
-			enrichedCfg["jwt_ttl"] = authConfig.JWT.TTL
-		}
 
 		enriched[i] = config.PluginConfig{
 			Name:    cfg.Name,
