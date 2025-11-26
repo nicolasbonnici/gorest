@@ -24,9 +24,7 @@ generate:
     models: "generated/models"
     resources: "generated/resources"
     dtos: "generated/dtos"
-plugins:
-  global: []
-  route: []
+plugins: []
 `
 
 	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
@@ -100,9 +98,7 @@ generate:
     models: "models"
     resources: "resources"
     dtos: "dtos"
-plugins:
-  global: []
-  route: []
+plugins: []
 `
 
 	prodConfig := `
@@ -151,9 +147,7 @@ generate:
     models: "models"
     resources: "resources"
     dtos: "dtos"
-plugins:
-  global: []
-  route: []
+plugins: []
 `
 
 	stagingConfig := `
@@ -226,14 +220,12 @@ func TestInterpolateEnvVars_PluginConfig(t *testing.T) {
 	cfg := &Config{
 		Database: DatabaseConfig{URL: "postgres://localhost/db"},
 		Plugins: PluginsConfig{
-			Route: []PluginConfig{
-				{
-					Name:    "auth",
-					Enabled: true,
-					Config: map[string]interface{}{
-						"jwt_secret": "${JWT_SECRET}",
-						"api_key":    "${API_KEY}",
-					},
+			{
+				Name:    "auth",
+				Enabled: true,
+				Config: map[string]interface{}{
+					"jwt_secret": "${JWT_SECRET}",
+					"api_key":    "${API_KEY}",
 				},
 			},
 		},
@@ -244,12 +236,12 @@ func TestInterpolateEnvVars_PluginConfig(t *testing.T) {
 		t.Fatalf("interpolateEnvVars() failed: %v", err)
 	}
 
-	secret := cfg.Plugins.Route[0].Config["jwt_secret"].(string)
+	secret := cfg.Plugins[0].Config["jwt_secret"].(string)
 	if secret != "super-secret-key-12345678901234567890" {
 		t.Errorf("JWT secret not interpolated correctly, got: %s", secret)
 	}
 
-	apiKey := cfg.Plugins.Route[0].Config["api_key"].(string)
+	apiKey := cfg.Plugins[0].Config["api_key"].(string)
 	if apiKey != "test-api-key" {
 		t.Errorf("API key not interpolated correctly, got: %s", apiKey)
 	}
@@ -262,13 +254,11 @@ func TestInterpolateEnvVars_GlobalPluginConfig(t *testing.T) {
 	cfg := &Config{
 		Database: DatabaseConfig{URL: "postgres://localhost/db"},
 		Plugins: PluginsConfig{
-			Global: []PluginConfig{
-				{
-					Name:    "cors",
-					Enabled: true,
-					Config: map[string]interface{}{
-						"origins": "${CORS_ORIGIN}",
-					},
+			{
+				Name:    "cors",
+				Enabled: true,
+				Config: map[string]interface{}{
+					"origins": "${CORS_ORIGIN}",
 				},
 			},
 		},
@@ -279,7 +269,7 @@ func TestInterpolateEnvVars_GlobalPluginConfig(t *testing.T) {
 		t.Fatalf("interpolateEnvVars() failed: %v", err)
 	}
 
-	origin := cfg.Plugins.Global[0].Config["origins"].(string)
+	origin := cfg.Plugins[0].Config["origins"].(string)
 	if origin != "https://example.com" {
 		t.Errorf("CORS origin not interpolated correctly, got: %s", origin)
 	}
@@ -374,9 +364,7 @@ func TestMergeConfigs(t *testing.T) {
 			MaxLimit:     100,
 		},
 		Plugins: PluginsConfig{
-			Global: []PluginConfig{
-				{Name: "cors", Enabled: true},
-			},
+			{Name: "cors", Enabled: true},
 		},
 		Generate: GenerateConfig{
 			Output: OutputConfig{
@@ -397,9 +385,7 @@ func TestMergeConfigs(t *testing.T) {
 			DefaultLimit: 20,
 		},
 		Plugins: PluginsConfig{
-			Route: []PluginConfig{
-				{Name: "auth", Enabled: true},
-			},
+			{Name: "auth", Enabled: true},
 		},
 	}
 
@@ -425,12 +411,12 @@ func TestMergeConfigs(t *testing.T) {
 		t.Errorf("MaxLimit should remain from base, got %d", result.Pagination.MaxLimit)
 	}
 
-	if len(result.Plugins.Route) != 1 {
-		t.Errorf("Route plugins should be replaced, got %d", len(result.Plugins.Route))
+	if len(result.Plugins) != 1 {
+		t.Errorf("Plugins should be replaced, got %d", len(result.Plugins))
 	}
 
-	if len(result.Plugins.Global) != 1 {
-		t.Errorf("Global plugins should remain from base when not overridden, got %d", len(result.Plugins.Global))
+	if result.Plugins[0].Name != "auth" {
+		t.Errorf("Plugin should be from override, got %s", result.Plugins[0].Name)
 	}
 }
 
@@ -461,36 +447,26 @@ func TestMergeConfigs_EmptyOverride(t *testing.T) {
 func TestMergeConfigs_PluginOverride(t *testing.T) {
 	base := &Config{
 		Plugins: PluginsConfig{
-			Global: []PluginConfig{
-				{Name: "cors", Enabled: true},
-				{Name: "logger", Enabled: true},
-			},
-			Route: []PluginConfig{
-				{Name: "auth", Enabled: false},
-			},
+			{Name: "cors", Enabled: true},
+			{Name: "logger", Enabled: true},
+			{Name: "auth", Enabled: false},
 		},
 	}
 
 	override := &Config{
 		Plugins: PluginsConfig{
-			Global: []PluginConfig{
-				{Name: "ratelimit", Enabled: true},
-			},
+			{Name: "ratelimit", Enabled: true},
 		},
 	}
 
 	result := mergeConfigs(base, override)
 
-	if len(result.Plugins.Global) != 1 {
-		t.Errorf("Global plugins should be replaced completely, got %d", len(result.Plugins.Global))
+	if len(result.Plugins) != 1 {
+		t.Errorf("Plugins should be replaced completely, got %d", len(result.Plugins))
 	}
 
-	if result.Plugins.Global[0].Name != "ratelimit" {
-		t.Errorf("Global plugin should be from override, got %s", result.Plugins.Global[0].Name)
-	}
-
-	if len(result.Plugins.Route) != 1 {
-		t.Errorf("Route plugins should remain when not overridden, got %d", len(result.Plugins.Route))
+	if result.Plugins[0].Name != "ratelimit" {
+		t.Errorf("Plugin should be from override, got %s", result.Plugins[0].Name)
 	}
 }
 
@@ -535,9 +511,7 @@ generate:
     models: "models"
     resources: "resources"
     dtos: "dtos"
-plugins:
-  global: []
-  route: []
+plugins: []
 `
 
 	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(minimalConfig), 0644)
@@ -580,9 +554,7 @@ generate:
     models: "models"
     resources: "resources"
     dtos: "dtos"
-plugins:
-  global: []
-  route: []
+plugins: []
 `
 
 	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(invalidConfig), 0644)

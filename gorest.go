@@ -85,25 +85,19 @@ func Start(cfg Config) {
 		},
 	})
 
-	enrichedRouteConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins.Route, db)
+	enrichedConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins, db)
 
-	// Load and apply plugins
-	pluginRegistry, err := pluginloader.LoadPlugins(appConfig.Plugins.Global, enrichedRouteConfigs, Version)
+	// Load plugins (plugins are NOT automatically applied - user must use app.Use() or fiber groups)
+	pluginRegistry, err := pluginloader.LoadPlugins(enrichedConfigs, Version)
 	if err != nil {
 		logger.Log.Error("Failed to load plugins", "error", err)
-		os.Exit(1)
-	}
-
-	// Apply all global plugins in order
-	if err := pluginRegistry.ApplyGlobal(app); err != nil {
-		logger.Log.Error("Failed to apply global plugins", "error", err)
 		os.Exit(1)
 	}
 
 	SetupOpenAPIUI(app)
 	SetupHealthCheck(app, db, logger.Log)
 
-	// Setup endpoints for any plugins that implement EndpointSetup interface
+	// Setup endpoints for any plugins that implement EndpointSetup interface (e.g. auth plugin /login)
 	if err := pluginloader.SetupPluginEndpoints(pluginRegistry, app); err != nil {
 		logger.Log.Error("Failed to setup plugin endpoints", "error", err)
 		os.Exit(1)

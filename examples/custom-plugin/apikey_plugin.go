@@ -11,7 +11,7 @@ type APIKeyPlugin struct {
 }
 
 // NewAPIKeyPlugin creates a new API key plugin instance
-func NewAPIKeyPlugin() plugin.RoutePlugin {
+func NewAPIKeyPlugin() plugin.Plugin {
 	return &APIKeyPlugin{}
 }
 
@@ -26,7 +26,7 @@ func (p *APIKeyPlugin) Initialize(config map[string]interface{}) error {
 	return nil
 }
 
-func (p *APIKeyPlugin) Wrap(handler fiber.Handler) fiber.Handler {
+func (p *APIKeyPlugin) Handler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Check for API key in header
 		key := c.Get("X-API-Key")
@@ -52,7 +52,7 @@ func (p *APIKeyPlugin) Wrap(handler fiber.Handler) fiber.Handler {
 		// Store API key in context for later use
 		c.Locals("api_key", key)
 
-		// Call the wrapped handler
-		return handler(c)
+		// Continue to next handler
+		return c.Next()
 	}
 }

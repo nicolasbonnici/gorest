@@ -12,7 +12,7 @@ type DummyPlugin struct {
 	message string
 }
 
-func NewDummyPlugin() plugin.GlobalPlugin {
+func NewDummyPlugin() plugin.Plugin {
 	return &DummyPlugin{
 		message: "Hello from dummy plugin!",
 	}

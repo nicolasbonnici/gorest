@@ -8,7 +8,7 @@ import (
 
 type RequestIDPlugin struct{}
 
-func NewPlugin() plugin.GlobalPlugin {
+func NewPlugin() plugin.Plugin {
 	return &RequestIDPlugin{}
 }
 

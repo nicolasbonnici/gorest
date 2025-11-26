@@ -14,7 +14,7 @@ type TimingPlugin struct {
 }
 
 // NewTimingPlugin creates a new timing plugin instance
-func NewTimingPlugin() plugin.GlobalPlugin {
+func NewTimingPlugin() plugin.Plugin {
 	return &TimingPlugin{enabled: true}
 }
 
