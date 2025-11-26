@@ -10,10 +10,7 @@ type Config struct {
 	Plugins    PluginsConfig    `yaml:"plugins"`
 }
 
-type PluginsConfig struct {
-	Global []PluginConfig `yaml:"global"`
-	Route  []PluginConfig `yaml:"route"`
-}
+type PluginsConfig []PluginConfig
 
 type PluginConfig struct {
 	Name    string                 `yaml:"name"`
@@ -66,17 +63,17 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("database.url is required")
 	}
 
-	for _, plugin := range c.Plugins.Route {
+	for _, plugin := range c.Plugins {
 		if plugin.Name == "auth" && plugin.Enabled {
 			if jwtSecret, ok := plugin.Config["jwt_secret"].(string); ok {
 				if jwtSecret == "" {
-					return fmt.Errorf("plugins.route.auth.config.jwt_secret is required when auth plugin is enabled")
+					return fmt.Errorf("plugins.auth.config.jwt_secret is required when auth plugin is enabled")
 				}
 				if len(jwtSecret) < 32 {
-					return fmt.Errorf("plugins.route.auth.config.jwt_secret must be at least 32 characters long for security")
+					return fmt.Errorf("plugins.auth.config.jwt_secret must be at least 32 characters long for security")
 				}
 			} else {
-				return fmt.Errorf("plugins.route.auth.config.jwt_secret is required when auth plugin is enabled")
+				return fmt.Errorf("plugins.auth.config.jwt_secret is required when auth plugin is enabled")
 			}
 		}
 	}

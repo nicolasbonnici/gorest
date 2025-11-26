@@ -70,12 +70,8 @@ func loadConfigFile(filename string) (*Config, error) {
 func interpolateEnvVars(config *Config) error {
 	config.Database.URL = interpolateString(config.Database.URL)
 
-	for i := range config.Plugins.Global {
-		interpolatePluginConfig(config.Plugins.Global[i].Config)
-	}
-
-	for i := range config.Plugins.Route {
-		interpolatePluginConfig(config.Plugins.Route[i].Config)
+	for i := range config.Plugins {
+		interpolatePluginConfig(config.Plugins[i].Config)
 	}
 
 	if strings.HasPrefix(config.Database.URL, "${") && strings.HasSuffix(config.Database.URL, "}") {
@@ -142,11 +138,8 @@ func mergeConfigs(base, override *Config) *Config {
 		result.Pagination.MaxLimit = override.Pagination.MaxLimit
 	}
 
-	if len(override.Plugins.Global) > 0 {
-		result.Plugins.Global = override.Plugins.Global
-	}
-	if len(override.Plugins.Route) > 0 {
-		result.Plugins.Route = override.Plugins.Route
+	if len(override.Plugins) > 0 {
+		result.Plugins = override.Plugins
 	}
 
 	return &result

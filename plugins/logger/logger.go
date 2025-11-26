@@ -8,7 +8,7 @@ import (
 
 type LoggerPlugin struct{}
 
-func NewPlugin() plugin.GlobalPlugin {
+func NewPlugin() plugin.Plugin {
 	return &LoggerPlugin{}
 }
 

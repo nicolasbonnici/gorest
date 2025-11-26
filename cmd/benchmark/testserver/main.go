@@ -15,13 +15,13 @@ import (
 )
 
 func init() {
-	pluginloader.RegisterGlobalPluginFactory("requestid", requestidplugin.NewPlugin)
-	pluginloader.RegisterGlobalPluginFactory("logger", loggerplugin.NewPlugin)
-	pluginloader.RegisterGlobalPluginFactory("cors", corsplugin.NewPlugin)
-	pluginloader.RegisterGlobalPluginFactory("ratelimit", ratelimitplugin.NewPlugin)
-	pluginloader.RegisterGlobalPluginFactory("security", securityplugin.NewPlugin)
-	pluginloader.RegisterGlobalPluginFactory("contenttype", contenttypeplugin.NewPlugin)
-	pluginloader.RegisterRoutePluginFactory("auth", authplugin.NewPlugin)
+	pluginloader.RegisterPluginFactory("requestid", requestidplugin.NewPlugin)
+	pluginloader.RegisterPluginFactory("logger", loggerplugin.NewPlugin)
+	pluginloader.RegisterPluginFactory("cors", corsplugin.NewPlugin)
+	pluginloader.RegisterPluginFactory("ratelimit", ratelimitplugin.NewPlugin)
+	pluginloader.RegisterPluginFactory("security", securityplugin.NewPlugin)
+	pluginloader.RegisterPluginFactory("contenttype", contenttypeplugin.NewPlugin)
+	pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
 }
 
 func main() {

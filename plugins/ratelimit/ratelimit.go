@@ -14,7 +14,7 @@ type RateLimitPlugin struct {
 	burst             int
 }
 
-func NewPlugin() plugin.GlobalPlugin {
+func NewPlugin() plugin.Plugin {
 	return &RateLimitPlugin{
 		requestsPerSecond: 100,
 		burst:             200,

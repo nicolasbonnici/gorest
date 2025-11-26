@@ -36,7 +36,7 @@ type AuthPlugin struct {
 	app       *fiber.App
 }
 
-func NewPlugin() plugin.RoutePlugin {
+func NewPlugin() plugin.Plugin {
 	return &AuthPlugin{}
 }
 
@@ -57,20 +57,10 @@ func (p *AuthPlugin) Initialize(config map[string]interface{}) error {
 	return nil
 }
 
-func (p *AuthPlugin) Wrap(handler fiber.Handler) fiber.Handler {
-	return RequireAuth(p.jwtSecret, handler)
-}
-
-// SetupEndpoints implements the optional EndpointSetup interface
-func (p *AuthPlugin) SetupEndpoints(app *fiber.App) error {
-	if p.db == nil {
-		return nil // Skip if no database configured
-	}
-	SetupAuth(app, p.db, p.jwtSecret, p.jwtTTL)
-	return nil
-}
-
-func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
+// Handler returns the auth middleware.
+// This middleware checks for valid JWT tokens and sets the authenticated user in context.
+// It does NOT automatically protect routes - you must explicitly apply it to protected routes.
+func (p *AuthPlugin) Handler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		auth := c.Get("Authorization")
 		if !strings.HasPrefix(auth, "Bearer ") {
@@ -82,7 +72,7 @@ func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(jwtSecret), nil
+			return []byte(p.jwtSecret), nil
 		})
 
 		if err != nil {
@@ -115,8 +105,17 @@ func RequireAuth(jwtSecret string, handler fiber.Handler) fiber.Handler {
 			c.Locals(UserContextKey, user)
 		}
 
-		return handler(c)
+		return c.Next()
 	}
+}
+
+// SetupEndpoints implements the optional EndpointSetup interface
+func (p *AuthPlugin) SetupEndpoints(app *fiber.App) error {
+	if p.db == nil {
+		return nil // Skip if no database configured
+	}
+	SetupAuth(app, p.db, p.jwtSecret, p.jwtTTL)
+	return nil
 }
 
 func GetAuthenticatedUser(c *fiber.Ctx) *AuthenticatedUser {

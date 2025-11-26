@@ -70,30 +70,28 @@ pagination:
   max_limit: 1000
 
 plugins:
-  global:
-    - name: requestid
-      enabled: true
-    - name: logger
-      enabled: true
-    - name: ratelimit
-      enabled: true
-      config:
-        requests_per_second: 100
-        burst: 200
-    - name: cors
-      enabled: true
-      config:
-        origins: "*"
-    - name: security
-      enabled: true
-    - name: contenttype
-      enabled: true
-  route:
-    - name: auth
-      enabled: true
-      config:
-        jwt_secret: "${JWT_SECRET}"
-        jwt_ttl: 900
+  - name: requestid
+    enabled: true
+  - name: logger
+    enabled: true
+  - name: ratelimit
+    enabled: true
+    config:
+      requests_per_second: 100
+      burst: 200
+  - name: cors
+    enabled: true
+    config:
+      origins: "*"
+  - name: security
+    enabled: true
+  - name: contenttype
+    enabled: true
+  - name: auth
+    enabled: true
+    config:
+      jwt_secret: "${JWT_SECRET}"
+      jwt_ttl: 900
 ```
 
 Set required environment variables:
@@ -184,34 +182,32 @@ pagination:
 
 ### Plugin Configuration
 
-All middleware and features are configured through plugins:
+All middleware and features are configured through plugins. Plugins are loaded in the order specified and must be manually applied to routes or route groups:
 
 ```yaml
 plugins:
-  global:                   # Plugins applied to all routes
-    - name: requestid
-      enabled: true
-    - name: ratelimit
-      enabled: true
-      config:
-        requests_per_second: 100
-        burst: 200
-    - name: cors
-      enabled: true
-      config:
-        origins: "*"
-    - name: security
-      enabled: true
-    - name: contenttype
-      enabled: true
-    - name: logger
-      enabled: true
-  route:                    # Plugins applied to specific routes
-    - name: auth
-      enabled: true
-      config:
-        jwt_secret: "${JWT_SECRET}"
-        jwt_ttl: 900
+  - name: requestid
+    enabled: true
+  - name: logger
+    enabled: true
+  - name: ratelimit
+    enabled: true
+    config:
+      requests_per_second: 100
+      burst: 200
+  - name: cors
+    enabled: true
+    config:
+      origins: "*"
+  - name: security
+    enabled: true
+  - name: contenttype
+    enabled: true
+  - name: auth
+    enabled: true
+    config:
+      jwt_secret: "${JWT_SECRET}"
+      jwt_ttl: 900
 ```
 
 ### Environment-Specific Overrides
@@ -224,16 +220,15 @@ server:
   environment: "production"
 
 plugins:
-  global:
-    - name: cors
-      enabled: true
-      config:
-        origins: "https://app.example.com"
-    - name: ratelimit
-      enabled: true
-      config:
-        requests_per_second: 50
-        burst: 100
+  - name: cors
+    enabled: true
+    config:
+      origins: "https://app.example.com"
+  - name: ratelimit
+    enabled: true
+    config:
+      requests_per_second: 50
+      burst: 100
 ```
 
 Load with `ENVIRONMENT` variable:
@@ -310,43 +305,43 @@ func main() {
 
 ## 🧩 Plugin System
 
-GoREST uses a modular plugin system for API customization. Plugins can be global (applied to all routes) or route-level (applied to specific handlers).
+GoREST uses a modular unified plugin system for API customization. All plugins implement the same `Plugin` interface and return a Fiber middleware handler. Plugins are **not automatically applied** - you must manually use them with `app.Use()` or apply them to specific route groups.
 
 ### Built-in Plugins
 
-**Global Plugins:**
 - **requestid** - Adds unique request ID tracking
+- **logger** - HTTP request/response logging
 - **ratelimit** - Per-IP rate limiting
 - **cors** - Cross-Origin Resource Sharing
 - **security** - Security headers (X-Frame-Options, CSP, etc.)
 - **contenttype** - Validates Content-Type for mutations
-- **logger** - HTTP request/response logging
-
-**Route Plugins:**
 - **auth** - JWT authentication for protected routes
 
 ### Configuration
 
-Plugins are configured in `gorest.yaml`:
+Plugins are configured in `gorest.yaml` as a flat list:
 
 ```yaml
 plugins:
-  global:
-    - name: ratelimit
-      enabled: true
-      config:
-        requests_per_second: 100
-        burst: 200
-  route:
-    - name: auth
-      enabled: true
-      config:
-        jwt_secret: "${JWT_SECRET}"
+  - name: requestid
+    enabled: true
+  - name: logger
+    enabled: true
+  - name: ratelimit
+    enabled: true
+    config:
+      requests_per_second: 100
+      burst: 200
+  - name: auth
+    enabled: true
+    config:
+      jwt_secret: "${JWT_SECRET}"
+      jwt_ttl: 900
 ```
 
 ### Creating Custom Plugins
 
-#### Global Plugin Example
+All plugins implement a single unified `Plugin` interface:
 
 ```go
 package myplugin
@@ -357,10 +352,10 @@ import (
 )
 
 type CustomPlugin struct {
-    config map[string]interface{}
+    headerValue string
 }
 
-func NewCustomPlugin() plugin.GlobalPlugin {
+func NewCustomPlugin() plugin.Plugin {
     return &CustomPlugin{}
 }
 
@@ -369,44 +364,52 @@ func (p *CustomPlugin) Name() string {
 }
 
 func (p *CustomPlugin) Initialize(config map[string]interface{}) error {
-    p.config = config
+    if val, ok := config["header_value"].(string); ok {
+        p.headerValue = val
+    }
     return nil
 }
 
 func (p *CustomPlugin) Handler() fiber.Handler {
     return func(c *fiber.Ctx) error {
-        // Your plugin logic here
-        c.Set("X-Custom-Header", "value")
+        // Add custom header to all requests
+        c.Set("X-Custom-Header", p.headerValue)
         return c.Next()
     }
 }
 ```
 
-#### Route Plugin Example
+#### Auth/Validation Plugin Example
+
+For plugins that need to protect or validate routes:
 
 ```go
-type CustomAuthPlugin struct {
+type APIKeyPlugin struct {
     apiKey string
 }
 
-func (p *CustomAuthPlugin) Name() string {
+func NewAPIKeyPlugin() plugin.Plugin {
+    return &APIKeyPlugin{}
+}
+
+func (p *APIKeyPlugin) Name() string {
     return "apikey"
 }
 
-func (p *CustomAuthPlugin) Initialize(config map[string]interface{}) error {
+func (p *APIKeyPlugin) Initialize(config map[string]interface{}) error {
     if key, ok := config["api_key"].(string); ok {
         p.apiKey = key
     }
     return nil
 }
 
-func (p *CustomAuthPlugin) Wrap(handler fiber.Handler) fiber.Handler {
+func (p *APIKeyPlugin) Handler() fiber.Handler {
     return func(c *fiber.Ctx) error {
         key := c.Get("X-API-Key")
         if key != p.apiKey {
             return c.Status(401).JSON(fiber.Map{"error": "Invalid API key"})
         }
-        return handler(c)
+        return c.Next()
     }
 }
 ```
@@ -425,6 +428,7 @@ import (
     // Import built-in plugins you want to use
     authplugin "github.com/nicolasbonnici/gorest/plugins/auth"
     loggerplugin "github.com/nicolasbonnici/gorest/plugins/logger"
+    corsplugin "github.com/nicolasbonnici/gorest/plugins/cors"
 
     // Import your custom plugins
     customplugins "yourapp/plugins"
@@ -432,11 +436,13 @@ import (
 
 func init() {
     // Register built-in plugins
-    pluginloader.RegisterRoutePluginFactory("auth", authplugin.NewPlugin)
-    pluginloader.RegisterGlobalPluginFactory("logger", loggerplugin.NewPlugin)
+    pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
+    pluginloader.RegisterPluginFactory("logger", loggerplugin.NewPlugin)
+    pluginloader.RegisterPluginFactory("cors", corsplugin.NewPlugin)
 
     // Register custom plugins
-    pluginloader.RegisterGlobalPluginFactory("myplugin", customplugins.NewMyPlugin)
+    pluginloader.RegisterPluginFactory("custom", customplugins.NewCustomPlugin)
+    pluginloader.RegisterPluginFactory("apikey", customplugins.NewAPIKeyPlugin)
 }
 
 func main() {
@@ -448,7 +454,53 @@ func main() {
 }
 ```
 
-Plugins are configured in `gorest.yaml` and loaded automatically by the core library.
+### Applying Plugins to Routes
+
+Plugins are **not automatically applied**. You must manually apply them to your application or specific route groups:
+
+```go
+package main
+
+import (
+    "github.com/gofiber/fiber/v2"
+    "github.com/nicolasbonnici/gorest/pluginloader"
+)
+
+func main() {
+    app := fiber.New()
+
+    // Load plugins from config
+    registry, _ := pluginloader.LoadPlugins(config.Plugins, version)
+
+    // Apply global plugins to all routes
+    if requestid, ok := registry.Get("requestid"); ok {
+        app.Use(requestid.Handler())
+    }
+    if logger, ok := registry.Get("logger"); ok {
+        app.Use(logger.Handler())
+    }
+    if cors, ok := registry.Get("cors"); ok {
+        app.Use(cors.Handler())
+    }
+
+    // Create a protected route group with auth plugin
+    if authPlugin, ok := registry.Get("auth"); ok {
+        protected := app.Group("/api", authPlugin.Handler())
+
+        // Register protected routes
+        protected.Get("/todos", todoHandler)
+        protected.Post("/todos", createTodoHandler)
+    }
+
+    // Public routes (no auth)
+    app.Post("/auth/login", loginHandler)
+    app.Post("/auth/register", registerHandler)
+
+    app.Listen(":3000")
+}
+```
+
+Plugins are configured in `gorest.yaml` and loaded using `pluginloader.LoadPlugins()`. The registration order in YAML doesn't matter - you control the application order in your code.
 
 ---
 

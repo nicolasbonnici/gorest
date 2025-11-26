@@ -9,7 +9,7 @@ type SecurityPlugin struct {
 	version string
 }
 
-func NewPlugin() plugin.GlobalPlugin {
+func NewPlugin() plugin.Plugin {
 	return &SecurityPlugin{version: "dev"}
 }
 

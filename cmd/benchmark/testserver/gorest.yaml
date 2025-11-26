@@ -25,29 +25,27 @@ pagination:
   default_limit: 50
   max_limit: 10000
 
-# Plugin system configuration
+# Plugin system configuration (unified)
 plugins:
-  global:
-    - name: requestid
-      enabled: true
-    - name: logger
-      enabled: false
-    - name: cors
-      enabled: true
-      config:
-        origins: "*"
-    - name: ratelimit
-      enabled: false
-      config:
-        requests_per_second: 10000
-        burst: 20000
-    - name: security
-      enabled: true
-    - name: contenttype
-      enabled: true
-  route:
-    - name: auth
-      enabled: true
-      config:
-        jwt_secret: "${JWT_SECRET}"
-        jwt_ttl: 3600
+  - name: requestid
+    enabled: true
+  - name: logger
+    enabled: false
+  - name: cors
+    enabled: true
+    config:
+      origins: "*"
+  - name: ratelimit
+    enabled: false
+    config:
+      requests_per_second: 10000
+      burst: 20000
+  - name: security
+    enabled: true
+  - name: contenttype
+    enabled: true
+  - name: auth
+    enabled: true
+    config:
+      jwt_secret: "${JWT_SECRET}"
+      jwt_ttl: 3600
