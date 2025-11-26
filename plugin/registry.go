@@ -1,51 +1,30 @@
 package plugin
 
-import (
-	"fmt"
-
-	"github.com/gofiber/fiber/v2"
-)
-
+// PluginRegistry stores all loaded plugins.
+// Plugins are NOT automatically applied; user must explicitly call plugin.Handler() and register it.
 type PluginRegistry struct {
-	globalPlugins []GlobalPlugin
-	routePlugins  map[string]RoutePlugin
+	plugins map[string]Plugin
 }
 
 func NewPluginRegistry() *PluginRegistry {
 	return &PluginRegistry{
-		globalPlugins: make([]GlobalPlugin, 0),
-		routePlugins:  make(map[string]RoutePlugin),
+		plugins: make(map[string]Plugin),
 	}
 }
 
-func (r *PluginRegistry) RegisterGlobal(plugin GlobalPlugin) {
-	r.globalPlugins = append(r.globalPlugins, plugin)
+// Register adds a plugin to the registry.
+// Does NOT apply the plugin to any routes - that must be done manually.
+func (r *PluginRegistry) Register(plugin Plugin) {
+	r.plugins[plugin.Name()] = plugin
 }
 
-func (r *PluginRegistry) RegisterRoute(plugin RoutePlugin) {
-	r.routePlugins[plugin.Name()] = plugin
-}
-
-func (r *PluginRegistry) ApplyGlobal(app *fiber.App) error {
-	for _, plugin := range r.globalPlugins {
-		handler := plugin.Handler()
-		if handler == nil {
-			return fmt.Errorf("global plugin '%s' returned nil handler", plugin.Name())
-		}
-		app.Use(handler)
-	}
-	return nil
-}
-
-func (r *PluginRegistry) GetRoutePlugin(name string) (RoutePlugin, bool) {
-	plugin, exists := r.routePlugins[name]
+// Get retrieves a plugin by name.
+func (r *PluginRegistry) Get(name string) (Plugin, bool) {
+	plugin, exists := r.plugins[name]
 	return plugin, exists
 }
 
-func (r *PluginRegistry) GetRoutePlugins() map[string]RoutePlugin {
-	return r.routePlugins
-}
-
-func (r *PluginRegistry) GetGlobalPlugins() []GlobalPlugin {
-	return r.globalPlugins
+// GetAll returns all registered plugins.
+func (r *PluginRegistry) GetAll() map[string]Plugin {
+	return r.plugins
 }

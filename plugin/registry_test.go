@@ -6,39 +6,21 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type mockGlobalPlugin struct {
+type mockPlugin struct {
 	name    string
 	handler fiber.Handler
 }
 
-func (m *mockGlobalPlugin) Name() string {
+func (m *mockPlugin) Name() string {
 	return m.name
 }
 
-func (m *mockGlobalPlugin) Initialize(config map[string]interface{}) error {
+func (m *mockPlugin) Initialize(config map[string]interface{}) error {
 	return nil
 }
 
-func (m *mockGlobalPlugin) Handler() fiber.Handler {
+func (m *mockPlugin) Handler() fiber.Handler {
 	return m.handler
-}
-
-type mockRoutePlugin struct {
-	name string
-}
-
-func (m *mockRoutePlugin) Name() string {
-	return m.name
-}
-
-func (m *mockRoutePlugin) Initialize(config map[string]interface{}) error {
-	return nil
-}
-
-func (m *mockRoutePlugin) Wrap(handler fiber.Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return handler(c)
-	}
 }
 
 func TestNewPluginRegistry(t *testing.T) {
@@ -48,170 +30,95 @@ func TestNewPluginRegistry(t *testing.T) {
 		t.Fatal("expected non-nil registry")
 	}
 
-	if registry.globalPlugins == nil {
-		t.Error("expected non-nil globalPlugins slice")
+	if registry.plugins == nil {
+		t.Error("expected non-nil plugins map")
 	}
 
-	if registry.routePlugins == nil {
-		t.Error("expected non-nil routePlugins map")
-	}
-
-	if len(registry.globalPlugins) != 0 {
-		t.Errorf("expected empty globalPlugins slice, got %d items", len(registry.globalPlugins))
-	}
-
-	if len(registry.routePlugins) != 0 {
-		t.Errorf("expected empty routePlugins map, got %d items", len(registry.routePlugins))
+	if len(registry.plugins) != 0 {
+		t.Errorf("expected empty plugins map, got %d items", len(registry.plugins))
 	}
 }
 
-func TestRegisterGlobal_Single(t *testing.T) {
+func TestRegister_Single(t *testing.T) {
 	registry := NewPluginRegistry()
-	plugin := &mockGlobalPlugin{
-		name: "test-global",
+	plugin := &mockPlugin{
+		name: "test-plugin",
 		handler: func(c *fiber.Ctx) error {
 			return c.Next()
 		},
 	}
 
-	registry.RegisterGlobal(plugin)
+	registry.Register(plugin)
 
-	if len(registry.globalPlugins) != 1 {
-		t.Fatalf("expected 1 global plugin, got %d", len(registry.globalPlugins))
+	if len(registry.plugins) != 1 {
+		t.Fatalf("expected 1 plugin, got %d", len(registry.plugins))
 	}
 
-	if registry.globalPlugins[0].Name() != "test-global" {
-		t.Errorf("expected plugin name 'test-global', got '%s'", registry.globalPlugins[0].Name())
+	stored, exists := registry.plugins["test-plugin"]
+	if !exists {
+		t.Fatal("expected plugin to be stored with name 'test-plugin'")
+	}
+
+	if stored.Name() != "test-plugin" {
+		t.Errorf("expected plugin name 'test-plugin', got '%s'", stored.Name())
 	}
 }
 
-func TestRegisterGlobal_Multiple(t *testing.T) {
+func TestRegister_Multiple(t *testing.T) {
 	registry := NewPluginRegistry()
-	plugin1 := &mockGlobalPlugin{
+	plugin1 := &mockPlugin{
 		name: "plugin1",
 		handler: func(c *fiber.Ctx) error {
 			return c.Next()
 		},
 	}
-	plugin2 := &mockGlobalPlugin{
+	plugin2 := &mockPlugin{
 		name: "plugin2",
 		handler: func(c *fiber.Ctx) error {
 			return c.Next()
 		},
 	}
-	plugin3 := &mockGlobalPlugin{
+	plugin3 := &mockPlugin{
 		name: "plugin3",
 		handler: func(c *fiber.Ctx) error {
 			return c.Next()
 		},
 	}
 
-	registry.RegisterGlobal(plugin1)
-	registry.RegisterGlobal(plugin2)
-	registry.RegisterGlobal(plugin3)
+	registry.Register(plugin1)
+	registry.Register(plugin2)
+	registry.Register(plugin3)
 
-	if len(registry.globalPlugins) != 3 {
-		t.Fatalf("expected 3 global plugins, got %d", len(registry.globalPlugins))
+	if len(registry.plugins) != 3 {
+		t.Fatalf("expected 3 plugins, got %d", len(registry.plugins))
 	}
 
-	if registry.globalPlugins[0].Name() != "plugin1" {
-		t.Errorf("expected first plugin 'plugin1', got '%s'", registry.globalPlugins[0].Name())
-	}
-	if registry.globalPlugins[1].Name() != "plugin2" {
-		t.Errorf("expected second plugin 'plugin2', got '%s'", registry.globalPlugins[1].Name())
-	}
-	if registry.globalPlugins[2].Name() != "plugin3" {
-		t.Errorf("expected third plugin 'plugin3', got '%s'", registry.globalPlugins[2].Name())
-	}
-}
-
-func TestRegisterGlobal_OrderPreservation(t *testing.T) {
-	registry := NewPluginRegistry()
-
-	for i := 1; i <= 10; i++ {
-		plugin := &mockGlobalPlugin{
-			name: string(rune('A' + i - 1)),
-			handler: func(c *fiber.Ctx) error {
-				return c.Next()
-			},
-		}
-		registry.RegisterGlobal(plugin)
-	}
-
-	if len(registry.globalPlugins) != 10 {
-		t.Fatalf("expected 10 plugins, got %d", len(registry.globalPlugins))
-	}
-
-	for i := 0; i < 10; i++ {
-		expected := string(rune('A' + i))
-		if registry.globalPlugins[i].Name() != expected {
-			t.Errorf("expected plugin at index %d to be '%s', got '%s'", i, expected, registry.globalPlugins[i].Name())
-		}
-	}
-}
-
-func TestRegisterRoute_Single(t *testing.T) {
-	registry := NewPluginRegistry()
-	plugin := &mockRoutePlugin{name: "test-route"}
-
-	registry.RegisterRoute(plugin)
-
-	if len(registry.routePlugins) != 1 {
-		t.Fatalf("expected 1 route plugin, got %d", len(registry.routePlugins))
-	}
-
-	stored, exists := registry.routePlugins["test-route"]
-	if !exists {
-		t.Fatal("expected plugin to be stored with name 'test-route'")
-	}
-
-	if stored.Name() != "test-route" {
-		t.Errorf("expected plugin name 'test-route', got '%s'", stored.Name())
-	}
-}
-
-func TestRegisterRoute_Multiple(t *testing.T) {
-	registry := NewPluginRegistry()
-	plugins := []*mockRoutePlugin{
-		{name: "auth"},
-		{name: "cors"},
-		{name: "rate-limiter"},
-	}
-
-	for _, p := range plugins {
-		registry.RegisterRoute(p)
-	}
-
-	if len(registry.routePlugins) != 3 {
-		t.Fatalf("expected 3 route plugins, got %d", len(registry.routePlugins))
-	}
-
-	for _, p := range plugins {
-		stored, exists := registry.routePlugins[p.Name()]
+	for _, name := range []string{"plugin1", "plugin2", "plugin3"} {
+		stored, exists := registry.plugins[name]
 		if !exists {
-			t.Errorf("expected plugin '%s' to be stored", p.Name())
+			t.Errorf("expected plugin '%s' to be stored", name)
 		}
-		if stored.Name() != p.Name() {
-			t.Errorf("expected plugin name '%s', got '%s'", p.Name(), stored.Name())
+		if stored.Name() != name {
+			t.Errorf("expected plugin name '%s', got '%s'", name, stored.Name())
 		}
 	}
 }
 
-func TestRegisterRoute_Overwrite(t *testing.T) {
+func TestRegister_Overwrite(t *testing.T) {
 	registry := NewPluginRegistry()
-	plugin1 := &mockRoutePlugin{name: "auth"}
-	plugin2 := &mockRoutePlugin{name: "auth"}
+	plugin1 := &mockPlugin{name: "test", handler: func(c *fiber.Ctx) error { return c.Next() }}
+	plugin2 := &mockPlugin{name: "test", handler: func(c *fiber.Ctx) error { return c.SendStatus(200) }}
 
-	registry.RegisterRoute(plugin1)
-	registry.RegisterRoute(plugin2)
+	registry.Register(plugin1)
+	registry.Register(plugin2)
 
-	if len(registry.routePlugins) != 1 {
-		t.Fatalf("expected 1 route plugin (overwritten), got %d", len(registry.routePlugins))
+	if len(registry.plugins) != 1 {
+		t.Fatalf("expected 1 plugin (overwritten), got %d", len(registry.plugins))
 	}
 
-	stored, exists := registry.routePlugins["auth"]
+	stored, exists := registry.plugins["test"]
 	if !exists {
-		t.Fatal("expected plugin 'auth' to exist")
+		t.Fatal("expected plugin 'test' to exist")
 	}
 
 	if stored != plugin2 {
@@ -219,83 +126,13 @@ func TestRegisterRoute_Overwrite(t *testing.T) {
 	}
 }
 
-func TestGetGlobalPlugins_Empty(t *testing.T) {
+func TestGet_Exists(t *testing.T) {
 	registry := NewPluginRegistry()
-	plugins := registry.GetGlobalPlugins()
+	plugin := &mockPlugin{name: "test-plugin", handler: func(c *fiber.Ctx) error { return c.Next() }}
 
-	if plugins == nil {
-		t.Fatal("expected non-nil slice")
-	}
+	registry.Register(plugin)
 
-	if len(plugins) != 0 {
-		t.Errorf("expected 0 plugins, got %d", len(plugins))
-	}
-}
-
-func TestGetGlobalPlugins_WithPlugins(t *testing.T) {
-	registry := NewPluginRegistry()
-	plugin1 := &mockGlobalPlugin{name: "plugin1", handler: func(c *fiber.Ctx) error { return c.Next() }}
-	plugin2 := &mockGlobalPlugin{name: "plugin2", handler: func(c *fiber.Ctx) error { return c.Next() }}
-
-	registry.RegisterGlobal(plugin1)
-	registry.RegisterGlobal(plugin2)
-
-	plugins := registry.GetGlobalPlugins()
-
-	if len(plugins) != 2 {
-		t.Fatalf("expected 2 plugins, got %d", len(plugins))
-	}
-
-	if plugins[0].Name() != "plugin1" {
-		t.Errorf("expected first plugin 'plugin1', got '%s'", plugins[0].Name())
-	}
-	if plugins[1].Name() != "plugin2" {
-		t.Errorf("expected second plugin 'plugin2', got '%s'", plugins[1].Name())
-	}
-}
-
-func TestGetRoutePlugins_Empty(t *testing.T) {
-	registry := NewPluginRegistry()
-	plugins := registry.GetRoutePlugins()
-
-	if plugins == nil {
-		t.Fatal("expected non-nil map")
-	}
-
-	if len(plugins) != 0 {
-		t.Errorf("expected 0 plugins, got %d", len(plugins))
-	}
-}
-
-func TestGetRoutePlugins_WithPlugins(t *testing.T) {
-	registry := NewPluginRegistry()
-	plugin1 := &mockRoutePlugin{name: "auth"}
-	plugin2 := &mockRoutePlugin{name: "cors"}
-
-	registry.RegisterRoute(plugin1)
-	registry.RegisterRoute(plugin2)
-
-	plugins := registry.GetRoutePlugins()
-
-	if len(plugins) != 2 {
-		t.Fatalf("expected 2 plugins, got %d", len(plugins))
-	}
-
-	if _, exists := plugins["auth"]; !exists {
-		t.Error("expected 'auth' plugin to exist")
-	}
-	if _, exists := plugins["cors"]; !exists {
-		t.Error("expected 'cors' plugin to exist")
-	}
-}
-
-func TestGetRoutePlugin_Exists(t *testing.T) {
-	registry := NewPluginRegistry()
-	plugin := &mockRoutePlugin{name: "test-plugin"}
-
-	registry.RegisterRoute(plugin)
-
-	retrieved, exists := registry.GetRoutePlugin("test-plugin")
+	retrieved, exists := registry.Get("test-plugin")
 
 	if !exists {
 		t.Fatal("expected plugin to exist")
@@ -310,10 +147,10 @@ func TestGetRoutePlugin_Exists(t *testing.T) {
 	}
 }
 
-func TestGetRoutePlugin_NotExists(t *testing.T) {
+func TestGet_NotExists(t *testing.T) {
 	registry := NewPluginRegistry()
 
-	retrieved, exists := registry.GetRoutePlugin("nonexistent")
+	retrieved, exists := registry.Get("nonexistent")
 
 	if exists {
 		t.Error("expected plugin not to exist")
@@ -324,11 +161,11 @@ func TestGetRoutePlugin_NotExists(t *testing.T) {
 	}
 }
 
-func TestGetRoutePlugin_MultiplePlugins(t *testing.T) {
+func TestGet_MultiplePlugins(t *testing.T) {
 	registry := NewPluginRegistry()
-	registry.RegisterRoute(&mockRoutePlugin{name: "plugin1"})
-	registry.RegisterRoute(&mockRoutePlugin{name: "plugin2"})
-	registry.RegisterRoute(&mockRoutePlugin{name: "plugin3"})
+	registry.Register(&mockPlugin{name: "plugin1", handler: func(c *fiber.Ctx) error { return c.Next() }})
+	registry.Register(&mockPlugin{name: "plugin2", handler: func(c *fiber.Ctx) error { return c.Next() }})
+	registry.Register(&mockPlugin{name: "plugin3", handler: func(c *fiber.Ctx) error { return c.Next() }})
 
 	tests := []struct {
 		name   string
@@ -343,7 +180,7 @@ func TestGetRoutePlugin_MultiplePlugins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plugin, exists := registry.GetRoutePlugin(tt.name)
+			plugin, exists := registry.Get(tt.name)
 			if exists != tt.exists {
 				t.Errorf("expected exists=%v, got %v", tt.exists, exists)
 			}
@@ -354,211 +191,88 @@ func TestGetRoutePlugin_MultiplePlugins(t *testing.T) {
 	}
 }
 
-func TestApplyGlobal_EmptyRegistry(t *testing.T) {
+func TestGetAll_Empty(t *testing.T) {
 	registry := NewPluginRegistry()
-	app := fiber.New()
+	plugins := registry.GetAll()
 
-	err := registry.ApplyGlobal(app)
+	if plugins == nil {
+		t.Fatal("expected non-nil map")
+	}
 
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+	if len(plugins) != 0 {
+		t.Errorf("expected 0 plugins, got %d", len(plugins))
 	}
 }
 
-func TestApplyGlobal_SinglePlugin(t *testing.T) {
+func TestGetAll_WithPlugins(t *testing.T) {
 	registry := NewPluginRegistry()
-	app := fiber.New()
+	plugin1 := &mockPlugin{name: "plugin1", handler: func(c *fiber.Ctx) error { return c.Next() }}
+	plugin2 := &mockPlugin{name: "plugin2", handler: func(c *fiber.Ctx) error { return c.Next() }}
 
-	plugin := &mockGlobalPlugin{
-		name: "test",
-		handler: func(c *fiber.Ctx) error {
-			return c.Next()
-		},
+	registry.Register(plugin1)
+	registry.Register(plugin2)
+
+	plugins := registry.GetAll()
+
+	if len(plugins) != 2 {
+		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
 
-	registry.RegisterGlobal(plugin)
-	err := registry.ApplyGlobal(app)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	if _, exists := plugins["plugin1"]; !exists {
+		t.Error("expected 'plugin1' to exist")
 	}
-}
-
-func TestApplyGlobal_MultiplePlugins(t *testing.T) {
-	registry := NewPluginRegistry()
-	app := fiber.New()
-
-	plugin1 := &mockGlobalPlugin{
-		name:    "plugin1",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
-	}
-	plugin2 := &mockGlobalPlugin{
-		name:    "plugin2",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
-	}
-
-	registry.RegisterGlobal(plugin1)
-	registry.RegisterGlobal(plugin2)
-
-	err := registry.ApplyGlobal(app)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-}
-
-func TestApplyGlobal_NilHandler(t *testing.T) {
-	registry := NewPluginRegistry()
-	app := fiber.New()
-
-	plugin := &mockGlobalPlugin{
-		name:    "nil-handler",
-		handler: nil,
-	}
-
-	registry.RegisterGlobal(plugin)
-	err := registry.ApplyGlobal(app)
-
-	if err == nil {
-		t.Fatal("expected error for nil handler")
-	}
-
-	expectedMsg := "global plugin 'nil-handler' returned nil handler"
-	if err.Error() != expectedMsg {
-		t.Errorf("expected error message '%s', got '%s'", expectedMsg, err.Error())
-	}
-}
-
-func TestApplyGlobal_FirstPluginNilHandler(t *testing.T) {
-	registry := NewPluginRegistry()
-	app := fiber.New()
-
-	plugin1 := &mockGlobalPlugin{
-		name:    "nil-plugin",
-		handler: nil,
-	}
-	plugin2 := &mockGlobalPlugin{
-		name:    "valid-plugin",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
-	}
-
-	registry.RegisterGlobal(plugin1)
-	registry.RegisterGlobal(plugin2)
-
-	err := registry.ApplyGlobal(app)
-
-	if err == nil {
-		t.Fatal("expected error for nil handler")
-	}
-
-	if err.Error() != "global plugin 'nil-plugin' returned nil handler" {
-		t.Errorf("expected error about nil-plugin, got '%s'", err.Error())
-	}
-}
-
-func TestApplyGlobal_MiddlePluginNilHandler(t *testing.T) {
-	registry := NewPluginRegistry()
-	app := fiber.New()
-
-	plugin1 := &mockGlobalPlugin{
-		name:    "valid1",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
-	}
-	plugin2 := &mockGlobalPlugin{
-		name:    "nil-handler",
-		handler: nil,
-	}
-	plugin3 := &mockGlobalPlugin{
-		name:    "valid2",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
-	}
-
-	registry.RegisterGlobal(plugin1)
-	registry.RegisterGlobal(plugin2)
-	registry.RegisterGlobal(plugin3)
-
-	err := registry.ApplyGlobal(app)
-
-	if err == nil {
-		t.Fatal("expected error for nil handler")
-	}
-
-	if err.Error() != "global plugin 'nil-handler' returned nil handler" {
-		t.Errorf("expected error about nil-handler, got '%s'", err.Error())
-	}
-}
-
-func TestApplyGlobal_PluginOrder(t *testing.T) {
-	registry := NewPluginRegistry()
-	app := fiber.New()
-
-	plugin1 := &mockGlobalPlugin{
-		name: "first",
-		handler: func(c *fiber.Ctx) error {
-			return c.Next()
-		},
-	}
-	plugin2 := &mockGlobalPlugin{
-		name: "second",
-		handler: func(c *fiber.Ctx) error {
-			return c.Next()
-		},
-	}
-	plugin3 := &mockGlobalPlugin{
-		name: "third",
-		handler: func(c *fiber.Ctx) error {
-			return c.Next()
-		},
-	}
-
-	registry.RegisterGlobal(plugin1)
-	registry.RegisterGlobal(plugin2)
-	registry.RegisterGlobal(plugin3)
-
-	err := registry.ApplyGlobal(app)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	if _, exists := plugins["plugin2"]; !exists {
+		t.Error("expected 'plugin2' to exist")
 	}
 }
 
 func TestPluginRegistry_IntegrationScenario(t *testing.T) {
 	registry := NewPluginRegistry()
 
-	globalPlugin1 := &mockGlobalPlugin{
+	logger := &mockPlugin{
 		name:    "logger",
 		handler: func(c *fiber.Ctx) error { return c.Next() },
 	}
-	globalPlugin2 := &mockGlobalPlugin{
+	cors := &mockPlugin{
 		name:    "cors",
 		handler: func(c *fiber.Ctx) error { return c.Next() },
 	}
-
-	routePlugin1 := &mockRoutePlugin{name: "auth"}
-	routePlugin2 := &mockRoutePlugin{name: "rate-limiter"}
-
-	registry.RegisterGlobal(globalPlugin1)
-	registry.RegisterGlobal(globalPlugin2)
-	registry.RegisterRoute(routePlugin1)
-	registry.RegisterRoute(routePlugin2)
-
-	if len(registry.GetGlobalPlugins()) != 2 {
-		t.Errorf("expected 2 global plugins, got %d", len(registry.GetGlobalPlugins()))
+	auth := &mockPlugin{
+		name:    "auth",
+		handler: func(c *fiber.Ctx) error { return c.Next() },
+	}
+	ratelimit := &mockPlugin{
+		name:    "ratelimit",
+		handler: func(c *fiber.Ctx) error { return c.Next() },
 	}
 
-	if len(registry.GetRoutePlugins()) != 2 {
-		t.Errorf("expected 2 route plugins, got %d", len(registry.GetRoutePlugins()))
+	registry.Register(logger)
+	registry.Register(cors)
+	registry.Register(auth)
+	registry.Register(ratelimit)
+
+	if len(registry.GetAll()) != 4 {
+		t.Errorf("expected 4 plugins, got %d", len(registry.GetAll()))
 	}
 
-	if plugin, exists := registry.GetRoutePlugin("auth"); !exists || plugin.Name() != "auth" {
+	if plugin, exists := registry.Get("auth"); !exists || plugin.Name() != "auth" {
 		t.Error("expected auth plugin to exist")
 	}
 
-	if plugin, exists := registry.GetRoutePlugin("rate-limiter"); !exists || plugin.Name() != "rate-limiter" {
-		t.Error("expected rate-limiter plugin to exist")
+	if plugin, exists := registry.Get("ratelimit"); !exists || plugin.Name() != "ratelimit" {
+		t.Error("expected ratelimit plugin to exist")
+	}
+}
+
+func TestPluginHandler_NilHandler(t *testing.T) {
+	plugin := &mockPlugin{
+		name:    "nil-handler",
+		handler: nil,
 	}
 
-	app := fiber.New()
-	if err := registry.ApplyGlobal(app); err != nil {
-		t.Errorf("expected no error applying global plugins, got %v", err)
+	handler := plugin.Handler()
+
+	if handler != nil {
+		t.Error("expected nil handler")
 	}
 }

@@ -9,7 +9,7 @@ import (
 
 type ContentTypePlugin struct{}
 
-func NewPlugin() plugin.GlobalPlugin {
+func NewPlugin() plugin.Plugin {
 	return &ContentTypePlugin{}
 }
 

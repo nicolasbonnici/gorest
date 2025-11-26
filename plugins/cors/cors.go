@@ -10,7 +10,7 @@ type CORSPlugin struct {
 	origins string
 }
 
-func NewPlugin() plugin.GlobalPlugin {
+func NewPlugin() plugin.Plugin {
 	return &CORSPlugin{
 		origins: "*",
 	}
