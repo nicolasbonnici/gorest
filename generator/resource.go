@@ -8,6 +8,23 @@ import (
 	"strings"
 )
 
+func generateRouteWithAuth(method, path, handler, resource, httpMethod string, authCfg *AuthConfig) string {
+	requiresAuth := authCfg != nil && authCfg.RequiresAuth(resource, httpMethod)
+
+	if requiresAuth {
+		return fmt.Sprintf(`
+	if authMiddleware != nil {
+		router.%s("/%s", authMiddleware, %s)
+	} else {
+		router.%s("/%s", %s)
+	}
+`, method, path, handler, method, path, handler)
+	}
+
+	return fmt.Sprintf(`	router.%s("/%s", %s)
+`, method, path, handler)
+}
+
 func generateResourceForStruct(apiDir string, structName string, authCfg *AuthConfig) {
 	resourceFile := filepath.Join(apiDir, strings.ToLower(structName)+".go")
 
@@ -30,13 +47,14 @@ func generateResourceForStruct(apiDir string, structName string, authCfg *AuthCo
 func generateResourceFromModel(structName string, fields []StructField, authCfg *AuthConfig) string {
 	resourceName := strings.ToLower(structName)
 	lowerStructName := strings.ToLower(structName)
-	pluralResourceName := pluralize(resourceName)
+	pluralResourceName := Pluralize(resourceName)
 
-	listRoute := fmt.Sprintf(`router.Get("/%s", res.List)`, pluralResourceName)
-	getRoute := fmt.Sprintf(`router.Get("/%s/:id", res.Get)`, pluralResourceName)
-	postRoute := fmt.Sprintf(`router.Post("/%s", res.Create)`, pluralResourceName)
-	putRoute := fmt.Sprintf(`router.Put("/%s/:id", res.Update)`, pluralResourceName)
-	deleteRoute := fmt.Sprintf(`router.Delete("/%s/:id", res.Delete)`, pluralResourceName)
+	// Generate routes with conditional auth middleware
+	listRoute := generateRouteWithAuth("Get", pluralResourceName, "res.List", pluralResourceName, "GET", authCfg)
+	getRoute := generateRouteWithAuth("Get", pluralResourceName+"/:id", "res.Get", pluralResourceName, "GET", authCfg)
+	postRoute := generateRouteWithAuth("Post", pluralResourceName, "res.Create", pluralResourceName, "POST", authCfg)
+	putRoute := generateRouteWithAuth("Put", pluralResourceName+"/:id", "res.Update", pluralResourceName, "PUT", authCfg)
+	deleteRoute := generateRouteWithAuth("Delete", pluralResourceName+"/:id", "res.Delete", pluralResourceName, "DELETE", authCfg)
 
 	needsAuthContext := authCfg != nil && (authCfg.RequiresAuth(pluralResourceName, "GET") ||
 		authCfg.RequiresAuth(pluralResourceName, "POST") ||
@@ -44,6 +62,16 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 		authCfg.RequiresAuth(pluralResourceName, "DELETE"))
 
 	routesSignature := "router fiber.Router, db database.Database, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry"
+
+	authMiddlewareSetup := ""
+	if needsAuthContext {
+		authMiddlewareSetup = `
+	var authMiddleware fiber.Handler
+	if authPlugin, ok := pluginRegistry.Get("auth"); ok {
+		authMiddleware = authPlugin.Handler()
+	}
+`
+	}
 
 	hasUserIdField := false
 	for _, field := range fields {
@@ -159,11 +187,7 @@ func Register%sRoutes(%s) {
 		PaginationLimit:    paginationLimit,
 		PaginationMaxLimit: paginationMaxLimit,
 	}
-	%s
-	%s
-	%s
-	%s
-	%s
+%s%s%s%s%s%s
 }
 
 %s
@@ -316,6 +340,7 @@ func (r *%sResource) Delete(c *fiber.Ctx) error {
 		structName, structName,
 		structName, routesSignature, structName,
 		crudInit,
+		authMiddlewareSetup,
 		listRoute, getRoute, postRoute, putRoute, deleteRoute,
 		conversionFuncs,
 		structName, structName, structName, pluralResourceName, structName,

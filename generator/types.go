@@ -24,7 +24,7 @@ func GoTypeToOpenAPIType(goType string) (string, string) {
 	return "string", ""
 }
 
-func pluralize(word string) string {
+func Pluralize(word string) string {
 	if strings.HasSuffix(word, "y") && !isVowel(word[len(word)-2]) {
 		return word[:len(word)-1] + "ies"
 	}
