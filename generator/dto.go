@@ -202,7 +202,7 @@ func LoadResourceDTOs() map[string]ResourceDTOs {
 		if len(dtos) > 0 {
 			resources[resourceName] = ResourceDTOs{
 				Name:       resourceName,
-				PluralName: pluralize(resourceName),
+				PluralName: Pluralize(resourceName),
 				DTOs:       dtos,
 			}
 		}

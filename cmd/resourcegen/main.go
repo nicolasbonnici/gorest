@@ -114,6 +114,10 @@ func createAuthConfigFromUnified(cfg *config.Config, tables map[string]generator
 
 	for tableName := range tables {
 		authCfg.RequireAuth[tableName] = methods
+		plural := generator.Pluralize(tableName)
+		if plural != tableName {
+			authCfg.RequireAuth[plural] = methods
+		}
 	}
 
 	return authCfg
