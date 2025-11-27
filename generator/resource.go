@@ -32,15 +32,12 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 	lowerStructName := strings.ToLower(structName)
 	pluralResourceName := pluralize(resourceName)
 
-	// All routes are generated as public by default (Answer 2B)
-	// Users must manually apply auth middleware using fiber groups
 	listRoute := fmt.Sprintf(`router.Get("/%s", res.List)`, pluralResourceName)
 	getRoute := fmt.Sprintf(`router.Get("/%s/:id", res.Get)`, pluralResourceName)
 	postRoute := fmt.Sprintf(`router.Post("/%s", res.Create)`, pluralResourceName)
 	putRoute := fmt.Sprintf(`router.Put("/%s/:id", res.Update)`, pluralResourceName)
 	deleteRoute := fmt.Sprintf(`router.Delete("/%s/:id", res.Delete)`, pluralResourceName)
 
-	// Check if auth config indicates this resource should have auth-aware handlers
 	needsAuthContext := authCfg != nil && (authCfg.RequiresAuth(pluralResourceName, "GET") ||
 		authCfg.RequiresAuth(pluralResourceName, "POST") ||
 		authCfg.RequiresAuth(pluralResourceName, "PUT") ||
