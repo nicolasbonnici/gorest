@@ -34,15 +34,17 @@ plugins:
   - name: ratelimit
     enabled: true
     config:
-      requests_per_second: 100
-      burst: 200
+      requests_per_second: 200
+      burst: 400
   - name: cors
     enabled: true
     config:
-      origins: "*"
+      origins: "http://localhost:3000"
   - name: security
     enabled: true
   - name: contenttype
+    enabled: true
+  - name: health
     enabled: true
   # Custom dummy plugin example
   - name: dummy

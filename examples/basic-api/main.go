@@ -9,6 +9,7 @@ import (
 	authplugin "github.com/nicolasbonnici/gorest/plugins/auth"
 	contenttypeplugin "github.com/nicolasbonnici/gorest/plugins/contenttype"
 	corsplugin "github.com/nicolasbonnici/gorest/plugins/cors"
+	healthplugin "github.com/nicolasbonnici/gorest/plugins/health"
 	loggerplugin "github.com/nicolasbonnici/gorest/plugins/logger"
 	ratelimitplugin "github.com/nicolasbonnici/gorest/plugins/ratelimit"
 	requestidplugin "github.com/nicolasbonnici/gorest/plugins/requestid"
@@ -23,6 +24,7 @@ func init() {
 	pluginloader.RegisterPluginFactory("ratelimit", ratelimitplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("security", securityplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("contenttype", contenttypeplugin.NewPlugin)
+	pluginloader.RegisterPluginFactory("health", healthplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
 
 	// Register custom plugins

@@ -27,3 +27,6 @@ gorest.*.yaml
 
 # bin folder mostly for benchmark
 bin
+
+# pentest
+pentest.sh
