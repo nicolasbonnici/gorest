@@ -71,7 +71,7 @@ func SetupPluginEndpoints(registry *plugin.PluginRegistry, app *fiber.App) error
 	return nil
 }
 
-func InjectSharedConfig(configs []config.PluginConfig, db database.Database) []config.PluginConfig {
+func InjectSharedConfig(configs []config.PluginConfig, db database.Database, appConfig *config.Config) []config.PluginConfig {
 	enriched := make([]config.PluginConfig, len(configs))
 	for i, cfg := range configs {
 		enrichedCfg := make(map[string]interface{})
@@ -80,6 +80,9 @@ func InjectSharedConfig(configs []config.PluginConfig, db database.Database) []c
 		}
 
 		enrichedCfg["database"] = db
+		enrichedCfg["config"] = appConfig
+		enrichedCfg["pagination_limit"] = appConfig.Pagination.DefaultLimit
+		enrichedCfg["pagination_max_limit"] = appConfig.Pagination.MaxLimit
 
 		enriched[i] = config.PluginConfig{
 			Name:    cfg.Name,
