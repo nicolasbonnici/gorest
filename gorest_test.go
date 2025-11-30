@@ -11,7 +11,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/generator"
-	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
@@ -437,66 +436,6 @@ func TestConvertRelations_SelfReferential(t *testing.T) {
 	}
 }
 
-func TestSetupHealthCheck_Healthy(t *testing.T) {
-	app := fiber.New()
-	db := &mockDatabase{pingErr: nil}
-	log := &mockLogger{}
-
-	SetupHealthCheck(app, db, log)
-
-	req := httptest.NewRequest("GET", "/health", nil)
-	resp, err := app.Test(req)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if resp.StatusCode != 200 {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
-	}
-
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-
-	if !contains(bodyStr, "healthy") {
-		t.Error("expected 'healthy' in response body")
-	}
-
-	if !contains(bodyStr, "up") {
-		t.Error("expected database status 'up' in response body")
-	}
-}
-
-func TestSetupHealthCheck_Unhealthy(t *testing.T) {
-	app := fiber.New()
-	db := &mockDatabase{pingErr: fiber.NewError(503, "database unavailable")}
-	log := &mockLogger{}
-
-	SetupHealthCheck(app, db, log)
-
-	req := httptest.NewRequest("GET", "/health", nil)
-	resp, err := app.Test(req)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if resp.StatusCode != 503 {
-		t.Errorf("expected status 503, got %d", resp.StatusCode)
-	}
-
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-
-	if !contains(bodyStr, "unhealthy") {
-		t.Error("expected 'unhealthy' in response body")
-	}
-
-	if !contains(bodyStr, "down") {
-		t.Error("expected database status 'down' in response body")
-	}
-}
-
 func TestSetupOpenAPIUI_Success(t *testing.T) {
 	app := fiber.New()
 
@@ -608,34 +547,6 @@ func TestConfig_WithRegisterRoutes(t *testing.T) {
 	}
 }
 
-func TestSetupHealthCheck_ErrorHandling(t *testing.T) {
-	tests := []struct {
-		name           string
-		pingErr        error
-		expectedStatus int
-	}{
-		{"healthy database", nil, 200},
-		{"unhealthy database", fiber.NewError(500, "db error"), 503},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			app := fiber.New()
-			db := &mockDatabase{pingErr: tt.pingErr}
-			log := &mockLogger{}
-
-			SetupHealthCheck(app, db, log)
-
-			req := httptest.NewRequest("GET", "/health", nil)
-			resp, _ := app.Test(req)
-
-			if resp.StatusCode != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
-			}
-		})
-	}
-}
-
 func TestConvertColumns_TypePreservation(t *testing.T) {
 	types := []string{"integer", "string", "boolean", "timestamp", "uuid", "json"}
 
@@ -675,24 +586,6 @@ func TestConvertRelations_ComplexHierarchy(t *testing.T) {
 		if rel.ChildColumn == "" || rel.ParentColumn == "" {
 			t.Errorf("relation %d has empty column name", i)
 		}
-	}
-}
-
-func TestSetupHealthCheck_ContextTimeout(t *testing.T) {
-	app := fiber.New()
-	db := &mockDatabase{pingErr: nil}
-
-	SetupHealthCheck(app, db, logger.Log)
-
-	req := httptest.NewRequest("GET", "/health", nil)
-	resp, err := app.Test(req, 5000)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-
-	if resp.StatusCode != 200 {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 }
 

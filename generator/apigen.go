@@ -101,14 +101,6 @@ import (
 )
 
 func RegisterGeneratedRoutes(app *fiber.App, db database.Database, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry) {
-	// Apply global middleware plugins in correct order
-	middlewareOrder := []string{"requestid", "logger", "ratelimit", "cors", "security", "contenttype"}
-	for _, pluginName := range middlewareOrder {
-		if p, ok := pluginRegistry.Get(pluginName); ok {
-			app.Use(p.Handler())
-		}
-	}
-
 %s}
 `, registrations.String())
 

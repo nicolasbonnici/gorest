@@ -49,6 +49,16 @@ func LoadPlugins(configs []config.PluginConfig, version string) (*plugin.PluginR
 	return registry, nil
 }
 
+// ApplyGlobalMiddleware applies middleware plugins to the app in the correct order
+func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
+	middlewareOrder := []string{"requestid", "logger", "ratelimit", "cors", "security", "contenttype"}
+	for _, pluginName := range middlewareOrder {
+		if p, ok := registry.Get(pluginName); ok {
+			app.Use(p.Handler())
+		}
+	}
+}
+
 // SetupPluginEndpoints calls SetupEndpoints on all plugins that implement the EndpointSetup interface
 func SetupPluginEndpoints(registry *plugin.PluginRegistry, app *fiber.App) error {
 	for _, p := range registry.GetAll() {

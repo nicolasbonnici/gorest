@@ -9,14 +9,13 @@ import (
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
-// HealthPlugin provides a secure health check endpoint with security headers
+// HealthPlugin provides a health check endpoint
 type HealthPlugin struct {
-	db      database.Database
-	version string
+	db database.Database
 }
 
 func NewPlugin() plugin.Plugin {
-	return &HealthPlugin{version: "dev"}
+	return &HealthPlugin{}
 }
 
 func (p *HealthPlugin) Name() string {
@@ -26,9 +25,6 @@ func (p *HealthPlugin) Name() string {
 func (p *HealthPlugin) Initialize(config map[string]interface{}) error {
 	if db, ok := config["database"].(database.Database); ok {
 		p.db = db
-	}
-	if version, ok := config["__version"].(string); ok {
-		p.version = version
 	}
 	return nil
 }
@@ -46,26 +42,9 @@ func (p *HealthPlugin) SetupEndpoints(app *fiber.App) error {
 	return nil
 }
 
-// healthCheckHandler creates the health check handler with security headers
+// healthCheckHandler creates the health check handler
 func (p *HealthPlugin) healthCheckHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Block TRACE method
-		if c.Method() == "TRACE" {
-			return c.Status(fiber.StatusMethodNotAllowed).JSON(fiber.Map{
-				"error": "Method not allowed",
-			})
-		}
-
-		// Apply same security headers as security plugin for consistency
-		c.Set("X-Powered-By", "GoREST/"+p.version)
-		c.Set("X-Content-Type-Options", "nosniff")
-		c.Set("X-Frame-Options", "DENY")
-		c.Set("X-XSS-Protection", "1; mode=block")
-		c.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		c.Set("Content-Security-Policy", "default-src 'self'")
-		c.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		c.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-
 		// Perform health check
 		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 		defer cancel()
