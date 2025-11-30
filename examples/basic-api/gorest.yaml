@@ -46,6 +46,8 @@ plugins:
     enabled: true
   - name: health
     enabled: true
+  - name: openapi
+    enabled: true
   # Custom dummy plugin example
   - name: dummy
     enabled: true

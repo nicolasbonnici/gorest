@@ -37,9 +37,7 @@ test-schema:
 	@psql $(DATABASE_URL) -f ../../test/sql/schema.sql
 
 generate:
-	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run ../../cmd/modelgen/main.go
-	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) yes | go run ../../cmd/resourcegen/main.go
-	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run ../../cmd/openapigen/main.go
+	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run ../../cmd/gorest-codegen/main.go all
 
 run:
 	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run .
