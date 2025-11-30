@@ -203,6 +203,8 @@ plugins:
     enabled: true
   - name: contenttype
     enabled: true
+  - name: health
+    enabled: true
   - name: auth
     enabled: true
     config:
@@ -313,8 +315,9 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 - **logger** - HTTP request/response logging
 - **ratelimit** - Per-IP rate limiting
 - **cors** - Cross-Origin Resource Sharing
-- **security** - Security headers (X-Frame-Options, CSP, etc.)
+- **security** - Security headers (X-Frame-Options, CSP, HSTS, etc.) and TRACE method blocking
 - **contenttype** - Validates Content-Type for mutations
+- **health** - Secure health check endpoint with database connectivity monitoring
 - **auth** - JWT authentication for protected routes
 
 ### Configuration
