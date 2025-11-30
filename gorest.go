@@ -95,9 +95,8 @@ func Start(cfg Config) {
 	}
 
 	SetupOpenAPIUI(app)
-	SetupHealthCheck(app, db, logger.Log)
 
-	// Setup endpoints for any plugins that implement EndpointSetup interface (e.g. auth plugin /login)
+	// Setup endpoints for any plugins that implement EndpointSetup interface (e.g. auth /login, health /health)
 	if err := pluginloader.SetupPluginEndpoints(pluginRegistry, app); err != nil {
 		logger.Log.Error("Failed to setup plugin endpoints", "error", err)
 		os.Exit(1)
@@ -210,29 +209,6 @@ func FindProjectRoot() (string, error) {
 		}
 		dir = parent
 	}
-}
-
-func SetupHealthCheck(app *fiber.App, db database.Database, logger interface{ Error(string, ...interface{}) }) {
-	app.Get("/health", func(c *fiber.Ctx) error {
-		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
-		defer cancel()
-
-		if err := db.Ping(ctx); err != nil {
-			return c.Status(503).JSON(fiber.Map{
-				"status": "unhealthy",
-				"database": fiber.Map{
-					"status": "down",
-				},
-			})
-		}
-
-		return c.JSON(fiber.Map{
-			"status": "healthy",
-			"database": fiber.Map{
-				"status": "up",
-			},
-		})
-	})
 }
 
 func SetupOpenAPIUI(app *fiber.App) {

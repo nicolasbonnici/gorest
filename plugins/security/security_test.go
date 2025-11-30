@@ -415,7 +415,7 @@ func TestSecurityPlugin_Handler_HeadersPresent(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_NoContentSecurityPolicy(t *testing.T) {
+func TestSecurityPlugin_Handler_BlocksTRACEMethod(t *testing.T) {
 	plugin := &SecurityPlugin{version: "1.0.0"}
 	handler := plugin.Handler()
 
@@ -425,12 +425,20 @@ func TestSecurityPlugin_Handler_NoContentSecurityPolicy(t *testing.T) {
 		return c.SendString("ok")
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
+	// Test that TRACE method is blocked
+	req := httptest.NewRequest("TRACE", "/test", nil)
 	resp, _ := app.Test(req)
 
-	csp := resp.Header.Get("Content-Security-Policy")
-	if csp != "" {
-		t.Errorf("did not expect Content-Security-Policy header, got '%s'", csp)
+	if resp.StatusCode != 405 {
+		t.Errorf("expected status 405 for TRACE method, got %d", resp.StatusCode)
+	}
+
+	// Test that normal methods work
+	req = httptest.NewRequest("GET", "/test", nil)
+	resp, _ = app.Test(req)
+
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200 for GET method, got %d", resp.StatusCode)
 	}
 }
 
