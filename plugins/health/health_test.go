@@ -80,8 +80,7 @@ func TestHealthPlugin_Initialize(t *testing.T) {
 	plugin := NewPlugin().(*HealthPlugin)
 
 	config := map[string]interface{}{
-		"database":   &mockDatabase{},
-		"__version": "1.0.0",
+		"database": &mockDatabase{},
 	}
 
 	err := plugin.Initialize(config)
@@ -89,9 +88,8 @@ func TestHealthPlugin_Initialize(t *testing.T) {
 		t.Errorf("Initialize failed: %v", err)
 	}
 
-	// Check version was set
-	if plugin.version != "1.0.0" {
-		t.Errorf("expected version '1.0.0', got '%s'", plugin.version)
+	if plugin.db == nil {
+		t.Error("expected database to be set")
 	}
 }
 
@@ -101,8 +99,7 @@ func TestHealthPlugin_HealthCheckWithDatabase(t *testing.T) {
 
 	// Initialize with healthy database
 	config := map[string]interface{}{
-		"database":   &mockDatabase{pingError: nil},
-		"__version": "test",
+		"database": &mockDatabase{pingError: nil},
 	}
 	plugin.Initialize(config)
 	plugin.SetupEndpoints(app)
@@ -116,30 +113,12 @@ func TestHealthPlugin_HealthCheckWithDatabase(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
-
-	// Check security headers
-	headers := []string{
-		"X-Content-Type-Options",
-		"X-Frame-Options",
-		"X-Xss-Protection",
-		"Strict-Transport-Security",
-		"Content-Security-Policy",
-		"Referrer-Policy",
-		"Permissions-Policy",
-	}
-
-	for _, header := range headers {
-		if value := resp.Header.Get(header); value == "" {
-			t.Errorf("security header '%s' not set", header)
-		}
-	}
 }
 
 func TestHealthPlugin_HealthCheckDatabaseDown(t *testing.T) {
 	app := fiber.New()
 	plugin := &HealthPlugin{
-		db:      &mockDatabase{pingError: errors.New("connection failed")},
-		version: "test",
+		db: &mockDatabase{pingError: errors.New("connection failed")},
 	}
 	plugin.SetupEndpoints(app)
 
@@ -159,9 +138,7 @@ func TestHealthPlugin_HealthCheckNoDatabase(t *testing.T) {
 	plugin := NewPlugin().(*HealthPlugin)
 
 	// Initialize without database
-	config := map[string]interface{}{
-		"__version": "test",
-	}
+	config := map[string]interface{}{}
 	plugin.Initialize(config)
 	plugin.SetupEndpoints(app)
 
@@ -176,23 +153,3 @@ func TestHealthPlugin_HealthCheckNoDatabase(t *testing.T) {
 	}
 }
 
-func TestHealthPlugin_TraceMethodBlocked(t *testing.T) {
-	app := fiber.New()
-	plugin := NewPlugin().(*HealthPlugin)
-
-	config := map[string]interface{}{
-		"__version": "test",
-	}
-	plugin.Initialize(config)
-	plugin.SetupEndpoints(app)
-
-	req := httptest.NewRequest("TRACE", "/health", nil)
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("request failed: %v", err)
-	}
-
-	if resp.StatusCode != 405 {
-		t.Errorf("expected status 405 for TRACE method, got %d", resp.StatusCode)
-	}
-}

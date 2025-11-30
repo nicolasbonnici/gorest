@@ -96,6 +96,10 @@ func Start(cfg Config) {
 
 	SetupOpenAPIUI(app)
 
+	// Apply global middleware before setting up any endpoints (including plugin endpoints)
+	// This ensures all endpoints, including /health and /login, are protected by security middleware
+	pluginloader.ApplyGlobalMiddleware(pluginRegistry, app)
+
 	// Setup endpoints for any plugins that implement EndpointSetup interface (e.g. auth /login, health /health)
 	if err := pluginloader.SetupPluginEndpoints(pluginRegistry, app); err != nil {
 		logger.Log.Error("Failed to setup plugin endpoints", "error", err)
