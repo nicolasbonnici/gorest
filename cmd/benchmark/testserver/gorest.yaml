@@ -31,6 +31,8 @@ plugins:
     enabled: true
   - name: logger
     enabled: false
+  - name: health
+    enabled: true
   - name: cors
     enabled: true
     config:

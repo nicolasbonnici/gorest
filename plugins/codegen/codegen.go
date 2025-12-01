@@ -4,9 +4,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/generator"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/plugins/codegen/generator"
+	"github.com/nicolasbonnici/gorest/pluginloader"
 )
+
+func init() {
+	pluginloader.RegisterPluginFactory("codegen", NewPlugin)
+}
 
 // CodegenPlugin provides code generation commands for models, resources, DTOs, and OpenAPI schemas
 type CodegenPlugin struct {
