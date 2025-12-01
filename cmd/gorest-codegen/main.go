@@ -10,7 +10,9 @@ import (
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 	"github.com/nicolasbonnici/gorest/plugin"
-	"github.com/nicolasbonnici/gorest/plugins/codegen"
+	_ "github.com/nicolasbonnici/gorest/plugins/benchmark"
+	_ "github.com/nicolasbonnici/gorest/plugins/codegen"
+	"github.com/nicolasbonnici/gorest/pluginloader"
 )
 
 func main() {
@@ -34,27 +36,22 @@ func main() {
 	}
 	defer db.Close()
 
-	// Create codegen plugin
-	codegenPlugin := codegen.NewPlugin()
-
-	// Initialize plugin
-	pluginConfig := map[string]interface{}{
-		"database": db,
-		"config":   cfg,
-	}
-	if err := codegenPlugin.Initialize(pluginConfig); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize codegen plugin: %v\n", err)
+	// Load all registered command plugins via auto-discovery
+	plugins, err := pluginloader.LoadAllCommandPlugins(db, cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load plugins: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Get commands from plugin
-	commandProvider, ok := codegenPlugin.(plugin.CommandProvider)
-	if !ok {
-		fmt.Fprintf(os.Stderr, "Codegen plugin does not provide commands\n")
-		os.Exit(1)
+	// Aggregate all commands from all plugins
+	var commands []plugin.Command
+	for _, p := range plugins {
+		commandProvider, ok := p.(plugin.CommandProvider)
+		if ok {
+			commands = append(commands, commandProvider.Commands()...)
+		}
 	}
 
-	commands := commandProvider.Commands()
 	commandName := os.Args[1]
 
 	// Find and execute the requested command
@@ -98,9 +95,11 @@ func printUsage() {
 	fmt.Println("  resources   Generate REST API resources and DTOs from models")
 	fmt.Println("  openapi     Generate OpenAPI schema file")
 	fmt.Println("  all         Run all code generation steps")
+	fmt.Println("  benchmark   Run API performance benchmarks")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  gorest-codegen models")
 	fmt.Println("  gorest-codegen resources")
 	fmt.Println("  gorest-codegen all")
+	fmt.Println("  gorest-codegen benchmark")
 }

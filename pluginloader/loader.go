@@ -92,3 +92,26 @@ func InjectSharedConfig(configs []config.PluginConfig, db database.Database, app
 	}
 	return enriched
 }
+
+// LoadAllCommandPlugins loads all registered plugins and returns those that implement CommandProvider
+func LoadAllCommandPlugins(db database.Database, cfg *config.Config) ([]plugin.Plugin, error) {
+	var commandPlugins []plugin.Plugin
+
+	pluginConfig := map[string]interface{}{
+		"database": db,
+		"config":   cfg,
+	}
+
+	for name, factory := range pluginFactories {
+		p := factory()
+		if err := p.Initialize(pluginConfig); err != nil {
+			return nil, fmt.Errorf("failed to initialize plugin '%s': %w", name, err)
+		}
+
+		if _, ok := p.(plugin.CommandProvider); ok {
+			commandPlugins = append(commandPlugins, p)
+		}
+	}
+
+	return commandPlugins, nil
+}

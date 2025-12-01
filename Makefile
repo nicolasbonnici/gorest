@@ -9,11 +9,11 @@ DB_TEST_CONTAINER=gorest_db_test
 .PHONY: help
 help:
 	@echo "Usage:"
-	@echo "  make modelgen        - Generate models from database schema"
-	@echo "  make resourcegen     - Generate API resources from models (interactive)"
-	@echo "  make resourcegen ARGS=-y - Generate resources non-interactively (auto-yes)"
-	@echo "  make openapigen      - Generate OpenAPI schema"
-	@echo "  make generate        - Run all code generation (models + resources + openapi)"
+	@echo "  make codegen         - Run all code generation (models + resources + openapi)"
+	@echo "  make codegen-models  - Generate models from database schema"
+	@echo "  make codegen-resources - Generate API resources from models"
+	@echo "  make codegen-openapi - Generate OpenAPI schema"
+	@echo "  make generate        - Alias for codegen"
 	@echo "  make test            - Run Go tests"
 	@echo "  make test-coverage   - Run Go tests with coverage report"
 	@echo "  make benchmark       - Benchmark resource generation (1, 10, 100, 1000 tables)"
@@ -30,28 +30,28 @@ tidy:
 # ----------------------------
 # Code generation targets
 # ----------------------------
-.PHONY: modelgen
-modelgen:
+.PHONY: codegen
+codegen:
+	@echo "[INFO] Running all code generation..."
+	@go run ./cmd/gorest-codegen/main.go all
+
+.PHONY: codegen-models
+codegen-models:
 	@echo "[INFO] Generating models from database schema..."
-	go run ./cmd/modelgen/main.go
+	@go run ./cmd/gorest-codegen/main.go models
 
-.PHONY: resourcegen
-resourcegen:
+.PHONY: codegen-resources
+codegen-resources:
 	@echo "[INFO] Generating API resources from models..."
-	go run ./cmd/resourcegen/main.go $(ARGS)
+	@go run ./cmd/gorest-codegen/main.go resources
 
-.PHONY: openapigen
-openapigen:
+.PHONY: codegen-openapi
+codegen-openapi:
 	@echo "[INFO] Generating OpenAPI schema..."
-	go run ./cmd/openapigen/main.go
+	@go run ./cmd/gorest-codegen/main.go openapi
 
 .PHONY: generate
-generate: modelgen
-	@echo "[INFO] Generating API resources from models..."
-	@go run ./cmd/resourcegen/main.go -y
-	@echo "[INFO] Generating OpenAPI schema..."
-	@go run ./cmd/openapigen/main.go
-	@echo "[INFO] All code generation completed successfully"
+generate: codegen
 
 # ----------------------------
 # Test targets
@@ -76,14 +76,14 @@ test-schema:
 
 test-generate:
 	@echo "[INFO] Code generation for tests..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
+	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen
 	@echo "[INFO] Code generation for tests completed"
 
 test: test-up test-schema test-generate
 	@echo "[INFO] Running Go tests..."
 	@export $$(grep -v '^#' test/.env.test | xargs) && go test -tags=integration -v -timeout=5m ./...
 	@echo "[INFO] Restoring auth-enabled resources after tests..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) resourcegen ARGS=-y >/dev/null 2>&1
+	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen-resources >/dev/null 2>&1
 
 .PHONY: test-coverage
 test-coverage: test-up test-schema test-generate
@@ -98,12 +98,12 @@ test-coverage: test-up test-schema test-generate
 	@echo "========================================="
 	@go tool cover -func=coverage/coverage.out | grep total | awk '{print "\n📊 Total Coverage: " $$3 "\n"}'
 	@echo "[INFO] Restoring auth-enabled resources after tests..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) resourcegen ARGS=-y >/dev/null 2>&1
+	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen-resources >/dev/null 2>&1
 
 .PHONY: ci-setup
 ci-setup: test-up test-schema
 	@echo "[INFO] Generating code for CI..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) modelgen && $(MAKE) resourcegen ARGS=-y && $(MAKE) openapigen
+	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen
 	@echo "[INFO] CI setup complete - database and generated code ready"
 
 # ----------------------------
@@ -111,4 +111,4 @@ ci-setup: test-up test-schema
 # ----------------------------
 .PHONY: benchmark
 benchmark: test-up test-schema
-	@export $$(grep -v '^#' test/.env.test | xargs) && go run ./cmd/benchmark/main.go
+	@export $$(grep -v '^#' test/.env.test | xargs) && go run ./cmd/gorest-codegen/main.go benchmark
