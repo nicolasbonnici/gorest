@@ -33,22 +33,22 @@ tidy:
 .PHONY: codegen
 codegen:
 	@echo "[INFO] Running all code generation..."
-	@go run ./cmd/gorest-codegen/main.go all
+	@go run ./cmd/codegen/main.go all
 
 .PHONY: codegen-models
 codegen-models:
 	@echo "[INFO] Generating models from database schema..."
-	@go run ./cmd/gorest-codegen/main.go models
+	@go run ./cmd/codegen/main.go models
 
 .PHONY: codegen-resources
 codegen-resources:
 	@echo "[INFO] Generating API resources from models..."
-	@go run ./cmd/gorest-codegen/main.go resources
+	@go run ./cmd/codegen/main.go resources
 
 .PHONY: codegen-openapi
 codegen-openapi:
 	@echo "[INFO] Generating OpenAPI schema..."
-	@go run ./cmd/gorest-codegen/main.go openapi
+	@go run ./cmd/codegen/main.go openapi
 
 .PHONY: generate
 generate: codegen
@@ -111,4 +111,4 @@ ci-setup: test-up test-schema
 # ----------------------------
 .PHONY: benchmark
 benchmark: test-up test-schema
-	@export $$(grep -v '^#' test/.env.test | xargs) && go run ./cmd/gorest-codegen/main.go benchmark
+	@export $$(grep -v '^#' test/.env.test | xargs) && go run ./cmd/codegen/main.go benchmark
