@@ -19,10 +19,6 @@ gorest.*.yaml
 !gorest.yaml.example
 !gorest.test.yaml
 
-# Commands
-cmd/
-!cmd/codegen/
-
 # Test environment variables
 /test/.env.test
 
