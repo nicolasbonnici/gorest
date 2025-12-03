@@ -227,7 +227,8 @@ func TestInjectSharedConfig(t *testing.T) {
 		},
 	}
 
-	enriched := InjectSharedConfig(configs, mockDB)
+	appConfig := &config.Config{}
+	enriched := InjectSharedConfig(configs, mockDB, appConfig)
 
 	if len(enriched) != 2 {
 		t.Fatalf("Expected 2 enriched configs, got %d", len(enriched))
@@ -265,7 +266,8 @@ func TestInjectSharedConfig_EmptyConfig(t *testing.T) {
 		},
 	}
 
-	enriched := InjectSharedConfig(configs, mockDB)
+	appConfig := &config.Config{}
+	enriched := InjectSharedConfig(configs, mockDB, appConfig)
 
 	if len(enriched) != 1 {
 		t.Fatalf("Expected 1 enriched config, got %d", len(enriched))
