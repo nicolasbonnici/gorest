@@ -156,7 +156,7 @@ func (c *BenchmarkCommand) Run(ctx *plugin.CommandContext) *plugin.CommandResult
 		ctx.ProgressCallback("Building API server...")
 	}
 
-	cmd := exec.Command("go", "build", "-o", "./bin/benchmark-server", "./cmd/benchmark/testserver/main.go")
+	cmd := exec.Command("go", "build", "-o", "./bin/benchmark-server", "./plugins/benchmark/testserver/main.go")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
