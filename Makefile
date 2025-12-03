@@ -111,4 +111,4 @@ ci-setup: test-up test-schema
 # ----------------------------
 .PHONY: benchmark
 benchmark: test-up test-schema
-	@export $$(grep -v '^#' test/.env.test | xargs) && go run ./cmd/codegen/main.go benchmark
+	@export $$(grep -v '^#' test/.env.test | xargs) && go run ./cmd/benchmark/main.go
