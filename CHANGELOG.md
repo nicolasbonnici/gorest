@@ -5,16 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - 2025-12-05
+## [0.3.0] - 2025-11-27
 
 ### Breaking Changes
 - **Plugin Architecture**: Complete restructuring to modular plugin system
   - Moved codegen functionality from plugin to core `/generator` library
-  - Removed codegen plugin directory entirely
   - All core features now available as optional plugins
 - **Code Generation**:
   - Renamed `cmd/gorest-codegen` → `cmd/codegen`
-  - Commands now inline in CLI (no longer using plugin pattern for codegen)
   - Benchmark command moved to separate CLI in benchmark plugin
 
 ### Added
@@ -78,7 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenAPI function visibility (moved to plugin)
 
 ### Removed
-- Codegen plugin directory (`plugins/codegen/`)
 - Obsolete test files for moved functions (`gorest_test.go`)
 
 ## [0.2.0] - 2025-11-07
