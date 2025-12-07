@@ -77,8 +77,16 @@ func modelsCommand(db database.Database) error {
 }
 
 func resourcesCommand(db database.Database) error {
+	progress("Loading configuration...")
+	cfg, err := config.Load(".")
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	progress("Building authentication configuration...")
+	authCfg := generator.GetAuthConfigFromConfig(cfg)
+
 	progress("Generating API resources...")
-	authCfg := generator.DefaultAuthConfig()
 	generator.GenerateAPI(authCfg)
 
 	progress("Resources generated successfully")
