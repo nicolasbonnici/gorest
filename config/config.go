@@ -1,13 +1,18 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Config struct {
-	Generate   GenerateConfig   `yaml:"generate"`
-	Server     ServerConfig     `yaml:"server"`
-	Database   DatabaseConfig   `yaml:"database"`
-	Pagination PaginationConfig `yaml:"pagination"`
-	Plugins    PluginsConfig    `yaml:"plugins"`
+	Generate     GenerateConfig   `yaml:"generate"`
+	Server       ServerConfig     `yaml:"server"`
+	Database     DatabaseConfig   `yaml:"database"`
+	Pagination   PaginationConfig `yaml:"pagination"`
+	Plugins      PluginsConfig    `yaml:"plugins"`
+	Resources    []ResourceConfig `yaml:"resources"`
+	AuthDefaults map[string]bool  `yaml:"auth_defaults"` // New: top-level auth defaults
 }
 
 type PluginsConfig []PluginConfig
@@ -33,7 +38,12 @@ type OutputConfig struct {
 
 type GenAuthConfig struct {
 	Enabled   bool                `yaml:"enabled"`
-	Endpoints AuthEndpointsConfig `yaml:"endpoints"`
+	Default   DefaultAuthConfig   `yaml:"default"`
+	Endpoints AuthEndpointsConfig `yaml:"endpoints"` // Legacy support
+}
+
+type DefaultAuthConfig struct {
+	Methods map[string]bool `yaml:"methods"`
 }
 
 type AuthEndpointsConfig struct {
@@ -42,6 +52,11 @@ type AuthEndpointsConfig struct {
 	Create bool `yaml:"create"`
 	Update bool `yaml:"update"`
 	Delete bool `yaml:"delete"`
+}
+
+type ResourceConfig struct {
+	Name string          `yaml:"name"`
+	Auth map[string]bool `yaml:"auth"` // Flattened: auth: { GET: true, POST: false }
 }
 
 type ServerConfig struct {
@@ -100,6 +115,55 @@ func (c *Config) Validate() error {
 	}
 	if c.Generate.Output.DTOs == "" {
 		return fmt.Errorf("generate.output.dtos is required")
+	}
+
+	// Validate resources configuration
+	resourceNames := make(map[string]bool)
+	validMethods := map[string]bool{
+		"GET": true, "POST": true, "PUT": true, "DELETE": true, "PATCH": true,
+	}
+
+	for i, resource := range c.Resources {
+		// Normalize name to lowercase
+		c.Resources[i].Name = strings.ToLower(resource.Name)
+		normalizedName := c.Resources[i].Name
+
+		if normalizedName == "" {
+			return fmt.Errorf("resource[%d]: name cannot be empty", i)
+		}
+
+		// Check for duplicates
+		if resourceNames[normalizedName] {
+			return fmt.Errorf("duplicate resource name: %s", normalizedName)
+		}
+		resourceNames[normalizedName] = true
+
+		// Validate and normalize HTTP methods in flattened format
+		for method := range resource.Auth {
+			upperMethod := strings.ToUpper(method)
+			if !validMethods[upperMethod] {
+				return fmt.Errorf("resource '%s': unsupported HTTP method '%s' (supported: GET, POST, PUT, DELETE, PATCH)",
+					normalizedName, method)
+			}
+			// Normalize method to uppercase
+			if method != upperMethod {
+				c.Resources[i].Auth[upperMethod] = resource.Auth[method]
+				delete(c.Resources[i].Auth, method)
+			}
+		}
+	}
+
+	// Validate auth_defaults if specified
+	for method := range c.AuthDefaults {
+		upperMethod := strings.ToUpper(method)
+		if !validMethods[upperMethod] {
+			return fmt.Errorf("auth_defaults: unsupported HTTP method '%s' (supported: GET, POST, PUT, DELETE, PATCH)", method)
+		}
+		// Normalize method to uppercase
+		if method != upperMethod {
+			c.AuthDefaults[upperMethod] = c.AuthDefaults[method]
+			delete(c.AuthDefaults, method)
+		}
 	}
 
 	return nil

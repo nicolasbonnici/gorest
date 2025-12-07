@@ -7,12 +7,6 @@ generate:
     config: "generated/config"
   auth:
     enabled: true
-    endpoints:
-      list: true
-      get: true
-      create: true
-      update: true
-      delete: true
 
 server:
   port: 3000
@@ -24,6 +18,14 @@ database:
 pagination:
   default_limit: 10
   max_limit: 1000
+
+# Top-level auth defaults (applied to all resources unless overridden)
+# Secure by default - all methods require auth unless explicitly set to false
+auth_defaults:
+  GET: true
+  POST: true
+  PUT: true
+  DELETE: true
 
 # Plugin system configuration (unified)
 plugins:
@@ -58,3 +60,20 @@ plugins:
     config:
       jwt_secret: "${JWT_SECRET}"
       jwt_ttl: 900
+
+# Per-resource authentication configuration
+# Each resource can override the auth_defaults for specific methods
+resources:
+  - name: users
+    auth:
+      GET: false      # Public read (override default)
+      POST: true      # Protected create
+      PUT: true       # Protected update
+      DELETE: true    # Protected delete
+
+  - name: todos
+    auth:
+      GET: true       # Protected read
+      POST: true      # Protected create
+      PUT: true       # Protected update
+      DELETE: true    # Protected delete
