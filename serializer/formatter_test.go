@@ -1,4 +1,4 @@
-package formatter
+package serializer
 
 import (
 	"encoding/json"
@@ -11,17 +11,17 @@ type TestModel struct {
 	Title string `json:"title"`
 }
 
-func TestJSONFormatter(t *testing.T) {
-	formatter := &JSONFormatter{}
+func TestJSONSerializer(t *testing.T) {
+	serializer := &JSONSerializer{}
 
 	data := TestModel{
 		ID:    "1",
 		Title: "Test Item",
 	}
 
-	result, err := formatter.Format(data, "/testmodels")
+	result, err := serializer.Serialize(data, "/testmodels")
 	if err != nil {
-		t.Fatalf("JSON formatting failed: %v", err)
+		t.Fatalf("JSON serialization failed: %v", err)
 	}
 
 	var decoded map[string]interface{}
@@ -37,22 +37,22 @@ func TestJSONFormatter(t *testing.T) {
 		t.Errorf("Expected title='Test Item', got %v", decoded["title"])
 	}
 
-	if formatter.ContentType() != "application/json" {
-		t.Errorf("Expected content type application/json, got %s", formatter.ContentType())
+	if serializer.ContentType() != "application/json" {
+		t.Errorf("Expected content type application/json, got %s", serializer.ContentType())
 	}
 }
 
-func TestJSONLDFormatterSingleItem(t *testing.T) {
-	formatter := &JSONLDFormatter{}
+func TestJSONLDSerializerSingleItem(t *testing.T) {
+	serializer := &JSONLDSerializer{}
 
 	data := TestModel{
 		ID:    "1",
 		Title: "Test Item",
 	}
 
-	result, err := formatter.Format(data, "/testmodels")
+	result, err := serializer.Serialize(data, "/testmodels")
 	if err != nil {
-		t.Fatalf("JSON-LD formatting failed: %v", err)
+		t.Fatalf("JSON-LD serialization failed: %v", err)
 	}
 
 	var decoded map[string]interface{}
@@ -81,22 +81,22 @@ func TestJSONLDFormatterSingleItem(t *testing.T) {
 		t.Errorf("Expected title='Test Item', got %v", decoded["title"])
 	}
 
-	if formatter.ContentType() != "application/ld+json" {
-		t.Errorf("Expected content type application/ld+json, got %s", formatter.ContentType())
+	if serializer.ContentType() != "application/ld+json" {
+		t.Errorf("Expected content type application/ld+json, got %s", serializer.ContentType())
 	}
 }
 
-func TestJSONLDFormatterCollection(t *testing.T) {
-	formatter := &JSONLDFormatter{}
+func TestJSONLDSerializerCollection(t *testing.T) {
+	serializer := &JSONLDSerializer{}
 
 	data := []TestModel{
 		{ID: "1", Title: "First"},
 		{ID: "2", Title: "Second"},
 	}
 
-	result, err := formatter.Format(data, "/testmodels")
+	result, err := serializer.Serialize(data, "/testmodels")
 	if err != nil {
-		t.Fatalf("JSON-LD formatting failed: %v", err)
+		t.Fatalf("JSON-LD serialization failed: %v", err)
 	}
 
 	var decoded map[string]interface{}
@@ -135,8 +135,8 @@ func TestJSONLDFormatterCollection(t *testing.T) {
 	}
 }
 
-func TestJSONLDFormatterWithIDInPath(t *testing.T) {
-	formatter := &JSONLDFormatter{}
+func TestJSONLDSerializerWithIDInPath(t *testing.T) {
+	serializer := &JSONLDSerializer{}
 
 	data := TestModel{
 		ID:    "0199da00-8bde-7611-a4a6-1e3df90e95ce",
@@ -144,9 +144,9 @@ func TestJSONLDFormatterWithIDInPath(t *testing.T) {
 	}
 
 	// Path already contains the ID (like when getting a single item by ID)
-	result, err := formatter.Format(data, "/todos/0199da00-8bde-7611-a4a6-1e3df90e95ce")
+	result, err := serializer.Serialize(data, "/todos/0199da00-8bde-7611-a4a6-1e3df90e95ce")
 	if err != nil {
-		t.Fatalf("JSON-LD formatting failed: %v", err)
+		t.Fatalf("JSON-LD serialization failed: %v", err)
 	}
 
 	var decoded map[string]interface{}
@@ -164,8 +164,8 @@ func TestJSONLDFormatterWithIDInPath(t *testing.T) {
 	}
 }
 
-func TestJSONLDFormatterWithTrailingSlash(t *testing.T) {
-	formatter := &JSONLDFormatter{}
+func TestJSONLDSerializerWithTrailingSlash(t *testing.T) {
+	serializer := &JSONLDSerializer{}
 
 	data := TestModel{
 		ID:    "0199da00-8bde-7611-a4a6-1e3df90e95ce",
@@ -173,9 +173,9 @@ func TestJSONLDFormatterWithTrailingSlash(t *testing.T) {
 	}
 
 	// Path with trailing slash (common issue)
-	result, err := formatter.Format(data, "/todos/")
+	result, err := serializer.Serialize(data, "/todos/")
 	if err != nil {
-		t.Fatalf("JSON-LD formatting failed: %v", err)
+		t.Fatalf("JSON-LD serialization failed: %v", err)
 	}
 
 	var decoded map[string]interface{}
@@ -193,7 +193,7 @@ func TestJSONLDFormatterWithTrailingSlash(t *testing.T) {
 	}
 }
 
-func TestGetFormatter(t *testing.T) {
+func TestGetSerializer(t *testing.T) {
 	tests := []struct {
 		format           string
 		expectedJSON     bool
@@ -208,12 +208,12 @@ func TestGetFormatter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.format, func(t *testing.T) {
-			formatter := GetFormatter(tt.format)
-			if formatter == nil {
-				t.Fatal("Formatter should not be nil")
+			serializer := GetSerializer(tt.format)
+			if serializer == nil {
+				t.Fatal("Serializer should not be nil")
 			}
 
-			contentType := formatter.ContentType()
+			contentType := serializer.ContentType()
 			if contentType != tt.expectedContentType {
 				t.Errorf("Expected content type %s, got %s", tt.expectedContentType, contentType)
 			}
@@ -226,7 +226,7 @@ func TestGetFormatter(t *testing.T) {
 	}
 }
 
-func TestJSONLDFormatterForeignKeyIRI(t *testing.T) {
+func TestJSONLDSerializerForeignKeyIRI(t *testing.T) {
 	type Todo struct {
 		ID      string `json:"id"`
 		UserID  string `json:"userId"`
@@ -234,7 +234,7 @@ func TestJSONLDFormatterForeignKeyIRI(t *testing.T) {
 		Content string `json:"content"`
 	}
 
-	formatter := &JSONLDFormatter{}
+	serializer := &JSONLDSerializer{}
 	todo := Todo{
 		ID:      "todo-123",
 		UserID:  "user-456",
@@ -242,9 +242,9 @@ func TestJSONLDFormatterForeignKeyIRI(t *testing.T) {
 		Content: "Test Content",
 	}
 
-	output, err := formatter.Format(todo, "/todos")
+	output, err := serializer.Serialize(todo, "/todos")
 	if err != nil {
-		t.Fatalf("Failed to format: %v", err)
+		t.Fatalf("Failed to serialize: %v", err)
 	}
 
 	var result map[string]interface{}

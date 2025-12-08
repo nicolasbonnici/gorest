@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/formatter"
 	"github.com/nicolasbonnici/gorest/response"
+	"github.com/nicolasbonnici/gorest/serializer"
 )
 
 type HydraView struct {
@@ -131,7 +131,7 @@ func formatItems(items interface{}, path string, format string) interface{} {
 		return items
 	}
 
-	f := formatter.GetFormatter(format)
+	s := serializer.GetSerializer(format)
 	formattedItems := make([]interface{}, val.Len())
 
 	for i := 0; i < val.Len(); i++ {
@@ -141,7 +141,7 @@ func formatItems(items interface{}, path string, format string) interface{} {
 		json.Unmarshal(jsonBytes, &itemMap)
 
 		if format == "jsonld" {
-			formattedItems[i] = f.(*formatter.JSONLDFormatter).AddTypeToItemExported(item, path)
+			formattedItems[i] = s.(*serializer.JSONLDSerializer).AddTypeToItemExported(item, path)
 		} else {
 			formattedItems[i] = itemMap
 		}

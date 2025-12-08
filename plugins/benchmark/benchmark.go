@@ -11,7 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/database"
-	"github.com/nicolasbonnici/gorest/generator"
+	"github.com/nicolasbonnici/gorest/codegen"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/pluginloader"
 )
@@ -145,11 +145,11 @@ func (c *BenchmarkCommand) Run(ctx *plugin.CommandContext) *plugin.CommandResult
 		ctx.ProgressCallback("Generating models and resources...")
 	}
 
-	tables := generator.LoadSchema(c.plugin.db)
-	generator.GenerateStructs(tables)
+	tables := codegen.LoadSchema(c.plugin.db)
+	codegen.GenerateStructs(tables)
 
-	authCfg := generator.DefaultAuthConfig()
-	generator.GenerateAPI(authCfg)
+	authCfg := codegen.DefaultAuthConfig()
+	codegen.GenerateAPI(authCfg)
 
 	// Build and start API server
 	if ctx.ProgressCallback != nil {

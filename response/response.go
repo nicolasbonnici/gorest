@@ -4,19 +4,19 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/formatter"
+	"github.com/nicolasbonnici/gorest/serializer"
 )
 
 func SendFormatted(c *fiber.Ctx, statusCode int, data interface{}) error {
 	format := DetermineFormat(c)
-	f := formatter.GetFormatter(format)
+	s := serializer.GetSerializer(format)
 
-	formatted, err := f.Format(data, c.Path())
+	formatted, err := s.Serialize(data, c.Path())
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to format response"})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to serialize response"})
 	}
 
-	c.Set("Content-Type", f.ContentType())
+	c.Set("Content-Type", s.ContentType())
 	return c.Status(statusCode).Send(formatted)
 }
 
