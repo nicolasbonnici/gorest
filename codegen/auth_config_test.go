@@ -1,4 +1,4 @@
-package generator
+package codegen
 
 import (
 	"testing"
@@ -10,9 +10,17 @@ import (
 
 func TestGetAuthConfigFromNewAuthDefaults(t *testing.T) {
 	cfg := &config.Config{
-		Generate: config.GenerateConfig{
+		Codegen: config.CodegenConfig{
 			Auth: config.GenAuthConfig{
 				Enabled: true,
+			},
+			Endpoints: []config.EndpointConfig{
+				{
+					Name: "users",
+					Auth: map[string]bool{
+						"GET": false, // Explicit in new format
+					},
+				},
 			},
 		},
 		AuthDefaults: map[string]bool{
@@ -20,14 +28,6 @@ func TestGetAuthConfigFromNewAuthDefaults(t *testing.T) {
 			"POST":   true,
 			"PUT":    true,
 			"DELETE": true,
-		},
-		Resources: []config.ResourceConfig{
-			{
-				Name: "users",
-				Auth: map[string]bool{
-					"GET": false, // Explicit in new format
-				},
-			},
 		},
 	}
 
@@ -52,9 +52,20 @@ func TestGetAuthConfigFromNewAuthDefaults(t *testing.T) {
 
 func TestGetAuthConfigNewFormatFlattenedAuth(t *testing.T) {
 	cfg := &config.Config{
-		Generate: config.GenerateConfig{
+		Codegen: config.CodegenConfig{
 			Auth: config.GenAuthConfig{
 				Enabled: true,
+			},
+			Endpoints: []config.EndpointConfig{
+				{
+					Name: "products",
+					Auth: map[string]bool{
+						"GET":    false,
+						"POST":   true,
+						"PUT":    true,
+						"DELETE": true,
+					},
+				},
 			},
 		},
 		AuthDefaults: map[string]bool{
@@ -62,17 +73,6 @@ func TestGetAuthConfigNewFormatFlattenedAuth(t *testing.T) {
 			"POST":   true,
 			"PUT":    true,
 			"DELETE": true,
-		},
-		Resources: []config.ResourceConfig{
-			{
-				Name: "products",
-				Auth: map[string]bool{
-					"GET":    false, // Public read
-					"POST":   true,  // Protected write
-					"PUT":    true,
-					"DELETE": true,
-				},
-			},
 		},
 	}
 
@@ -88,9 +88,17 @@ func TestGetAuthConfigNewFormatFlattenedAuth(t *testing.T) {
 
 func TestGetAuthConfigWithDefaultPublicGet(t *testing.T) {
 	cfg := &config.Config{
-		Generate: config.GenerateConfig{
+		Codegen: config.CodegenConfig{
 			Auth: config.GenAuthConfig{
 				Enabled: true,
+			},
+			Endpoints: []config.EndpointConfig{
+				{
+					Name: "products",
+					Auth: map[string]bool{
+						"POST": true, // Only override POST
+					},
+				},
 			},
 		},
 		AuthDefaults: map[string]bool{
@@ -98,15 +106,6 @@ func TestGetAuthConfigWithDefaultPublicGet(t *testing.T) {
 			"POST":   true,
 			"PUT":    true,
 			"DELETE": true,
-		},
-		Resources: []config.ResourceConfig{
-			{
-				Name: "products",
-				Auth: map[string]bool{
-					// Only override POST, others inherit from default
-					"POST": true,
-				},
-			},
 		},
 	}
 
@@ -136,17 +135,16 @@ func TestGetAuthConfigWithDefaultPublicGet(t *testing.T) {
 func TestGetAuthConfigSecureByDefault(t *testing.T) {
 	// No auth_defaults specified - should default to true for all
 	cfg := &config.Config{
-		Generate: config.GenerateConfig{
+		Codegen: config.CodegenConfig{
 			Auth: config.GenAuthConfig{
 				Enabled: true,
 			},
-		},
-		Resources: []config.ResourceConfig{
-			{
-				Name: "orders",
-				Auth: map[string]bool{
-					// Only specify GET
-					"GET": false,
+			Endpoints: []config.EndpointConfig{
+				{
+					Name: "orders",
+					Auth: map[string]bool{
+						"GET": false, // Only specify GET
+					},
 				},
 			},
 		},
@@ -171,64 +169,11 @@ func TestGetAuthConfigSecureByDefault(t *testing.T) {
 	}
 }
 
-func TestGetAuthConfigLegacyBackwardCompat(t *testing.T) {
-	cfg := &config.Config{
-		Generate: config.GenerateConfig{
-			Auth: config.GenAuthConfig{
-				Enabled: true,
-				Endpoints: config.AuthEndpointsConfig{
-					List:   false,
-					Get:    false,
-					Create: true,
-					Update: true,
-					Delete: true,
-				},
-			},
-		},
-		Resources: nil, // No new-style config
-	}
-
-	authCfg := GetAuthConfigFromConfig(cfg)
-
-	// Should work for any resource in legacy mode (uses wildcard)
-	if authCfg.RequiresAuth("users", "GET") {
-		t.Error("Expected GET to be public in legacy mode")
-	}
-	if !authCfg.RequiresAuth("users", "POST") {
-		t.Error("Expected POST to require auth in legacy mode")
-	}
-	if !authCfg.RequiresAuth("users", "PUT") {
-		t.Error("Expected PUT to require auth in legacy mode")
-	}
-	if !authCfg.RequiresAuth("users", "DELETE") {
-		t.Error("Expected DELETE to require auth in legacy mode")
-	}
-
-	// Same for different resource
-	if authCfg.RequiresAuth("todos", "GET") {
-		t.Error("Expected GET to be public in legacy mode")
-	}
-	if !authCfg.RequiresAuth("todos", "POST") {
-		t.Error("Expected POST to require auth in legacy mode")
-	}
-}
-
 func TestGetAuthConfigDisabled(t *testing.T) {
 	cfg := &config.Config{
-		Generate: config.GenerateConfig{
+		Codegen: config.CodegenConfig{
 			Auth: config.GenAuthConfig{
 				Enabled: false,
-			},
-		},
-		Resources: []config.ResourceConfig{
-			{
-				Name: "users",
-				Auth: map[string]bool{
-					"GET":    true,
-					"POST":   true,
-					"PUT":    true,
-					"DELETE": true,
-				},
 			},
 		},
 	}
@@ -246,16 +191,16 @@ func TestGetAuthConfigDisabled(t *testing.T) {
 
 func TestGetAuthConfigResourceNotInConfig(t *testing.T) {
 	cfg := &config.Config{
-		Generate: config.GenerateConfig{
+		Codegen: config.CodegenConfig{
 			Auth: config.GenAuthConfig{
 				Enabled: true,
 			},
-		},
-		Resources: []config.ResourceConfig{
-			{
-				Name: "users",
-				Auth: map[string]bool{
-					"GET": false,
+			Endpoints: []config.EndpointConfig{
+				{
+					Name: "users",
+					Auth: map[string]bool{
+						"GET": false,
+					},
 				},
 			},
 		},
@@ -274,9 +219,32 @@ func TestGetAuthConfigResourceNotInConfig(t *testing.T) {
 
 func TestGetAuthConfigMultipleResources(t *testing.T) {
 	cfg := &config.Config{
-		Generate: config.GenerateConfig{
+		Codegen: config.CodegenConfig{
 			Auth: config.GenAuthConfig{
 				Enabled: true,
+			},
+			Endpoints: []config.EndpointConfig{
+				{
+					Name: "users",
+					Auth: map[string]bool{
+						"GET": false,
+					},
+				},
+				{
+					Name: "orders",
+					Auth: map[string]bool{
+						"GET":    true,
+						"POST":   true,
+						"PUT":    true,
+						"DELETE": true,
+					},
+				},
+				{
+					Name: "products",
+					Auth: map[string]bool{
+						"GET": false,
+					},
+				},
 			},
 		},
 		AuthDefaults: map[string]bool{
@@ -284,29 +252,6 @@ func TestGetAuthConfigMultipleResources(t *testing.T) {
 			"POST":   true,
 			"PUT":    true,
 			"DELETE": true,
-		},
-		Resources: []config.ResourceConfig{
-			{
-				Name: "users",
-				Auth: map[string]bool{
-					"GET": false,
-				},
-			},
-			{
-				Name: "orders",
-				Auth: map[string]bool{
-					"GET":    true, // Override: private
-					"POST":   true,
-					"PUT":    true,
-					"DELETE": true,
-				},
-			},
-			{
-				Name: "products",
-				Auth: map[string]bool{
-					"GET": false,
-				},
-			},
 		},
 	}
 

@@ -1,4 +1,4 @@
-package formatter
+package serializer
 
 import (
 	"encoding/json"
@@ -7,45 +7,45 @@ import (
 	"strings"
 )
 
-type ResponseFormatter interface {
-	Format(data interface{}, path string) ([]byte, error)
+type ResponseSerializer interface {
+	Serialize(data interface{}, path string) ([]byte, error)
 	ContentType() string
 }
 
-func GetFormatter(format string) ResponseFormatter {
+func GetSerializer(format string) ResponseSerializer {
 	switch format {
 	case "json":
-		return &JSONFormatter{}
+		return &JSONSerializer{}
 	case "jsonld", "json-ld":
-		return &JSONLDFormatter{}
+		return &JSONLDSerializer{}
 	default:
 		// JSON-LD is the default
-		return &JSONLDFormatter{}
+		return &JSONLDSerializer{}
 	}
 }
 
-type JSONFormatter struct{}
+type JSONSerializer struct{}
 
-func (f *JSONFormatter) Format(data interface{}, path string) ([]byte, error) {
+func (s *JSONSerializer) Serialize(data interface{}, path string) ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func (f *JSONFormatter) ContentType() string {
+func (s *JSONSerializer) ContentType() string {
 	return "application/json"
 }
 
-type JSONLDFormatter struct{}
+type JSONLDSerializer struct{}
 
-func (f *JSONLDFormatter) Format(data interface{}, path string) ([]byte, error) {
-	wrapped := f.wrapWithContext(data, path)
+func (s *JSONLDSerializer) Serialize(data interface{}, path string) ([]byte, error) {
+	wrapped := s.wrapWithContext(data, path)
 	return json.Marshal(wrapped)
 }
 
-func (f *JSONLDFormatter) ContentType() string {
+func (s *JSONLDSerializer) ContentType() string {
 	return "application/ld+json"
 }
 
-func (f *JSONLDFormatter) wrapWithContext(data interface{}, path string) map[string]interface{} {
+func (s *JSONLDSerializer) wrapWithContext(data interface{}, path string) map[string]interface{} {
 	result := map[string]interface{}{
 		"@context": "https://schema.org/",
 	}
@@ -54,24 +54,24 @@ func (f *JSONLDFormatter) wrapWithContext(data interface{}, path string) map[str
 	if val.Kind() == reflect.Slice {
 		items := make([]interface{}, val.Len())
 		for i := 0; i < val.Len(); i++ {
-			items[i] = f.addTypeToItem(val.Index(i).Interface(), path)
+			items[i] = s.addTypeToItem(val.Index(i).Interface(), path)
 		}
 		result["@graph"] = items
 		return result
 	}
 
-	item := f.addTypeToItem(data, path)
+	item := s.addTypeToItem(data, path)
 	for k, v := range item {
 		result[k] = v
 	}
 	return result
 }
 
-func (f *JSONLDFormatter) AddTypeToItemExported(data interface{}, path string) map[string]interface{} {
-	return f.addTypeToItem(data, path)
+func (s *JSONLDSerializer) AddTypeToItemExported(data interface{}, path string) map[string]interface{} {
+	return s.addTypeToItem(data, path)
 }
 
-func (f *JSONLDFormatter) addTypeToItem(data interface{}, path string) map[string]interface{} {
+func (s *JSONLDSerializer) addTypeToItem(data interface{}, path string) map[string]interface{} {
 	jsonBytes, _ := json.Marshal(data)
 	var itemMap map[string]interface{}
 	json.Unmarshal(jsonBytes, &itemMap)
@@ -80,7 +80,7 @@ func (f *JSONLDFormatter) addTypeToItem(data interface{}, path string) map[strin
 		itemMap = make(map[string]interface{})
 	}
 
-	typeName := f.inferSchemaType(data)
+	typeName := s.inferSchemaType(data)
 	if typeName != "" {
 		itemMap["@type"] = typeName
 	}
@@ -113,7 +113,7 @@ func (f *JSONLDFormatter) addTypeToItem(data interface{}, path string) map[strin
 	return itemMap
 }
 
-func (f *JSONLDFormatter) inferSchemaType(data interface{}) string {
+func (s *JSONLDSerializer) inferSchemaType(data interface{}) string {
 	return reflect.TypeOf(data).Name()
 }
 

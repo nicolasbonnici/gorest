@@ -104,20 +104,20 @@ func interpolateString(s string) string {
 func mergeConfigs(base, override *Config) *Config {
 	result := *base
 
-	if override.Generate.Output.Models != "" {
-		result.Generate.Output.Models = override.Generate.Output.Models
+	if override.Codegen.Output.Models != "" {
+		result.Codegen.Output.Models = override.Codegen.Output.Models
 	}
-	if override.Generate.Output.Resources != "" {
-		result.Generate.Output.Resources = override.Generate.Output.Resources
+	if override.Codegen.Output.Resources != "" {
+		result.Codegen.Output.Resources = override.Codegen.Output.Resources
 	}
-	if override.Generate.Output.DTOs != "" {
-		result.Generate.Output.DTOs = override.Generate.Output.DTOs
+	if override.Codegen.Output.DTOs != "" {
+		result.Codegen.Output.DTOs = override.Codegen.Output.DTOs
 	}
-	if override.Generate.Output.OpenAPI != "" {
-		result.Generate.Output.OpenAPI = override.Generate.Output.OpenAPI
+	if override.Codegen.Output.OpenAPI != "" {
+		result.Codegen.Output.OpenAPI = override.Codegen.Output.OpenAPI
 	}
-	if override.Generate.Output.Config != "" {
-		result.Generate.Output.Config = override.Generate.Output.Config
+	if override.Codegen.Output.Config != "" {
+		result.Codegen.Output.Config = override.Codegen.Output.Config
 	}
 
 	if override.Server.Port != 0 {

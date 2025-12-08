@@ -259,7 +259,7 @@ go get github.com/nicolasbonnici/gorest@latest
 | `crud` | Type-safe CRUD operations with hooks |
 | `database` | Multi-database abstraction |
 | `filter` | Query filtering & ordering |
-| `formatter` | JSON-LD response formatting |
+| `serializer` | JSON-LD response serialization |
 | `hooks` | Lifecycle hooks for business logic |
 | `plugin` | Plugin interfaces (core only - no implementations) |
 | `pluginloader` | Plugin factory registration system |
@@ -648,7 +648,7 @@ gorest/
 │   ├── mysql/
 │   └── sqlite/
 ├── filter/                 # Query filtering
-├── formatter/              # JSON-LD formatting
+├── serializer/             # JSON-LD serialization
 ├── generator/              # Code generation
 ├── health/                 # Health check endpoint
 ├── hooks/                  # Lifecycle hooks
