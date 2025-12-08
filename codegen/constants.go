@@ -1,4 +1,4 @@
-package generator
+package codegen
 
 const (
 	FieldID        = "id"

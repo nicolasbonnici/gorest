@@ -9,7 +9,7 @@ import (
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
-	"github.com/nicolasbonnici/gorest/generator"
+	"github.com/nicolasbonnici/gorest/codegen"
 )
 
 func main() {
@@ -66,10 +66,10 @@ func main() {
 
 func modelsCommand(db database.Database) error {
 	progress("Loading database schema...")
-	tables := generator.LoadSchema(db)
+	tables := codegen.LoadSchema(db)
 
 	progress("Generating model structs...")
-	generator.GenerateStructs(tables)
+	codegen.GenerateStructs(tables)
 
 	progress("Models generated successfully")
 	fmt.Println("Model generation completed successfully")
@@ -84,10 +84,10 @@ func resourcesCommand(db database.Database) error {
 	}
 
 	progress("Building authentication configuration...")
-	authCfg := generator.GetAuthConfigFromConfig(cfg)
+	authCfg := codegen.GetAuthConfigFromConfig(cfg)
 
 	progress("Generating API resources...")
-	generator.GenerateAPI(authCfg)
+	codegen.GenerateAPI(authCfg)
 
 	progress("Resources generated successfully")
 	fmt.Println("Resource generation completed successfully")
@@ -96,8 +96,8 @@ func resourcesCommand(db database.Database) error {
 
 func openapiCommand(db database.Database) error {
 	progress("Generating OpenAPI schema...")
-	tables := generator.LoadSchema(db)
-	generator.GenerateOpenAPI(tables)
+	tables := codegen.LoadSchema(db)
+	codegen.GenerateOpenAPI(tables)
 
 	progress("OpenAPI schema generated successfully")
 	fmt.Println("OpenAPI generation completed successfully")

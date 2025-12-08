@@ -1,4 +1,4 @@
-generate:
+codegen:
   output:
     models: "generated/models"
     resources: "generated/resources"
@@ -7,6 +7,19 @@ generate:
     config: "generated/config"
   auth:
     enabled: true
+  endpoints:
+    - name: users
+      auth:
+        GET: false      # Public read
+        POST: true      # Protected create
+        PUT: true       # Protected update
+        DELETE: true    # Protected delete
+    - name: todos
+      auth:
+        GET: true       # Protected read
+        POST: true      # Protected create
+        PUT: true       # Protected update
+        DELETE: true    # Protected delete
 
 server:
   port: 3000
@@ -19,7 +32,7 @@ pagination:
   default_limit: 10
   max_limit: 1000
 
-# Top-level auth defaults (applied to all resources unless overridden)
+# Top-level auth defaults (applied to all endpoints unless overridden)
 # Secure by default - all methods require auth unless explicitly set to false
 auth_defaults:
   GET: true
@@ -60,20 +73,3 @@ plugins:
     config:
       jwt_secret: "${JWT_SECRET}"
       jwt_ttl: 900
-
-# Per-resource authentication configuration
-# Each resource can override the auth_defaults for specific methods
-resources:
-  - name: users
-    auth:
-      GET: false      # Public read (override default)
-      POST: true      # Protected create
-      PUT: true       # Protected update
-      DELETE: true    # Protected delete
-
-  - name: todos
-    auth:
-      GET: true       # Protected read
-      POST: true      # Protected create
-      PUT: true       # Protected update
-      DELETE: true    # Protected delete

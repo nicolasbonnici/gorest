@@ -1,4 +1,4 @@
-package generator
+package codegen
 
 import (
 	"bufio"
@@ -24,7 +24,7 @@ func GetModelsPath(cfg *config.Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(projectRoot, cfg.Generate.Output.Models), nil
+	return filepath.Join(projectRoot, cfg.Codegen.Output.Models), nil
 }
 
 func GetResourcesPath(cfg *config.Config) (string, error) {
@@ -32,7 +32,7 @@ func GetResourcesPath(cfg *config.Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(projectRoot, cfg.Generate.Output.Resources), nil
+	return filepath.Join(projectRoot, cfg.Codegen.Output.Resources), nil
 }
 
 func GetDTOsPath(cfg *config.Config) (string, error) {
@@ -40,7 +40,7 @@ func GetDTOsPath(cfg *config.Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(projectRoot, cfg.Generate.Output.DTOs), nil
+	return filepath.Join(projectRoot, cfg.Codegen.Output.DTOs), nil
 }
 
 func GetOpenAPIPath(cfg *config.Config) (string, error) {
@@ -48,7 +48,7 @@ func GetOpenAPIPath(cfg *config.Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(projectRoot, cfg.Generate.Output.OpenAPI), nil
+	return filepath.Join(projectRoot, cfg.Codegen.Output.OpenAPI), nil
 }
 
 func GetConfigPath(cfg *config.Config) (string, error) {
@@ -56,7 +56,7 @@ func GetConfigPath(cfg *config.Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(projectRoot, cfg.Generate.Output.Config), nil
+	return filepath.Join(projectRoot, cfg.Codegen.Output.Config), nil
 }
 
 func GetRoutesPath(cfg *config.Config) (string, error) {
@@ -64,7 +64,7 @@ func GetRoutesPath(cfg *config.Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(projectRoot, cfg.Generate.Output.Resources, "routes.go"), nil
+	return filepath.Join(projectRoot, cfg.Codegen.Output.Resources, "routes.go"), nil
 }
 
 func getModuleName() string {

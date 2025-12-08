@@ -1,4 +1,4 @@
-package generator
+package codegen
 
 import (
 	"github.com/nicolasbonnici/gorest/config"
@@ -12,52 +12,46 @@ type AuthConfig struct {
 }
 
 // GetAuthConfigFromConfig creates an AuthConfig from the unified config
-// Supports both new per-resource config and legacy global config
 func GetAuthConfigFromConfig(cfg *config.Config) *AuthConfig {
 	ac := &AuthConfig{
-		Enabled:     cfg.Generate.Auth.Enabled,
+		Enabled:     cfg.Codegen.Auth.Enabled,
 		RequireAuth: make(map[string][]string),
 	}
 
 	// If auth is not enabled in config, return empty auth config
-	if !cfg.Generate.Auth.Enabled {
+	if !cfg.Codegen.Auth.Enabled {
 		return ac
 	}
 
-	// NEW: Use per-resource config if available
-	if len(cfg.Resources) > 0 {
-		return buildAuthFromResources(cfg)
-	}
-
-	// LEGACY: Fall back to old generate.auth.endpoints config
-	return buildAuthFromLegacyConfig(cfg)
+	// Build auth config from endpoints
+	return buildAuthFromEndpoints(cfg)
 }
 
-// buildAuthFromResources creates auth config from the resources-based configuration
-func buildAuthFromResources(cfg *config.Config) *AuthConfig {
+// buildAuthFromEndpoints creates auth config from the endpoints configuration
+func buildAuthFromEndpoints(cfg *config.Config) *AuthConfig {
 	ac := &AuthConfig{
-		Enabled:     cfg.Generate.Auth.Enabled,
+		Enabled:     cfg.Codegen.Auth.Enabled,
 		RequireAuth: make(map[string][]string),
 	}
 
 	// Get default methods from auth_defaults
 	defaultMethods := getDefaultMethods(cfg)
 
-	for _, resource := range cfg.Resources {
-		resourceName := resource.Name
+	for _, endpoint := range cfg.Codegen.Endpoints {
+		endpointName := endpoint.Name
 		var requiredAuthMethods []string
 
 		// Standard HTTP methods to check
 		standardMethods := []string{"GET", "POST", "PUT", "DELETE"}
 
 		for _, method := range standardMethods {
-			requireAuth := shouldRequireAuth(method, resource.Auth, defaultMethods)
+			requireAuth := shouldRequireAuth(method, endpoint.Auth, defaultMethods)
 			if requireAuth {
 				requiredAuthMethods = append(requiredAuthMethods, method)
 			}
 		}
 
-		ac.RequireAuth[resourceName] = requiredAuthMethods
+		ac.RequireAuth[endpointName] = requiredAuthMethods
 	}
 
 	return ac
@@ -102,48 +96,6 @@ func shouldRequireAuth(method string, resourceMethods map[string]bool, defaultMe
 	return true
 }
 
-// buildAuthFromLegacyConfig creates auth config from old generate.auth.endpoints
-func buildAuthFromLegacyConfig(cfg *config.Config) *AuthConfig {
-	ac := &AuthConfig{
-		Enabled:     cfg.Generate.Auth.Enabled,
-		RequireAuth: make(map[string][]string),
-	}
-
-	var methods []string
-
-	// Build list of methods that require auth based on config
-	if cfg.Generate.Auth.Endpoints.List {
-		methods = append(methods, "GET")
-	}
-	if cfg.Generate.Auth.Endpoints.Get {
-		// GET is already added for List, no need to duplicate
-	}
-	if cfg.Generate.Auth.Endpoints.Create {
-		methods = append(methods, "POST")
-	}
-	if cfg.Generate.Auth.Endpoints.Update {
-		methods = append(methods, "PUT")
-	}
-	if cfg.Generate.Auth.Endpoints.Delete {
-		methods = append(methods, "DELETE")
-	}
-
-	// Deduplicate GET if needed
-	uniqueMethods := make(map[string]bool)
-	for _, m := range methods {
-		uniqueMethods[m] = true
-	}
-
-	finalMethods := make([]string, 0, len(uniqueMethods))
-	for m := range uniqueMethods {
-		finalMethods = append(finalMethods, m)
-	}
-
-	// In legacy mode, use wildcard for all resources
-	ac.RequireAuth["*"] = finalMethods
-	return ac
-}
-
 // DefaultAuthConfig returns a configuration that requires auth for all CRUD operations
 // This is kept for backwards compatibility with tests
 func DefaultAuthConfig() *AuthConfig {
@@ -172,13 +124,8 @@ func (c *AuthConfig) RequiresAuth(resource, method string) bool {
 		return false
 	}
 
-	// Try specific resource first
+	// Get methods for this resource
 	methods, ok := c.RequireAuth[resource]
-
-	// Fallback to wildcard (legacy mode)
-	if !ok {
-		methods, ok = c.RequireAuth["*"]
-	}
 
 	// If resource not in config, default to secure (require auth)
 	if !ok {

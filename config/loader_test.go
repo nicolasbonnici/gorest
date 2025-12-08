@@ -366,7 +366,7 @@ func TestMergeConfigs(t *testing.T) {
 		Plugins: PluginsConfig{
 			{Name: "cors", Enabled: true},
 		},
-		Generate: GenerateConfig{
+		Codegen: CodegenConfig{
 			Output: OutputConfig{
 				Models:    "models",
 				Resources: "resources",

@@ -6,13 +6,12 @@ import (
 )
 
 type Config struct {
-	Generate     GenerateConfig   `yaml:"generate"`
+	Codegen      CodegenConfig    `yaml:"codegen"`
 	Server       ServerConfig     `yaml:"server"`
 	Database     DatabaseConfig   `yaml:"database"`
 	Pagination   PaginationConfig `yaml:"pagination"`
 	Plugins      PluginsConfig    `yaml:"plugins"`
-	Resources    []ResourceConfig `yaml:"resources"`
-	AuthDefaults map[string]bool  `yaml:"auth_defaults"` // New: top-level auth defaults
+	AuthDefaults map[string]bool  `yaml:"auth_defaults"`
 }
 
 type PluginsConfig []PluginConfig
@@ -23,9 +22,10 @@ type PluginConfig struct {
 	Config  map[string]interface{} `yaml:"config"`
 }
 
-type GenerateConfig struct {
-	Output OutputConfig  `yaml:"output"`
-	Auth   GenAuthConfig `yaml:"auth"`
+type CodegenConfig struct {
+	Output    OutputConfig     `yaml:"output"`
+	Auth      GenAuthConfig    `yaml:"auth"`
+	Endpoints []EndpointConfig `yaml:"endpoints"`
 }
 
 type OutputConfig struct {
@@ -37,24 +37,10 @@ type OutputConfig struct {
 }
 
 type GenAuthConfig struct {
-	Enabled   bool                `yaml:"enabled"`
-	Default   DefaultAuthConfig   `yaml:"default"`
-	Endpoints AuthEndpointsConfig `yaml:"endpoints"` // Legacy support
+	Enabled bool `yaml:"enabled"`
 }
 
-type DefaultAuthConfig struct {
-	Methods map[string]bool `yaml:"methods"`
-}
-
-type AuthEndpointsConfig struct {
-	List   bool `yaml:"list"`
-	Get    bool `yaml:"get"`
-	Create bool `yaml:"create"`
-	Update bool `yaml:"update"`
-	Delete bool `yaml:"delete"`
-}
-
-type ResourceConfig struct {
+type EndpointConfig struct {
 	Name string          `yaml:"name"`
 	Auth map[string]bool `yaml:"auth"` // Flattened: auth: { GET: true, POST: false }
 }
@@ -107,48 +93,48 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("server.port must be between 1 and 65535")
 	}
 
-	if c.Generate.Output.Models == "" {
-		return fmt.Errorf("generate.output.models is required")
+	if c.Codegen.Output.Models == "" {
+		return fmt.Errorf("codegen.output.models is required")
 	}
-	if c.Generate.Output.Resources == "" {
-		return fmt.Errorf("generate.output.resources is required")
+	if c.Codegen.Output.Resources == "" {
+		return fmt.Errorf("codegen.output.resources is required")
 	}
-	if c.Generate.Output.DTOs == "" {
-		return fmt.Errorf("generate.output.dtos is required")
+	if c.Codegen.Output.DTOs == "" {
+		return fmt.Errorf("codegen.output.dtos is required")
 	}
 
-	// Validate resources configuration
-	resourceNames := make(map[string]bool)
+	// Validate endpoints configuration
+	endpointNames := make(map[string]bool)
 	validMethods := map[string]bool{
 		"GET": true, "POST": true, "PUT": true, "DELETE": true, "PATCH": true,
 	}
 
-	for i, resource := range c.Resources {
+	for i, endpoint := range c.Codegen.Endpoints {
 		// Normalize name to lowercase
-		c.Resources[i].Name = strings.ToLower(resource.Name)
-		normalizedName := c.Resources[i].Name
+		c.Codegen.Endpoints[i].Name = strings.ToLower(endpoint.Name)
+		normalizedName := c.Codegen.Endpoints[i].Name
 
 		if normalizedName == "" {
-			return fmt.Errorf("resource[%d]: name cannot be empty", i)
+			return fmt.Errorf("codegen.endpoints[%d]: name cannot be empty", i)
 		}
 
 		// Check for duplicates
-		if resourceNames[normalizedName] {
-			return fmt.Errorf("duplicate resource name: %s", normalizedName)
+		if endpointNames[normalizedName] {
+			return fmt.Errorf("duplicate endpoint name: %s", normalizedName)
 		}
-		resourceNames[normalizedName] = true
+		endpointNames[normalizedName] = true
 
 		// Validate and normalize HTTP methods in flattened format
-		for method := range resource.Auth {
+		for method := range endpoint.Auth {
 			upperMethod := strings.ToUpper(method)
 			if !validMethods[upperMethod] {
-				return fmt.Errorf("resource '%s': unsupported HTTP method '%s' (supported: GET, POST, PUT, DELETE, PATCH)",
+				return fmt.Errorf("endpoint '%s': unsupported HTTP method '%s' (supported: GET, POST, PUT, DELETE, PATCH)",
 					normalizedName, method)
 			}
 			// Normalize method to uppercase
 			if method != upperMethod {
-				c.Resources[i].Auth[upperMethod] = resource.Auth[method]
-				delete(c.Resources[i].Auth, method)
+				c.Codegen.Endpoints[i].Auth[upperMethod] = endpoint.Auth[method]
+				delete(c.Codegen.Endpoints[i].Auth, method)
 			}
 		}
 	}
@@ -184,19 +170,19 @@ func (c *Config) SetDefaults() {
 		c.Pagination.MaxLimit = 1000
 	}
 
-	if c.Generate.Output.Models == "" {
-		c.Generate.Output.Models = "generated/models"
+	if c.Codegen.Output.Models == "" {
+		c.Codegen.Output.Models = "generated/models"
 	}
-	if c.Generate.Output.Resources == "" {
-		c.Generate.Output.Resources = "generated/resources"
+	if c.Codegen.Output.Resources == "" {
+		c.Codegen.Output.Resources = "generated/resources"
 	}
-	if c.Generate.Output.DTOs == "" {
-		c.Generate.Output.DTOs = "generated/dtos"
+	if c.Codegen.Output.DTOs == "" {
+		c.Codegen.Output.DTOs = "generated/dtos"
 	}
-	if c.Generate.Output.OpenAPI == "" {
-		c.Generate.Output.OpenAPI = "generated/openapi"
+	if c.Codegen.Output.OpenAPI == "" {
+		c.Codegen.Output.OpenAPI = "generated/openapi"
 	}
-	if c.Generate.Output.Config == "" {
-		c.Generate.Output.Config = "generated/config"
+	if c.Codegen.Output.Config == "" {
+		c.Codegen.Output.Config = "generated/config"
 	}
 }

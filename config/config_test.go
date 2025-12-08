@@ -9,7 +9,7 @@ func TestValidate_MissingDatabaseURL(t *testing.T) {
 	cfg := &Config{
 		Server:     ServerConfig{Port: 3000},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-		Generate: GenerateConfig{
+		Codegen: CodegenConfig{
 			Output: OutputConfig{
 				Models:    "models",
 				Resources: "resources",
@@ -44,7 +44,7 @@ func TestValidate_InvalidPort(t *testing.T) {
 				Server:     ServerConfig{Port: tt.port},
 				Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 				Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-				Generate: GenerateConfig{
+				Codegen: CodegenConfig{
 					Output: OutputConfig{
 						Models:    "models",
 						Resources: "resources",
@@ -74,7 +74,7 @@ func TestValidate_ValidPort(t *testing.T) {
 				Server:     ServerConfig{Port: port},
 				Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 				Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-				Generate: GenerateConfig{
+				Codegen: CodegenConfig{
 					Output: OutputConfig{
 						Models:    "models",
 						Resources: "resources",
@@ -128,7 +128,7 @@ func TestValidate_AuthPluginJWTSecret(t *testing.T) {
 				Server:     ServerConfig{Port: 3000},
 				Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 				Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-				Generate: GenerateConfig{
+				Codegen: CodegenConfig{
 					Output: OutputConfig{
 						Models:    "models",
 						Resources: "resources",
@@ -168,7 +168,7 @@ func TestValidate_AuthPluginDisabled(t *testing.T) {
 		Server:     ServerConfig{Port: 3000},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-		Generate: GenerateConfig{
+		Codegen: CodegenConfig{
 			Output: OutputConfig{
 				Models:    "models",
 				Resources: "resources",
@@ -197,7 +197,7 @@ func TestValidate_AuthPluginMissingSecret(t *testing.T) {
 		Server:     ServerConfig{Port: 3000},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-		Generate: GenerateConfig{
+		Codegen: CodegenConfig{
 			Output: OutputConfig{
 				Models:    "models",
 				Resources: "resources",
@@ -249,7 +249,7 @@ func TestValidate_PaginationLimits(t *testing.T) {
 					DefaultLimit: tt.defaultLimit,
 					MaxLimit:     tt.maxLimit,
 				},
-				Generate: GenerateConfig{
+				Codegen: CodegenConfig{
 					Output: OutputConfig{
 						Models:    "models",
 						Resources: "resources",
@@ -283,9 +283,9 @@ func TestValidate_MissingGenerateOutputPaths(t *testing.T) {
 		dtos      string
 		errMsg    string
 	}{
-		{"missing models", "", "resources", "dtos", "generate.output.models"},
-		{"missing resources", "models", "", "dtos", "generate.output.resources"},
-		{"missing dtos", "models", "resources", "", "generate.output.dtos"},
+		{"missing models", "", "resources", "dtos", "codegen.output.models"},
+		{"missing resources", "models", "", "dtos", "codegen.output.resources"},
+		{"missing dtos", "models", "resources", "", "codegen.output.dtos"},
 	}
 
 	for _, tt := range tests {
@@ -294,7 +294,7 @@ func TestValidate_MissingGenerateOutputPaths(t *testing.T) {
 				Server:     ServerConfig{Port: 3000},
 				Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 				Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-				Generate: GenerateConfig{
+				Codegen: CodegenConfig{
 					Output: OutputConfig{
 						Models:    tt.models,
 						Resources: tt.resources,
@@ -328,7 +328,7 @@ func TestValidate_Success(t *testing.T) {
 			DefaultLimit: 10,
 			MaxLimit:     100,
 		},
-		Generate: GenerateConfig{
+		Codegen: CodegenConfig{
 			Output: OutputConfig{
 				Models:    "models",
 				Resources: "resources",
@@ -364,24 +364,24 @@ func TestSetDefaults(t *testing.T) {
 		t.Errorf("Expected max pagination limit 1000, got %d", cfg.Pagination.MaxLimit)
 	}
 
-	if cfg.Generate.Output.Models != "generated/models" {
-		t.Errorf("Expected default models path, got %s", cfg.Generate.Output.Models)
+	if cfg.Codegen.Output.Models != "generated/models" {
+		t.Errorf("Expected default models path, got %s", cfg.Codegen.Output.Models)
 	}
 
-	if cfg.Generate.Output.Resources != "generated/resources" {
-		t.Errorf("Expected default resources path, got %s", cfg.Generate.Output.Resources)
+	if cfg.Codegen.Output.Resources != "generated/resources" {
+		t.Errorf("Expected default resources path, got %s", cfg.Codegen.Output.Resources)
 	}
 
-	if cfg.Generate.Output.DTOs != "generated/dtos" {
-		t.Errorf("Expected default dtos path, got %s", cfg.Generate.Output.DTOs)
+	if cfg.Codegen.Output.DTOs != "generated/dtos" {
+		t.Errorf("Expected default dtos path, got %s", cfg.Codegen.Output.DTOs)
 	}
 
-	if cfg.Generate.Output.OpenAPI != "generated/openapi" {
-		t.Errorf("Expected default openapi path, got %s", cfg.Generate.Output.OpenAPI)
+	if cfg.Codegen.Output.OpenAPI != "generated/openapi" {
+		t.Errorf("Expected default openapi path, got %s", cfg.Codegen.Output.OpenAPI)
 	}
 
-	if cfg.Generate.Output.Config != "generated/config" {
-		t.Errorf("Expected default config path, got %s", cfg.Generate.Output.Config)
+	if cfg.Codegen.Output.Config != "generated/config" {
+		t.Errorf("Expected default config path, got %s", cfg.Codegen.Output.Config)
 	}
 }
 
@@ -395,7 +395,7 @@ func TestSetDefaults_PreservesExistingValues(t *testing.T) {
 			DefaultLimit: 20,
 			MaxLimit:     500,
 		},
-		Generate: GenerateConfig{
+		Codegen: CodegenConfig{
 			Output: OutputConfig{
 				Models:    "custom/models",
 				Resources: "custom/resources",
@@ -421,16 +421,16 @@ func TestSetDefaults_PreservesExistingValues(t *testing.T) {
 		t.Errorf("MaxLimit should not be overridden, got %d", cfg.Pagination.MaxLimit)
 	}
 
-	if cfg.Generate.Output.Models != "custom/models" {
-		t.Errorf("Models path should not be overridden, got %s", cfg.Generate.Output.Models)
+	if cfg.Codegen.Output.Models != "custom/models" {
+		t.Errorf("Models path should not be overridden, got %s", cfg.Codegen.Output.Models)
 	}
 
-	if cfg.Generate.Output.Resources != "custom/resources" {
-		t.Errorf("Resources path should not be overridden, got %s", cfg.Generate.Output.Resources)
+	if cfg.Codegen.Output.Resources != "custom/resources" {
+		t.Errorf("Resources path should not be overridden, got %s", cfg.Codegen.Output.Resources)
 	}
 
-	if cfg.Generate.Output.DTOs != "generated/dtos" {
-		t.Errorf("DTOs path should be set to default when empty, got %s", cfg.Generate.Output.DTOs)
+	if cfg.Codegen.Output.DTOs != "generated/dtos" {
+		t.Errorf("DTOs path should be set to default when empty, got %s", cfg.Codegen.Output.DTOs)
 	}
 }
 
@@ -461,7 +461,7 @@ func TestValidate_MultipleAuthPlugins(t *testing.T) {
 		Server:     ServerConfig{Port: 3000},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-		Generate: GenerateConfig{
+		Codegen: CodegenConfig{
 			Output: OutputConfig{
 				Models:    "models",
 				Resources: "resources",
@@ -495,7 +495,7 @@ func TestValidate_AuthPluginWrongType(t *testing.T) {
 		Server:     ServerConfig{Port: 3000},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-		Generate: GenerateConfig{
+		Codegen: CodegenConfig{
 			Output: OutputConfig{
 				Models:    "models",
 				Resources: "resources",
