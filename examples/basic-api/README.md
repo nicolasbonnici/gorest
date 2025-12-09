@@ -56,28 +56,58 @@ PAGINATION_MAX_LIMIT=1000
 CORS_ORIGINS=*
 ```
 
-4. **Optional: Create `gorest.yaml`** to customize output directories:
+4. **Create `gorest.yaml`** to configure code generation:
 ```yaml
-output:
-  models: "models"
-  resources: "resources"
-  dtos: "dtos"
-  openapi: "openapi"
-  config: "config"
-```
+codegen:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+    openapi: "generated/openapi"
+    config: "generated/config"
+  auth:
+    enabled: true
+  endpoints:
+    - name: users
+      auth:
+        GET: true
+        POST: true
+        PUT: true
+        DELETE: true
 
-If you don't create this file, GoREST will use the defaults shown above.
+server:
+  port: 3000
+  environment: "development"
+
+database:
+  url: "${DATABASE_URL}"
+
+pagination:
+  default_limit: 10
+  max_limit: 1000
+
+auth_defaults:
+  GET: true
+  POST: true
+  PUT: true
+  DELETE: true
+
+plugins:
+  - name: auth
+    enabled: true
+    config:
+      jwt_secret: "${JWT_SECRET}"
+      jwt_ttl: 900
+  # ... other plugins
+```
 
 5. **Generate code from your database**:
 ```bash
-# Generate models
-go run github.com/nicolasbonnici/gorest/cmd/modelgen@latest
+# Generate all (models, resources, DTOs, OpenAPI)
+go run github.com/nicolasbonnici/gorest/cmd/codegen@latest all
 
-# Generate REST resources (interactive)
-go run github.com/nicolasbonnici/gorest/cmd/resourcegen@latest
-
-# Generate OpenAPI spec
-go run github.com/nicolasbonnici/gorest/cmd/openapigen@latest
+# Or use the Makefile
+make generate
 ```
 
 6. **Create your main.go** (see example in this directory)
@@ -167,25 +197,49 @@ Once running, your API will have:
 Whenever you change your database schema:
 
 ```bash
-# Regenerate models
-go run github.com/nicolasbonnici/gorest/cmd/modelgen@latest
+# Using the Makefile
+make generate
 
-# Regenerate resources (will prompt for overwrites)
-go run github.com/nicolasbonnici/gorest/cmd/resourcegen@latest
+# Or directly with the codegen tool
+go run github.com/nicolasbonnici/gorest/cmd/codegen@latest all
 
-# Regenerate OpenAPI
-go run github.com/nicolasbonnici/gorest/cmd/openapigen@latest
+# Or individual steps
+go run github.com/nicolasbonnici/gorest/cmd/codegen@latest models
+go run github.com/nicolasbonnici/gorest/cmd/codegen@latest resources
+go run github.com/nicolasbonnici/gorest/cmd/codegen@latest openapi
 ```
 
 ## Custom Configuration
 
-You can customize output directories by creating a `gorest.yaml` file:
+You can customize output directories and authentication per-resource in `gorest.yaml`:
 
 ```yaml
-output:
-  models: "internal/domain"      # Put models in a different location
-  resources: "internal/api"      # Custom API location
-  dtos: "internal/api/dto"       # Custom DTO location
-  openapi: "docs/openapi"        # Custom OpenAPI location
-  config: "config"               # Config directory
+codegen:
+  output:
+    models: "internal/domain"      # Put models in a different location
+    resources: "internal/api"      # Custom API location
+    dtos: "internal/api/dto"       # Custom DTO location
+    openapi: "docs/openapi"        # Custom OpenAPI location
+    config: "config"               # Config directory
+  auth:
+    enabled: true
+  endpoints:
+    - name: users
+      auth:
+        GET: true
+        POST: true
+        PUT: true
+        DELETE: true
+    - name: posts
+      auth:
+        GET: false    # Public read
+        POST: true    # Auth required
+        PUT: true
+        DELETE: true
+
+auth_defaults:
+  GET: true
+  POST: true
+  PUT: true
+  DELETE: true
 ```
