@@ -10,16 +10,17 @@ codegen:
   endpoints:
     - name: users
       auth:
-        GET: false      # Public read
-        POST: true      # Protected create
-        PUT: true       # Protected update
-        DELETE: true    # Protected delete
-    - name: todos
+        GET: true
+        POST: true
+        PUT: true
+        DELETE: true
+
+    - name: posts
       auth:
-        GET: true       # Protected read
-        POST: true      # Protected create
-        PUT: true       # Protected update
-        DELETE: true    # Protected delete
+        GET: false # Public read - anyone can view blog posts
+        POST: true
+        PUT: true
+        DELETE: true
 
 server:
   port: 3000
