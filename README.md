@@ -42,7 +42,7 @@ go get github.com/nicolasbonnici/gorest@latest
 Create `gorest.yaml` in your project root:
 
 ```yaml
-generate:
+codegen:
   output:
     models: "generated/models"
     resources: "generated/resources"
@@ -51,12 +51,19 @@ generate:
     config: "generated/config"
   auth:
     enabled: true
-    endpoints:
-      list: true
-      get: true
-      create: true
-      update: true
-      delete: true
+  endpoints:
+    - name: users
+      auth:
+        GET: true
+        POST: true
+        PUT: true
+        DELETE: true
+    - name: posts
+      auth:
+        GET: false    # Public read
+        POST: true
+        PUT: true
+        DELETE: true
 
 server:
   port: 3000
@@ -68,6 +75,13 @@ database:
 pagination:
   default_limit: 10
   max_limit: 1000
+
+# Secure by default - all methods require auth unless overridden
+auth_defaults:
+  GET: true
+  POST: true
+  PUT: true
+  DELETE: true
 
 plugins:
   - name: requestid
@@ -102,9 +116,11 @@ export JWT_SECRET=$(openssl rand -base64 32)
 
 ### 3. Generate Code from Your Database
 ```bash
-go run github.com/nicolasbonnici/gorest/cmd/modelgen@latest
-go run github.com/nicolasbonnici/gorest/cmd/resourcegen@latest
-go run github.com/nicolasbonnici/gorest/cmd/openapigen@latest
+go run github.com/nicolasbonnici/gorest/cmd/codegen@latest all
+# Or run individual steps:
+# go run github.com/nicolasbonnici/gorest/cmd/codegen@latest models
+# go run github.com/nicolasbonnici/gorest/cmd/codegen@latest resources
+# go run github.com/nicolasbonnici/gorest/cmd/codegen@latest openapi
 ```
 
 ### 4. Create Your Main Application
@@ -138,14 +154,14 @@ Your API is now running at: **http://localhost:3000/**
 
 ## ⚙️ Configuration
 
-GoREST uses `gorest.yaml` for all configuration. The file has three main sections:
+GoREST uses `gorest.yaml` for all configuration. The file has four main sections:
 
-### Code Generation (`generate`)
+### Code Generation (`codegen`)
 
 Controls how code is generated from your database:
 
 ```yaml
-generate:
+codegen:
   output:
     models: "generated/models"       # Where to generate models
     resources: "generated/resources" # Where to generate API handlers
@@ -154,13 +170,30 @@ generate:
     config: "generated/config"      # Where to generate config files
 
   auth:
-    enabled: true                   # Require auth by default?
-    endpoints:
-      list: true                    # Require auth for GET /resource
-      get: true                     # Require auth for GET /resource/:id
-      create: true                  # Require auth for POST /resource
-      update: true                  # Require auth for PUT /resource/:id
-      delete: true                  # Require auth for DELETE /resource/:id
+    enabled: true                   # Enable auth system?
+
+  endpoints:
+    - name: users                   # Resource name (matches table)
+      auth:
+        GET: true                   # Require auth for GET /users and /users/:id
+        POST: true                  # Require auth for POST /users
+        PUT: true                   # Require auth for PUT /users/:id
+        DELETE: true                # Require auth for DELETE /users/:id
+
+    - name: posts
+      auth:
+        GET: false                  # Public read access
+        POST: true                  # Auth required for create
+        PUT: true                   # Auth required for update
+        DELETE: true                # Auth required for delete
+
+# Top-level defaults - applied to all endpoints unless overridden
+# Secure by default: all methods require auth
+auth_defaults:
+  GET: true
+  POST: true
+  PUT: true
+  DELETE: true
 ```
 
 ### Runtime Configuration (`server`, `database`, `pagination`)
@@ -649,7 +682,7 @@ gorest/
 │   └── sqlite/
 ├── filter/                 # Query filtering
 ├── serializer/             # JSON-LD serialization
-├── generator/              # Code generation
+├── codegen/                # Code generation
 ├── health/                 # Health check endpoint
 ├── hooks/                  # Lifecycle hooks
 ├── logger/                 # Logging utilities
@@ -666,10 +699,8 @@ gorest/
 │   ├── requestid/         # Request ID tracking
 │   └── security/          # Security headers
 ├── response/               # HTTP response helpers
-└── cmd/                    # CLI generators
-    ├── modelgen/          # Model generation
-    ├── resourcegen/       # Resource generation
-    └── openapigen/        # OpenAPI generation
+└── cmd/                    # CLI tool
+    └── codegen/           # Unified code generator (models, resources, DTOs, OpenAPI)
 ```
 
 ---
@@ -677,17 +708,22 @@ gorest/
 ## 🛠 Development Commands
 
 ```bash
-# Generation
-make modelgen         # Generate models
-make resourcegen      # Generate resources & DTOs
-make openapigen       # Generate OpenAPI
-make generate         # Run all generators
+# Code Generation
+make codegen          # Run all code generation (models, resources, DTOs, OpenAPI)
+make codegen-models   # Generate models only
+make codegen-resources # Generate resources & DTOs only
+make codegen-openapi  # Generate OpenAPI schema only
+make generate         # Alias for codegen
 
 # Testing
-make test-up          # Start test database
-make test-schema      # Load schema
-make test             # Run tests
-make build            # Build binary
+make test-up          # Start test databases (PostgreSQL, MySQL)
+make test-schema      # Load test schema
+make test-generate    # Generate code for tests
+make test             # Run all tests
+make test-coverage    # Run tests with coverage report
+
+# Benchmarking
+make benchmark        # Run API performance benchmarks
 ```
 
 ---
