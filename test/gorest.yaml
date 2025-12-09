@@ -1,4 +1,4 @@
-generate:
+codegen:
   output:
     models: "test/generated/models"
     resources: "test/generated/resources"
@@ -7,12 +7,20 @@ generate:
     config: "test/generated/config"
   auth:
     enabled: false
-    endpoints:
-      list: false
-      get: false
-      create: false
-      update: false
-      delete: false
+  endpoints:
+    - name: users
+      auth:
+        GET: false
+        POST: false
+        PUT: false
+        DELETE: false
+
+    - name: todo
+      auth:
+        GET: false
+        POST: false
+        PUT: false
+        DELETE: false
 
 server:
   port: 3000
@@ -24,6 +32,14 @@ database:
 pagination:
   default_limit: 10
   max_limit: 1000
+
+# Top-level auth defaults (applied to all endpoints unless overridden)
+# Disabled for tests - all methods allow unauthenticated access
+auth_defaults:
+  GET: false
+  POST: false
+  PUT: false
+  DELETE: false
 
 # Plugin system configuration (unified)
 plugins:
