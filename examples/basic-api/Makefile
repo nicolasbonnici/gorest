@@ -34,10 +34,10 @@ db-connect:
 	@psql $(DATABASE_URL)
 
 test-schema:
-	@psql $(DATABASE_URL) -f ../../test/sql/schema.sql
+	@psql $(DATABASE_URL) -f sql/schema.sql
 
 generate:
-	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run ../../cmd/gorest-codegen/main.go all
+	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run ../../cmd/codegen/main.go all
 
 run:
 	@DATABASE_URL=$(DATABASE_URL) JWT_SECRET=$(JWT_SECRET) go run .
