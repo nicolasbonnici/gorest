@@ -37,15 +37,15 @@ func buildAuthFromEndpoints(cfg *config.Config) *AuthConfig {
 	// Get default methods from auth_defaults
 	defaultMethods := getDefaultMethods(cfg)
 
-	for _, endpoint := range cfg.Codegen.Endpoints {
+	for _, endpoint := range cfg.Codegen.Auth.Endpoints {
 		endpointName := endpoint.Name
 		var requiredAuthMethods []string
 
 		// Standard HTTP methods to check
-		standardMethods := []string{"GET", "POST", "PUT", "DELETE"}
+		standardMethods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
 
 		for _, method := range standardMethods {
-			requireAuth := shouldRequireAuth(method, endpoint.Auth, defaultMethods)
+			requireAuth := shouldRequireAuth(method, endpoint, defaultMethods)
 			if requireAuth {
 				requiredAuthMethods = append(requiredAuthMethods, method)
 			}
@@ -58,18 +58,19 @@ func buildAuthFromEndpoints(cfg *config.Config) *AuthConfig {
 }
 
 // getDefaultMethods returns the default auth requirements for all methods
-// Priority: 1. auth_defaults (top-level), 2. Secure defaults (all true)
+// Priority: 1. codegen.auth.defaults, 2. Secure defaults (all true)
 func getDefaultMethods(cfg *config.Config) map[string]bool {
 	defaults := map[string]bool{
 		"GET":    true,
 		"POST":   true,
 		"PUT":    true,
 		"DELETE": true,
+		"PATCH":  true,
 	}
 
-	// Override with auth_defaults if specified
-	if cfg.AuthDefaults != nil && len(cfg.AuthDefaults) > 0 {
-		for method, requireAuth := range cfg.AuthDefaults {
+	// Override with codegen.auth.defaults if specified
+	if cfg.Codegen.Auth.Defaults != nil && len(cfg.Codegen.Auth.Defaults) > 0 {
+		for method, requireAuth := range cfg.Codegen.Auth.Defaults {
 			defaults[method] = requireAuth
 		}
 	}
@@ -77,14 +78,31 @@ func getDefaultMethods(cfg *config.Config) map[string]bool {
 	return defaults
 }
 
+// getMethodValue retrieves the method-specific auth value from the endpoint config
+func getMethodValue(endpoint config.EndpointAuthConfig, method string) (*bool, bool) {
+	switch method {
+	case "GET":
+		return endpoint.GET, endpoint.GET != nil
+	case "POST":
+		return endpoint.POST, endpoint.POST != nil
+	case "PUT":
+		return endpoint.PUT, endpoint.PUT != nil
+	case "DELETE":
+		return endpoint.DELETE, endpoint.DELETE != nil
+	case "PATCH":
+		return endpoint.PATCH, endpoint.PATCH != nil
+	}
+	return nil, false
+}
+
 // shouldRequireAuth determines if a method should require auth based on:
 // 1. Resource-specific config (highest priority)
 // 2. Global default config (if resource not specified)
 // 3. Secure default (true if neither specified)
-func shouldRequireAuth(method string, resourceMethods map[string]bool, defaultMethods map[string]bool) bool {
+func shouldRequireAuth(method string, endpoint config.EndpointAuthConfig, defaultMethods map[string]bool) bool {
 	// Check resource-specific config first
-	if requireAuth, specified := resourceMethods[method]; specified {
-		return requireAuth
+	if value, specified := getMethodValue(endpoint, method); specified {
+		return *value
 	}
 
 	// Fall back to default config
