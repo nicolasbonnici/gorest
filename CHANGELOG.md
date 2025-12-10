@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2025-12-10
+
+### Breaking Changes
+- **Configuration Structure**: Unified authentication configuration under `codegen.auth`
+  - Moved `auth_defaults` (top-level) → `codegen.auth.defaults`
+  - Moved `codegen.endpoints` → `codegen.auth.endpoints`
+  - Flattened endpoint HTTP method configuration (removed nested `auth:` map)
+  - **Migration Required**: Update your `gorest.yaml` configuration file
+
+**Migration Guide:**
+
+Before:
+```yaml
+codegen:
+  auth:
+    enabled: true
+  endpoints:
+    - name: posts
+      auth:
+        GET: false  # Public read
+
+auth_defaults:
+  GET: false
+  POST: true
+  PUT: true
+  DELETE: true
+```
+
+After:
+```yaml
+codegen:
+  auth:
+    enabled: true
+    defaults:
+      GET: false
+      POST: true
+      PUT: true
+      DELETE: true
+    endpoints:
+      - name: posts
+        GET: false  # Public read
+```
+
+### Changed
+- Enhanced type safety with pointer-based HTTP method fields (`*bool`) to distinguish between:
+  - `nil` = inherit from defaults
+  - `false` = explicitly public (no auth)
+  - `true` = explicitly requires authentication
+- Added PATCH method support in auth configuration
+
 ## [0.3.0] - 2025-11-27
 
 ### Breaking Changes
