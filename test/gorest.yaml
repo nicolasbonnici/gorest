@@ -7,16 +7,20 @@ codegen:
     config: "test/generated/config"
   auth:
     enabled: false
-  endpoints:
-    - name: users
-      auth:
+    # Auth defaults (applied to all endpoints unless overridden)
+    # Disabled for tests - all methods allow unauthenticated access
+    defaults:
+      GET: false
+      POST: false
+      PUT: false
+      DELETE: false
+    endpoints:
+      - name: users
         GET: false
         POST: false
         PUT: false
         DELETE: false
-
-    - name: todo
-      auth:
+      - name: todo
         GET: false
         POST: false
         PUT: false
@@ -32,14 +36,6 @@ database:
 pagination:
   default_limit: 10
   max_limit: 1000
-
-# Top-level auth defaults (applied to all endpoints unless overridden)
-# Disabled for tests - all methods allow unauthenticated access
-auth_defaults:
-  GET: false
-  POST: false
-  PUT: false
-  DELETE: false
 
 # Plugin system configuration (unified)
 plugins:

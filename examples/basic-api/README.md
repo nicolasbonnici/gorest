@@ -67,9 +67,13 @@ codegen:
     config: "generated/config"
   auth:
     enabled: true
-  endpoints:
-    - name: users
-      auth:
+    defaults:
+      GET: true
+      POST: true
+      PUT: true
+      DELETE: true
+    endpoints:
+      - name: users
         GET: true
         POST: true
         PUT: true
@@ -85,12 +89,6 @@ database:
 pagination:
   default_limit: 10
   max_limit: 1000
-
-auth_defaults:
-  GET: true
-  POST: true
-  PUT: true
-  DELETE: true
 
 plugins:
   - name: auth
@@ -223,23 +221,20 @@ codegen:
     config: "config"               # Config directory
   auth:
     enabled: true
-  endpoints:
-    - name: users
-      auth:
+    defaults:
+      GET: true
+      POST: true
+      PUT: true
+      DELETE: true
+    endpoints:
+      - name: users
         GET: true
         POST: true
         PUT: true
         DELETE: true
-    - name: posts
-      auth:
+      - name: posts
         GET: false    # Public read
         POST: true    # Auth required
         PUT: true
         DELETE: true
-
-auth_defaults:
-  GET: true
-  POST: true
-  PUT: true
-  DELETE: true
 ```
