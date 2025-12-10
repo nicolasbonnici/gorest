@@ -177,9 +177,9 @@ codegen:
       PUT: true
       DELETE: true
 
-    endpoints:          # Require auth for DELETE /users/:id
+    endpoints:
       - name: posts
-        GET: false                  # Public read access
+        GET: false  # Public read access
 ```
 
 ### Runtime Configuration (`server`, `database`, `pagination`)
