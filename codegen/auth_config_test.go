@@ -6,28 +6,31 @@ import (
 	"github.com/nicolasbonnici/gorest/config"
 )
 
-// Tests for NEW format with auth_defaults and flattened resource auth
+// Helper function to create bool pointers
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+// Tests for NEW format with codegen.auth.defaults and flattened resource auth
 
 func TestGetAuthConfigFromNewAuthDefaults(t *testing.T) {
 	cfg := &config.Config{
 		Codegen: config.CodegenConfig{
-			Auth: config.GenAuthConfig{
+			Auth: config.CodegenAuthConfig{
 				Enabled: true,
-			},
-			Endpoints: []config.EndpointConfig{
-				{
-					Name: "users",
-					Auth: map[string]bool{
-						"GET": false, // Explicit in new format
+				Defaults: map[string]bool{
+					"GET":    false,
+					"POST":   true,
+					"PUT":    true,
+					"DELETE": true,
+				},
+				Endpoints: []config.EndpointAuthConfig{
+					{
+						Name: "users",
+						GET:  boolPtr(false), // Explicit in new format
 					},
 				},
 			},
-		},
-		AuthDefaults: map[string]bool{
-			"GET":    false,
-			"POST":   true,
-			"PUT":    true,
-			"DELETE": true,
 		},
 	}
 
@@ -53,26 +56,24 @@ func TestGetAuthConfigFromNewAuthDefaults(t *testing.T) {
 func TestGetAuthConfigNewFormatFlattenedAuth(t *testing.T) {
 	cfg := &config.Config{
 		Codegen: config.CodegenConfig{
-			Auth: config.GenAuthConfig{
+			Auth: config.CodegenAuthConfig{
 				Enabled: true,
-			},
-			Endpoints: []config.EndpointConfig{
-				{
-					Name: "products",
-					Auth: map[string]bool{
-						"GET":    false,
-						"POST":   true,
-						"PUT":    true,
-						"DELETE": true,
+				Defaults: map[string]bool{
+					"GET":    true,
+					"POST":   true,
+					"PUT":    true,
+					"DELETE": true,
+				},
+				Endpoints: []config.EndpointAuthConfig{
+					{
+						Name:   "products",
+						GET:    boolPtr(false),
+						POST:   boolPtr(true),
+						PUT:    boolPtr(true),
+						DELETE: boolPtr(true),
 					},
 				},
 			},
-		},
-		AuthDefaults: map[string]bool{
-			"GET":    true,
-			"POST":   true,
-			"PUT":    true,
-			"DELETE": true,
 		},
 	}
 
@@ -89,23 +90,21 @@ func TestGetAuthConfigNewFormatFlattenedAuth(t *testing.T) {
 func TestGetAuthConfigWithDefaultPublicGet(t *testing.T) {
 	cfg := &config.Config{
 		Codegen: config.CodegenConfig{
-			Auth: config.GenAuthConfig{
+			Auth: config.CodegenAuthConfig{
 				Enabled: true,
-			},
-			Endpoints: []config.EndpointConfig{
-				{
-					Name: "products",
-					Auth: map[string]bool{
-						"POST": true, // Only override POST
+				Defaults: map[string]bool{
+					"GET":    false, // Default: public
+					"POST":   true,
+					"PUT":    true,
+					"DELETE": true,
+				},
+				Endpoints: []config.EndpointAuthConfig{
+					{
+						Name: "products",
+						POST: boolPtr(true), // Only override POST
 					},
 				},
 			},
-		},
-		AuthDefaults: map[string]bool{
-			"GET":    false, // Default: public
-			"POST":   true,
-			"PUT":    true,
-			"DELETE": true,
 		},
 	}
 
@@ -133,17 +132,15 @@ func TestGetAuthConfigWithDefaultPublicGet(t *testing.T) {
 }
 
 func TestGetAuthConfigSecureByDefault(t *testing.T) {
-	// No auth_defaults specified - should default to true for all
+	// No defaults specified - should default to true for all
 	cfg := &config.Config{
 		Codegen: config.CodegenConfig{
-			Auth: config.GenAuthConfig{
+			Auth: config.CodegenAuthConfig{
 				Enabled: true,
-			},
-			Endpoints: []config.EndpointConfig{
-				{
-					Name: "orders",
-					Auth: map[string]bool{
-						"GET": false, // Only specify GET
+				Endpoints: []config.EndpointAuthConfig{
+					{
+						Name: "orders",
+						GET:  boolPtr(false), // Only specify GET
 					},
 				},
 			},
@@ -172,7 +169,7 @@ func TestGetAuthConfigSecureByDefault(t *testing.T) {
 func TestGetAuthConfigDisabled(t *testing.T) {
 	cfg := &config.Config{
 		Codegen: config.CodegenConfig{
-			Auth: config.GenAuthConfig{
+			Auth: config.CodegenAuthConfig{
 				Enabled: false,
 			},
 		},
@@ -192,14 +189,12 @@ func TestGetAuthConfigDisabled(t *testing.T) {
 func TestGetAuthConfigResourceNotInConfig(t *testing.T) {
 	cfg := &config.Config{
 		Codegen: config.CodegenConfig{
-			Auth: config.GenAuthConfig{
+			Auth: config.CodegenAuthConfig{
 				Enabled: true,
-			},
-			Endpoints: []config.EndpointConfig{
-				{
-					Name: "users",
-					Auth: map[string]bool{
-						"GET": false,
+				Endpoints: []config.EndpointAuthConfig{
+					{
+						Name: "users",
+						GET:  boolPtr(false),
 					},
 				},
 			},
@@ -220,38 +215,32 @@ func TestGetAuthConfigResourceNotInConfig(t *testing.T) {
 func TestGetAuthConfigMultipleResources(t *testing.T) {
 	cfg := &config.Config{
 		Codegen: config.CodegenConfig{
-			Auth: config.GenAuthConfig{
+			Auth: config.CodegenAuthConfig{
 				Enabled: true,
+				Defaults: map[string]bool{
+					"GET":    false,
+					"POST":   true,
+					"PUT":    true,
+					"DELETE": true,
+				},
+				Endpoints: []config.EndpointAuthConfig{
+					{
+						Name: "users",
+						GET:  boolPtr(false),
+					},
+					{
+						Name:   "orders",
+						GET:    boolPtr(true),
+						POST:   boolPtr(true),
+						PUT:    boolPtr(true),
+						DELETE: boolPtr(true),
+					},
+					{
+						Name: "products",
+						GET:  boolPtr(false),
+					},
+				},
 			},
-			Endpoints: []config.EndpointConfig{
-				{
-					Name: "users",
-					Auth: map[string]bool{
-						"GET": false,
-					},
-				},
-				{
-					Name: "orders",
-					Auth: map[string]bool{
-						"GET":    true,
-						"POST":   true,
-						"PUT":    true,
-						"DELETE": true,
-					},
-				},
-				{
-					Name: "products",
-					Auth: map[string]bool{
-						"GET": false,
-					},
-				},
-			},
-		},
-		AuthDefaults: map[string]bool{
-			"GET":    false,
-			"POST":   true,
-			"PUT":    true,
-			"DELETE": true,
 		},
 	}
 

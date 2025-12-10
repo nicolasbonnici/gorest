@@ -6,12 +6,11 @@ import (
 )
 
 type Config struct {
-	Codegen      CodegenConfig    `yaml:"codegen"`
-	Server       ServerConfig     `yaml:"server"`
-	Database     DatabaseConfig   `yaml:"database"`
-	Pagination   PaginationConfig `yaml:"pagination"`
-	Plugins      PluginsConfig    `yaml:"plugins"`
-	AuthDefaults map[string]bool  `yaml:"auth_defaults"`
+	Codegen    CodegenConfig    `yaml:"codegen"`
+	Server     ServerConfig     `yaml:"server"`
+	Database   DatabaseConfig   `yaml:"database"`
+	Pagination PaginationConfig `yaml:"pagination"`
+	Plugins    PluginsConfig    `yaml:"plugins"`
 }
 
 type PluginsConfig []PluginConfig
@@ -23,9 +22,8 @@ type PluginConfig struct {
 }
 
 type CodegenConfig struct {
-	Output    OutputConfig     `yaml:"output"`
-	Auth      GenAuthConfig    `yaml:"auth"`
-	Endpoints []EndpointConfig `yaml:"endpoints"`
+	Output OutputConfig      `yaml:"output"`
+	Auth   CodegenAuthConfig `yaml:"auth"`
 }
 
 type OutputConfig struct {
@@ -36,13 +34,19 @@ type OutputConfig struct {
 	Config    string `yaml:"config"`
 }
 
-type GenAuthConfig struct {
-	Enabled bool `yaml:"enabled"`
+type CodegenAuthConfig struct {
+	Enabled   bool                     `yaml:"enabled"`
+	Defaults  map[string]bool          `yaml:"defaults"`
+	Endpoints []EndpointAuthConfig     `yaml:"endpoints"`
 }
 
-type EndpointConfig struct {
-	Name string          `yaml:"name"`
-	Auth map[string]bool `yaml:"auth"` // Flattened: auth: { GET: true, POST: false }
+type EndpointAuthConfig struct {
+	Name   string `yaml:"name"`
+	GET    *bool  `yaml:"GET,omitempty"`
+	POST   *bool  `yaml:"POST,omitempty"`
+	PUT    *bool  `yaml:"PUT,omitempty"`
+	DELETE *bool  `yaml:"DELETE,omitempty"`
+	PATCH  *bool  `yaml:"PATCH,omitempty"`
 }
 
 type ServerConfig struct {
@@ -103,19 +107,33 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("codegen.output.dtos is required")
 	}
 
-	// Validate endpoints configuration
-	endpointNames := make(map[string]bool)
+	// Validate codegen.auth.defaults if specified
 	validMethods := map[string]bool{
 		"GET": true, "POST": true, "PUT": true, "DELETE": true, "PATCH": true,
 	}
 
-	for i, endpoint := range c.Codegen.Endpoints {
+	for method := range c.Codegen.Auth.Defaults {
+		upperMethod := strings.ToUpper(method)
+		if !validMethods[upperMethod] {
+			return fmt.Errorf("codegen.auth.defaults: unsupported HTTP method '%s' (supported: GET, POST, PUT, DELETE, PATCH)", method)
+		}
+		// Normalize method to uppercase
+		if method != upperMethod {
+			c.Codegen.Auth.Defaults[upperMethod] = c.Codegen.Auth.Defaults[method]
+			delete(c.Codegen.Auth.Defaults, method)
+		}
+	}
+
+	// Validate codegen.auth.endpoints configuration
+	endpointNames := make(map[string]bool)
+
+	for i, endpoint := range c.Codegen.Auth.Endpoints {
 		// Normalize name to lowercase
-		c.Codegen.Endpoints[i].Name = strings.ToLower(endpoint.Name)
-		normalizedName := c.Codegen.Endpoints[i].Name
+		c.Codegen.Auth.Endpoints[i].Name = strings.ToLower(endpoint.Name)
+		normalizedName := c.Codegen.Auth.Endpoints[i].Name
 
 		if normalizedName == "" {
-			return fmt.Errorf("codegen.endpoints[%d]: name cannot be empty", i)
+			return fmt.Errorf("codegen.auth.endpoints[%d]: name cannot be empty", i)
 		}
 
 		// Check for duplicates
@@ -124,32 +142,8 @@ func (c *Config) Validate() error {
 		}
 		endpointNames[normalizedName] = true
 
-		// Validate and normalize HTTP methods in flattened format
-		for method := range endpoint.Auth {
-			upperMethod := strings.ToUpper(method)
-			if !validMethods[upperMethod] {
-				return fmt.Errorf("endpoint '%s': unsupported HTTP method '%s' (supported: GET, POST, PUT, DELETE, PATCH)",
-					normalizedName, method)
-			}
-			// Normalize method to uppercase
-			if method != upperMethod {
-				c.Codegen.Endpoints[i].Auth[upperMethod] = endpoint.Auth[method]
-				delete(c.Codegen.Endpoints[i].Auth, method)
-			}
-		}
-	}
-
-	// Validate auth_defaults if specified
-	for method := range c.AuthDefaults {
-		upperMethod := strings.ToUpper(method)
-		if !validMethods[upperMethod] {
-			return fmt.Errorf("auth_defaults: unsupported HTTP method '%s' (supported: GET, POST, PUT, DELETE, PATCH)", method)
-		}
-		// Normalize method to uppercase
-		if method != upperMethod {
-			c.AuthDefaults[upperMethod] = c.AuthDefaults[method]
-			delete(c.AuthDefaults, method)
-		}
+		// Note: HTTP method fields (GET, POST, PUT, DELETE, PATCH) are pointers
+		// and are validated by the YAML unmarshaler as booleans
 	}
 
 	return nil

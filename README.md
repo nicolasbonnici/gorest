@@ -51,15 +51,19 @@ codegen:
     config: "generated/config"
   auth:
     enabled: true
-  endpoints:
-    - name: users
-      auth:
+    # Secure by default - all methods require auth unless overridden
+    defaults:
+      GET: true
+      POST: true
+      PUT: true
+      DELETE: true
+    endpoints:
+      - name: users
         GET: true
         POST: true
         PUT: true
         DELETE: true
-    - name: posts
-      auth:
+      - name: posts
         GET: false    # Public read
         POST: true
         PUT: true
@@ -75,13 +79,6 @@ database:
 pagination:
   default_limit: 10
   max_limit: 1000
-
-# Secure by default - all methods require auth unless overridden
-auth_defaults:
-  GET: true
-  POST: true
-  PUT: true
-  DELETE: true
 
 plugins:
   - name: requestid
@@ -172,28 +169,26 @@ codegen:
   auth:
     enabled: true                   # Enable auth system?
 
-  endpoints:
-    - name: users                   # Resource name (matches table)
-      auth:
+    # Defaults - applied to all endpoints unless overridden
+    # Secure by default: all methods require auth
+    defaults:
+      GET: true
+      POST: true
+      PUT: true
+      DELETE: true
+
+    endpoints:
+      - name: users                 # Resource name (matches table)
         GET: true                   # Require auth for GET /users and /users/:id
         POST: true                  # Require auth for POST /users
         PUT: true                   # Require auth for PUT /users/:id
         DELETE: true                # Require auth for DELETE /users/:id
 
-    - name: posts
-      auth:
+      - name: posts
         GET: false                  # Public read access
         POST: true                  # Auth required for create
         PUT: true                   # Auth required for update
         DELETE: true                # Auth required for delete
-
-# Top-level defaults - applied to all endpoints unless overridden
-# Secure by default: all methods require auth
-auth_defaults:
-  GET: true
-  POST: true
-  PUT: true
-  DELETE: true
 ```
 
 ### Runtime Configuration (`server`, `database`, `pagination`)

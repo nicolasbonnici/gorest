@@ -7,15 +7,18 @@ codegen:
     config: "test/generated/config"
   auth:
     enabled: false
-  endpoints:
-    - name: users
-      auth:
+    defaults:
+      GET: false
+      POST: false
+      PUT: false
+      DELETE: false
+    endpoints:
+      - name: users
         GET: false
         POST: false
         PUT: false
         DELETE: false
-    - name: todo
-      auth:
+      - name: todo
         GET: false
         POST: false
         PUT: false
@@ -31,12 +34,6 @@ database:
 pagination:
   default_limit: 50
   max_limit: 10000
-
-auth_defaults:
-  GET: false
-  POST: false
-  PUT: false
-  DELETE: false
 
 plugins:
   - name: requestid
