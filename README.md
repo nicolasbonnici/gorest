@@ -167,7 +167,7 @@ codegen:
     config: "generated/config"      # Where to generate config files
 
   auth:
-    enabled: true                   # Enable auth system?
+    enabled: true
 
     # Defaults - applied to all endpoints unless overridden
     # Secure by default: all methods require auth
