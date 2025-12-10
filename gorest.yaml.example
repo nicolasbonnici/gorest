@@ -12,17 +12,23 @@ codegen:
   auth:
     enabled: true
 
-  # Per-resource, per-HTTP-method authentication configuration
-  endpoints:
-    - name: users
-      auth:
+    # Auth defaults - applied to all endpoints unless overridden
+    # Secure by default: all methods require auth
+    defaults:
+      GET: true
+      POST: true
+      PUT: true
+      DELETE: true
+
+    # Per-resource, per-HTTP-method authentication configuration
+    endpoints:
+      - name: users
         GET: true       # Require auth for GET /users and /users/:id
         POST: true      # Require auth for POST /users
         PUT: true       # Require auth for PUT /users/:id
         DELETE: true    # Require auth for DELETE /users/:id
 
-    - name: posts
-      auth:
+      - name: posts
         GET: false      # Public read - anyone can view posts
         POST: true      # Auth required to create posts
         PUT: true       # Auth required to update posts
@@ -38,14 +44,6 @@ database:
 pagination:
   default_limit: 10
   max_limit: 1000
-
-# Top-level auth defaults - applied to all endpoints unless overridden
-# Secure by default: all methods require auth
-auth_defaults:
-  GET: true
-  POST: true
-  PUT: true
-  DELETE: true
 
 # Plugin system configuration (unified)
 plugins:
