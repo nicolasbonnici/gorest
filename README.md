@@ -177,18 +177,9 @@ codegen:
       PUT: true
       DELETE: true
 
-    endpoints:
-      - name: users                 # Resource name (matches table)
-        GET: true                   # Require auth for GET /users and /users/:id
-        POST: true                  # Require auth for POST /users
-        PUT: true                   # Require auth for PUT /users/:id
-        DELETE: true                # Require auth for DELETE /users/:id
-
+    endpoints:          # Require auth for DELETE /users/:id
       - name: posts
         GET: false                  # Public read access
-        POST: true                  # Auth required for create
-        PUT: true                   # Auth required for update
-        DELETE: true                # Auth required for delete
 ```
 
 ### Runtime Configuration (`server`, `database`, `pagination`)
