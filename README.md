@@ -58,16 +58,9 @@ codegen:
       PUT: true
       DELETE: true
     endpoints:
-      - name: users
-        GET: true
-        POST: true
-        PUT: true
-        DELETE: true
       - name: posts
         GET: false    # Public read
-        POST: true
-        PUT: true
-        DELETE: true
+
 
 server:
   port: 3000
