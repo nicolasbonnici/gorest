@@ -517,6 +517,8 @@ func main() {
 
 Plugins are configured in `gorest.yaml` and loaded using `pluginloader.LoadPlugins()`. The registration order in YAML doesn't matter - you control the application order in your code.
 
+See [PLUGINS.md](PLUGINS.md) for complete documentation including custom endpoint creation, CLI commands, and advanced patterns.
+
 ---
 
 ## 🪝 Hooks System
