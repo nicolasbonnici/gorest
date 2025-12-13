@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nicolasbonnici/gorest/response"
 )
 
 func TestParseIntQuery(t *testing.T) {
@@ -198,5 +199,48 @@ func TestSendPaginatedError(t *testing.T) {
 
 	if result["hydra:description"] != "Test error" {
 		t.Errorf("Wrong error message: %v", result["hydra:description"])
+	}
+}
+
+func TestPaginationXPoweredByHeader(t *testing.T) {
+	response.Initialize("test-version")
+
+	tests := []struct {
+		name    string
+		handler fiber.Handler
+	}{
+		{
+			name: "SendHydraCollection",
+			handler: func(c *fiber.Ctx) error {
+				items := []string{"item1"}
+				total := 1
+				return SendHydraCollection(c, items, &total, 1, 1, 1)
+			},
+		},
+		{
+			name: "SendPaginatedError",
+			handler: func(c *fiber.Ctx) error {
+				return SendPaginatedError(c, 400, "test error")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Get("/test", tt.handler)
+
+			req := httptest.NewRequest("GET", "/test", nil)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("Failed to test: %v", err)
+			}
+			defer resp.Body.Close()
+
+			poweredBy := resp.Header.Get("X-Powered-By")
+			if poweredBy != "GoREST/test-version" {
+				t.Errorf("Expected X-Powered-By header to be 'GoREST/test-version', got '%s'", poweredBy)
+			}
+		})
 	}
 }
