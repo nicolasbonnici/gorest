@@ -135,8 +135,11 @@ func (s *JSONLDSerializer) addTypeToItemExpand(data interface{}, path string, ex
 				if strings.HasSuffix(key, "Id") {
 					suffix = "Id"
 				}
-				resourceName := pluralize(strings.TrimSuffix(key, suffix))
-				itemMap[key] = fmt.Sprintf("/%s/%s", resourceName, valueStr)
+				relationName := strings.TrimSuffix(key, suffix)
+				resourceName := pluralize(relationName)
+
+				itemMap[relationName] = fmt.Sprintf("/%s/%s", resourceName, valueStr)
+				delete(itemMap, key)
 			}
 		}
 	}

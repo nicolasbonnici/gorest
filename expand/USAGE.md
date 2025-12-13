@@ -119,7 +119,7 @@ func (r *TodoResource) Get(c *fiber.Ctx) error {
 
 ## Response Examples
 
-### Without Expand (Default)
+### Without Expand (Default - IRI)
 
 ```bash
 GET /todos/todo-123
@@ -131,11 +131,13 @@ GET /todos/todo-123
   "@type": "TodoDTO",
   "@id": "/todos/todo-123",
   "id": "todo-123",
-  "userId": "/users/user-456",
+  "user": "/users/user-456",
   "title": "Buy groceries",
   "content": "Milk, eggs, bread"
 }
 ```
+
+**Note:** Foreign keys are automatically converted to clean relation names (e.g., `user` instead of `userId`) with IRI values.
 
 ### With Expand
 
@@ -161,6 +163,10 @@ GET /todos/todo-123?expand[]=user
 }
 ```
 
+**Note:** Foreign key fields (like `userId`) are automatically converted to clean relation names (`user`):
+- Without expand: `"user": "/users/user-456"` (IRI)
+- With expand: `"user": { "id": "user-456", ... }` (full object)
+
 ## Features
 
 - ✅ Works with both JSON and JSON-LD serializers
@@ -170,6 +176,8 @@ GET /todos/todo-123?expand[]=user
 - ✅ One-level expansion (no nested like `user.profile`)
 - ✅ Respects DTO field visibility rules
 - ✅ Case-insensitive field matching
+- ✅ Clean API: Relation names (`user`) instead of FK fields (`userId`) everywhere
+- ✅ Consistent field names whether expanded or not
 
 ## Technical Implementation
 
@@ -181,6 +189,10 @@ GET /todos/todo-123?expand[]=user
 
 ## Notes
 
+- **Clean relation names**: Foreign key fields (e.g., `userId`) are automatically renamed to relation names (e.g., `user`) in all responses
+- **Consistent naming**: Whether you use expand or not, you always get `user` (not `userId`) in your API responses
+- **IRIs by default**: Without expand, relations are IRIs like `"/users/123"`
+- **Full objects with expand**: With expand, relations become nested objects
 - Expand is optional - works transparently with existing endpoints
 - No database schema changes required
 - No model changes required (uses map[string]interface{} internally)

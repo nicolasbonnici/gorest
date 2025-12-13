@@ -252,17 +252,21 @@ func TestJSONLDSerializerForeignKeyIRI(t *testing.T) {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
-	userID, ok := result["userId"].(string)
+	if _, exists := result["userId"]; exists {
+		t.Error("userId field should be removed and replaced with user")
+	}
+
+	user, ok := result["user"].(string)
 	if !ok {
-		t.Fatal("userId should be a string")
+		t.Fatal("user should be a string IRI")
 	}
 
-	expectedUserID := "/users/user-456"
-	if userID != expectedUserID {
-		t.Errorf("Expected userId to be IRI %s, got %s", expectedUserID, userID)
+	expectedUserIRI := "/users/user-456"
+	if user != expectedUserIRI {
+		t.Errorf("Expected user to be IRI %s, got %s", expectedUserIRI, user)
 	}
 
-	if !strings.HasPrefix(userID, "/users/") {
-		t.Error("userId should be converted to IRI starting with /users/")
+	if !strings.HasPrefix(user, "/users/") {
+		t.Error("user should be converted to IRI starting with /users/")
 	}
 }
