@@ -78,8 +78,10 @@ Documentation improvements are always welcome:
    - Add tests for new functionality
    - Update documentation if needed
 
-3. **Run tests**
+3. **Run tests and linting**
    ```bash
+   make lint           # Check code quality
+   make lint-fix       # Auto-fix linting issues
    make test           # Run all tests
    make generate       # Test code generation
    ```
@@ -109,6 +111,31 @@ Documentation improvements are always welcome:
    - Screenshots/examples if applicable
 
 ## Development Guidelines
+
+### Code Quality & Linting
+
+GoREST uses Go's built-in tools to maintain code quality and consistency.
+
+**Before submitting a PR, ensure your code passes linting:**
+
+```bash
+make lint           # Run go vet and formatting checks
+make lint-fix       # Auto-fix formatting issues
+```
+
+**Linting tools used:**
+- **go vet** - Go's built-in static analyzer (detects suspicious code)
+- **gofmt** - Go's standard code formatter
+
+**Key linting rules:**
+- Follow Go formatting standards (`gofmt`)
+- Address all warnings from `go vet`
+- No unused variables or imports
+- Proper error handling
+
+**Generated code is automatically excluded** from linting (files in `generated/` directories).
+
+**CI will automatically run linting** and fail if issues are found. Run `make lint` locally to catch issues early.
 
 ### Code Style
 
@@ -140,11 +167,12 @@ Closes #123
 
 ### Pull Request Process
 
-1. **Update documentation** if you've changed functionality
-2. **Add tests** for new features or bug fixes
-3. **Ensure tests pass** (`make test`)
-4. **Keep PRs focused** - one feature/fix per PR
-5. **Be responsive** to feedback and review comments
+1. **Run linting** and fix all issues (`make lint-fix`)
+2. **Update documentation** if you've changed functionality
+3. **Add tests** for new features or bug fixes
+4. **Ensure tests pass** (`make test`)
+5. **Keep PRs focused** - one feature/fix per PR
+6. **Be responsive** to feedback and review comments
 
 ### What We Look For
 
@@ -152,6 +180,7 @@ Closes #123
 ✅ **Good tests** - Does it have adequate test coverage?
 ✅ **Documentation** - Is it documented for users?
 ✅ **Code quality** - Is it readable and maintainable?
+✅ **Passes linting** - All golangci-lint checks pass
 ✅ **No breaking changes** - Or are they well-justified and documented?
 
 ## Project Structure
