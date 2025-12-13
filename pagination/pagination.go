@@ -123,6 +123,7 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, pag
 		c.Set("Content-Type", "application/ld+json")
 	}
 
+	response.SetCommonHeaders(c)
 	return c.Status(fiber.StatusOK).JSON(collection)
 }
 
@@ -157,6 +158,7 @@ func formatItems(items interface{}, path string, format string, expand []string)
 }
 
 func SendPaginatedError(c *fiber.Ctx, statusCode int, message string) error {
+	response.SetCommonHeaders(c)
 	return c.Status(statusCode).JSON(fiber.Map{
 		"@context":          "http://www.w3.org/ns/hydra/context.jsonld",
 		"@type":             "hydra:Error",
