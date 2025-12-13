@@ -712,7 +712,6 @@ gorest/
 ├── health/                 # Health check endpoint
 ├── hooks/                  # Lifecycle hooks
 ├── logger/                 # Logging utilities
-├── middleware/             # HTTP middleware
 ├── pagination/             # Hydra pagination
 ├── plugin/                 # Plugin interfaces (core)
 ├── pluginloader/           # Plugin factory & loading system
