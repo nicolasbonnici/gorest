@@ -37,26 +37,32 @@ func (m *mockPlugin) Handler() fiber.Handler {
 
 type mockDatabase struct{}
 
-func (m *mockDatabase) Connect(ctx context.Context, dsn string) error                                        { return nil }
-func (m *mockDatabase) Close() error                                                                         { return nil }
-func (m *mockDatabase) Ping(ctx context.Context) error                                                       { return nil }
-func (m *mockDatabase) Query(ctx context.Context, query string, args ...interface{}) (database.Rows, error) { return nil, nil }
-func (m *mockDatabase) QueryRow(ctx context.Context, query string, args ...interface{}) database.Row         { return nil }
-func (m *mockDatabase) Exec(ctx context.Context, query string, args ...interface{}) (database.Result, error) { return nil, nil }
-func (m *mockDatabase) Begin(ctx context.Context) (database.Tx, error)                                       { return nil, nil }
-func (m *mockDatabase) Dialect() database.Dialect                                                            { return &mockDialect{} }
-func (m *mockDatabase) DriverName() string                                                                    { return "mock" }
-func (m *mockDatabase) Introspector() database.SchemaIntrospector                                             { return nil }
+func (m *mockDatabase) Connect(ctx context.Context, dsn string) error { return nil }
+func (m *mockDatabase) Close() error                                  { return nil }
+func (m *mockDatabase) Ping(ctx context.Context) error                { return nil }
+func (m *mockDatabase) Query(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+	return nil, nil
+}
+func (m *mockDatabase) QueryRow(ctx context.Context, query string, args ...interface{}) database.Row {
+	return nil
+}
+func (m *mockDatabase) Exec(ctx context.Context, query string, args ...interface{}) (database.Result, error) {
+	return nil, nil
+}
+func (m *mockDatabase) Begin(ctx context.Context) (database.Tx, error) { return nil, nil }
+func (m *mockDatabase) Dialect() database.Dialect                      { return &mockDialect{} }
+func (m *mockDatabase) DriverName() string                             { return "mock" }
+func (m *mockDatabase) Introspector() database.SchemaIntrospector      { return nil }
 
 type mockDialect struct{}
 
-func (d *mockDialect) Placeholder(n int) string                  { return "?" }
-func (d *mockDialect) SupportsReturning() bool                   { return false }
-func (d *mockDialect) ReturningClause(cols ...string) string     { return "" }
-func (d *mockDialect) LimitOffset(limit, offset int) string      { return "" }
-func (d *mockDialect) QuoteIdentifier(name string) string        { return name }
-func (d *mockDialect) MapType(dbType string) string              { return dbType }
-func (d *mockDialect) CaseInsensitiveLike() string               { return "LOWER" }
+func (d *mockDialect) Placeholder(n int) string              { return "?" }
+func (d *mockDialect) SupportsReturning() bool               { return false }
+func (d *mockDialect) ReturningClause(cols ...string) string { return "" }
+func (d *mockDialect) LimitOffset(limit, offset int) string  { return "" }
+func (d *mockDialect) QuoteIdentifier(name string) string    { return name }
+func (d *mockDialect) MapType(dbType string) string          { return dbType }
+func (d *mockDialect) CaseInsensitiveLike() string           { return "LOWER" }
 
 func TestLoadPlugins_Success(t *testing.T) {
 	pluginFactories = make(map[string]PluginFactory)

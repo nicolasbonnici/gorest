@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	_ "modernc.org/sqlite"
 	"github.com/nicolasbonnici/gorest/database"
+	_ "modernc.org/sqlite"
 )
 
 type SQLiteDriver struct {

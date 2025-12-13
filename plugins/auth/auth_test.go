@@ -300,7 +300,6 @@ func TestAuthPlugin_Initialize_EmptyConfig(t *testing.T) {
 	}
 }
 
-
 func TestGetAuthenticatedUser_WithoutUser(t *testing.T) {
 	app := fiber.New()
 
@@ -317,7 +316,6 @@ func TestGetAuthenticatedUser_WithoutUser(t *testing.T) {
 	req := httptest.NewRequest("GET", "/test", nil)
 	app.Test(req)
 }
-
 
 func TestContext_WithoutUser(t *testing.T) {
 	app := fiber.New()
@@ -580,4 +578,3 @@ func TestAuthPlugin_SetupEndpoints_WithDatabase(t *testing.T) {
 		t.Errorf("expected no error, got %v", err)
 	}
 }
-

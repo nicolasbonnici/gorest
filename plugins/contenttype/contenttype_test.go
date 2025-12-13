@@ -369,10 +369,10 @@ func TestContentTypePlugin_Handler_AllMethodsValidation(t *testing.T) {
 	app.Options("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
 
 	tests := []struct {
-		method               string
-		contentType          string
-		shouldPass           bool
-		expectedStatus       int
+		method         string
+		contentType    string
+		shouldPass     bool
+		expectedStatus int
 	}{
 		{"GET", "", true, 200},
 		{"POST", "application/json", true, 201},

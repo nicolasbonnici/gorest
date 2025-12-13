@@ -35,9 +35,9 @@ type OutputConfig struct {
 }
 
 type CodegenAuthConfig struct {
-	Enabled   bool                     `yaml:"enabled"`
-	Defaults  map[string]bool          `yaml:"defaults"`
-	Endpoints []EndpointAuthConfig     `yaml:"endpoints"`
+	Enabled   bool                 `yaml:"enabled"`
+	Defaults  map[string]bool      `yaml:"defaults"`
+	Endpoints []EndpointAuthConfig `yaml:"endpoints"`
 }
 
 type EndpointAuthConfig struct {

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nicolasbonnici/gorest/codegen"
 	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
-	"github.com/nicolasbonnici/gorest/codegen"
 )
 
 func main() {

@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/nicolasbonnici/gorest/hooks"
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/hooks"
 )
 
 type CRUD[T Model] struct {
@@ -17,11 +17,11 @@ type CRUD[T Model] struct {
 }
 
 type PaginationOptions struct {
-	Limit        int
-	Offset       int
-	IncludeCount bool
-	WhereClause  string
-	WhereArgs    []interface{}
+	Limit         int
+	Offset        int
+	IncludeCount  bool
+	WhereClause   string
+	WhereArgs     []interface{}
 	OrderByClause string
 }
 

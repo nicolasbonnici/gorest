@@ -29,10 +29,10 @@ type Filter struct {
 }
 
 type FilterSet struct {
-	Filters        []Filter
-	AllowedFields  map[string]bool
-	paramIndex     int
-	dialect        database.Dialect
+	Filters       []Filter
+	AllowedFields map[string]bool
+	paramIndex    int
+	dialect       database.Dialect
 }
 
 func NewFilterSet(allowedFields []string, dialect database.Dialect) *FilterSet {

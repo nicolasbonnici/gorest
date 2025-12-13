@@ -195,14 +195,14 @@ func TestJSONLDSerializerWithTrailingSlash(t *testing.T) {
 
 func TestGetSerializer(t *testing.T) {
 	tests := []struct {
-		format           string
-		expectedJSON     bool
+		format              string
+		expectedJSON        bool
 		expectedContentType string
 	}{
 		{"json", true, "application/json"},
 		{"jsonld", false, "application/ld+json"},
 		{"json-ld", false, "application/ld+json"},
-		{"", false, "application/ld+json"}, // default
+		{"", false, "application/ld+json"},        // default
 		{"unknown", false, "application/ld+json"}, // default
 	}
 

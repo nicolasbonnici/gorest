@@ -137,10 +137,10 @@ func TestSendFormatted(t *testing.T) {
 	}
 
 	tests := []struct {
-		name               string
-		acceptHeader       string
-		expectedStatus     int
-		checkContentType   bool
+		name                string
+		acceptHeader        string
+		expectedStatus      int
+		checkContentType    bool
 		expectedContentType string
 	}{
 		{
