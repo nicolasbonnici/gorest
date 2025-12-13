@@ -6,11 +6,10 @@ import (
 )
 
 type SecurityPlugin struct {
-	version string
 }
 
 func NewPlugin() plugin.Plugin {
-	return &SecurityPlugin{version: "dev"}
+	return &SecurityPlugin{}
 }
 
 func (p *SecurityPlugin) Name() string {
@@ -18,9 +17,6 @@ func (p *SecurityPlugin) Name() string {
 }
 
 func (p *SecurityPlugin) Initialize(config map[string]interface{}) error {
-	if version, ok := config["__version"].(string); ok {
-		p.version = version
-	}
 	return nil
 }
 
@@ -34,7 +30,6 @@ func (p *SecurityPlugin) Handler() fiber.Handler {
 		}
 
 		// Set security headers
-		c.Set("X-Powered-By", "GoREST/"+p.version)
 		c.Set("X-Content-Type-Options", "nosniff")
 		c.Set("X-Frame-Options", "DENY")
 		c.Set("X-XSS-Protection", "1; mode=block")
