@@ -23,6 +23,8 @@ help:
 	@echo "  make codegen-resources - Generate API resources from models"
 	@echo "  make codegen-openapi - Generate OpenAPI schema"
 	@echo "  make generate        - Alias for codegen"
+	@echo "  make lint            - Run golangci-lint to check code"
+	@echo "  make lint-fix        - Run golangci-lint with --fix for auto-fixable issues"
 	@echo "  make test            - Run Go tests"
 	@echo "  make test-coverage   - Run Go tests with coverage report"
 	@echo "  make benchmark       - Benchmark resource generation (1, 10, 100, 1000 tables)"
@@ -81,6 +83,29 @@ codegen-openapi:
 
 .PHONY: generate
 generate: codegen
+
+# ----------------------------
+# Linting targets
+# ----------------------------
+.PHONY: lint
+lint:
+	@echo "[INFO] Running go vet..."
+	@go vet ./...
+	@echo "[INFO] Checking formatting..."
+	@unformatted=$$(gofmt -l . | grep -v '^vendor/' | grep -v 'generated/'); \
+	if [ -n "$$unformatted" ]; then \
+		echo "The following files need formatting:"; \
+		echo "$$unformatted"; \
+		echo "Run 'make lint-fix' to fix"; \
+		exit 1; \
+	fi
+	@echo "[INFO] All checks passed!"
+
+.PHONY: lint-fix
+lint-fix:
+	@echo "[INFO] Fixing formatting issues..."
+	@gofmt -w -s $$(find . -name '*.go' | grep -v vendor | grep -v /generated/)
+	@echo "[INFO] Formatting fixed!"
 
 # ----------------------------
 # Test targets
