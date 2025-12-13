@@ -16,7 +16,7 @@
 - 🎭 Hook layer to add your business logic onto your API resources
 - 🧩 Modular plugin system for easy customization
 - 🌐 JSON-LD support with semantic web context (@context, @type, @id)
-- 🔗 Automatic relation to IRI conversion (e.g., `/users/{uuid}`)
+- 🔗 IRI relations with optional expansion (`expand[]=relation`)
 - 🔍 Advanced filtering & ordering 
 - 📄 Page based pagination with Hydra collections
 - 👨🏻‍💻 DAL for PostgreSQL, MySQL and SQLite engines
@@ -270,6 +270,7 @@ go get github.com/nicolasbonnici/gorest@latest
 |---------|-------------|
 | `crud` | Type-safe CRUD operations with hooks |
 | `database` | Multi-database abstraction |
+| `expand` | Relation expansion (IRI to object) |
 | `filter` | Query filtering & ordering |
 | `serializer` | JSON-LD response serialization |
 | `hooks` | Lifecycle hooks for business logic |
@@ -609,19 +610,50 @@ GET /todos?order[created_at]=desc
 GET /todos?order[priority]=desc&order[created_at]=asc
 ```
 
-## 🔍 Serializer
+## 🔗 Expand Relations
 
-### Relations
-
-By default relation are IRIs exemple: `/resource/{uuid}`, but you can also serialize relations by using the expand query parameter like so:
-
+Deserialize IRI references into full nested objects using the `expand[]` query parameter:
 
 ```bash
-# Single field
-GET /resources?expand[]=user&expand[]=otherresource
----
+# Expand single relation
+GET /todos?expand[]=user
 
-More details about this feature available in [expand/USAGE.md](expand module documentation).
+# Expand multiple relations
+GET /todos?expand[]=user&expand[]=comments
+
+# Combine with filters and pagination
+GET /todos?status=active&limit=10&expand[]=user
+```
+
+**Response without expand** (IRI reference):
+```json
+{
+  "id": "todo-123",
+  "user": "/users/user-456",
+  "title": "Buy groceries"
+}
+```
+
+**Response with expand** (full object):
+```json
+{
+  "id": "todo-123",
+  "user": {
+    "id": "user-456",
+    "name": "Alice",
+    "email": "alice@example.com"
+  },
+  "title": "Buy groceries"
+}
+```
+
+**Key features:**
+- ✅ Clean relation names (`user`) instead of foreign keys (`userId`)
+- ✅ Works with both JSON and JSON-LD formats
+- ✅ Supports collections and single items
+- ✅ Respects DTO field visibility rules
+
+See [expand/USAGE.md](expand/USAGE.md) and [expand/EXAMPLES.md](expand/EXAMPLES.md) for complete documentation.
 
 ## 🌐 JSON-LD Support
 
@@ -642,12 +674,12 @@ JSON-LD response:
   "@type": "TodoDTO",
   "@id": "/todos/abc-123",
   "id": "abc-123",
-  "user_id": "/users/def-456",
+  "user": "/users/def-456",
   "title": "Buy groceries"
 }
 ```
 
-Foreign keys automatically convert to IRIs (`user_id` → `/users/def-456`).
+Foreign keys automatically convert to clean relation names with IRI values (`userId` → `user: "/users/def-456"`).
 
 ---
 
@@ -673,6 +705,7 @@ gorest/
 │   ├── postgres/
 │   ├── mysql/
 │   └── sqlite/
+├── expand/                 # Relation expansion
 ├── filter/                 # Query filtering
 ├── serializer/             # JSON-LD serialization
 ├── codegen/                # Code generation
