@@ -434,6 +434,63 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 	return &item, nil
 }
 
+func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
+	if len(ids) == 0 {
+		return []T{}, nil
+	}
+
+	var zero T
+	t := reflect.TypeOf(zero)
+
+	var cols []string
+	var fieldIndices []int
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("db")
+		if tag != "" {
+			cols = append(cols, tag)
+			fieldIndices = append(fieldIndices, i)
+		}
+	}
+
+	placeholders := make([]string, len(ids))
+	for i := range ids {
+		placeholders[i] = c.DB.Dialect().Placeholder(i + 1)
+	}
+
+	query := fmt.Sprintf(
+		"SELECT %s FROM %s WHERE id IN (%s)",
+		strings.Join(cols, ", "),
+		zero.TableName(),
+		strings.Join(placeholders, ", "),
+	)
+
+	rows, err := c.DB.Query(ctx, query, ids...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []T
+	for rows.Next() {
+		var item T
+		v := reflect.ValueOf(&item).Elem()
+
+		fields := make([]interface{}, len(fieldIndices))
+		for i, idx := range fieldIndices {
+			fields[i] = v.Field(idx).Addr().Interface()
+		}
+
+		if err := rows.Scan(fields...); err != nil {
+			return nil, err
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
 func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 	if err := c.Hooks.StateProcessor(ctx, hooks.OperationUpdate, id, &m); err != nil {
 		return err

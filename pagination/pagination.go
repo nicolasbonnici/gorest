@@ -106,7 +106,8 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, pag
 		view.Last = &lastURL
 	}
 
-	formattedItems := formatItems(items, basePath, response.DetermineFormat(c))
+	expand := response.ParseExpandQuery(c)
+	formattedItems := formatItems(items, basePath, response.DetermineFormat(c), expand)
 
 	collection := HydraCollection{
 		Context:    "http://www.w3.org/ns/hydra/context.jsonld",
@@ -125,7 +126,7 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, pag
 	return c.Status(fiber.StatusOK).JSON(collection)
 }
 
-func formatItems(items interface{}, path string, format string) interface{} {
+func formatItems(items interface{}, path string, format string, expand []string) interface{} {
 	val := reflect.ValueOf(items)
 	if val.Kind() != reflect.Slice {
 		return items
@@ -136,13 +137,18 @@ func formatItems(items interface{}, path string, format string) interface{} {
 
 	for i := 0; i < val.Len(); i++ {
 		item := val.Index(i).Interface()
-		jsonBytes, _ := json.Marshal(item)
-		var itemMap map[string]interface{}
-		json.Unmarshal(jsonBytes, &itemMap)
 
 		if format == "jsonld" {
-			formattedItems[i] = s.(*serializer.JSONLDSerializer).AddTypeToItemExported(item, path)
+			jsonBytes, _ := s.SerializeWithExpand(item, path, expand)
+			var itemMap map[string]interface{}
+			json.Unmarshal(jsonBytes, &itemMap)
+
+			delete(itemMap, "@context")
+			formattedItems[i] = itemMap
 		} else {
+			jsonBytes, _ := json.Marshal(item)
+			var itemMap map[string]interface{}
+			json.Unmarshal(jsonBytes, &itemMap)
 			formattedItems[i] = itemMap
 		}
 	}

@@ -609,6 +609,16 @@ GET /todos?order[created_at]=desc
 GET /todos?order[priority]=desc&order[created_at]=asc
 ```
 
+## 🔍 Serializer
+
+### Relations
+
+By default relation are IRIs exemple: `/resource/{uuid}`, but you can also serialize relations by using the expand query parameter like so:
+
+
+```bash
+# Single field
+GET /resources?expand[]=user&expand[]=otherresource
 ---
 
 ## 🌐 JSON-LD Support

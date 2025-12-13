@@ -9,6 +9,7 @@ import (
 
 type ResponseSerializer interface {
 	Serialize(data interface{}, path string) ([]byte, error)
+	SerializeWithExpand(data interface{}, path string, expand []string) ([]byte, error)
 	ContentType() string
 }
 
@@ -30,6 +31,11 @@ func (s *JSONSerializer) Serialize(data interface{}, path string) ([]byte, error
 	return json.Marshal(data)
 }
 
+func (s *JSONSerializer) SerializeWithExpand(data interface{}, path string, expand []string) ([]byte, error) {
+	// JSON serializer doesn't do IRI conversion, so expand has no effect
+	return s.Serialize(data, path)
+}
+
 func (s *JSONSerializer) ContentType() string {
 	return "application/json"
 }
@@ -37,7 +43,11 @@ func (s *JSONSerializer) ContentType() string {
 type JSONLDSerializer struct{}
 
 func (s *JSONLDSerializer) Serialize(data interface{}, path string) ([]byte, error) {
-	wrapped := s.wrapWithContext(data, path)
+	return s.SerializeWithExpand(data, path, nil)
+}
+
+func (s *JSONLDSerializer) SerializeWithExpand(data interface{}, path string, expand []string) ([]byte, error) {
+	wrapped := s.wrapWithContextExpand(data, path, expand)
 	return json.Marshal(wrapped)
 }
 
@@ -46,6 +56,10 @@ func (s *JSONLDSerializer) ContentType() string {
 }
 
 func (s *JSONLDSerializer) wrapWithContext(data interface{}, path string) map[string]interface{} {
+	return s.wrapWithContextExpand(data, path, nil)
+}
+
+func (s *JSONLDSerializer) wrapWithContextExpand(data interface{}, path string, expand []string) map[string]interface{} {
 	result := map[string]interface{}{
 		"@context": "https://schema.org/",
 	}
@@ -54,13 +68,13 @@ func (s *JSONLDSerializer) wrapWithContext(data interface{}, path string) map[st
 	if val.Kind() == reflect.Slice {
 		items := make([]interface{}, val.Len())
 		for i := 0; i < val.Len(); i++ {
-			items[i] = s.addTypeToItem(val.Index(i).Interface(), path)
+			items[i] = s.addTypeToItemExpand(val.Index(i).Interface(), path, expand)
 		}
 		result["@graph"] = items
 		return result
 	}
 
-	item := s.addTypeToItem(data, path)
+	item := s.addTypeToItemExpand(data, path, expand)
 	for k, v := range item {
 		result[k] = v
 	}
@@ -72,6 +86,10 @@ func (s *JSONLDSerializer) AddTypeToItemExported(data interface{}, path string) 
 }
 
 func (s *JSONLDSerializer) addTypeToItem(data interface{}, path string) map[string]interface{} {
+	return s.addTypeToItemExpand(data, path, nil)
+}
+
+func (s *JSONLDSerializer) addTypeToItemExpand(data interface{}, path string, expand []string) map[string]interface{} {
 	jsonBytes, _ := json.Marshal(data)
 	var itemMap map[string]interface{}
 	json.Unmarshal(jsonBytes, &itemMap)
@@ -96,7 +114,20 @@ func (s *JSONLDSerializer) addTypeToItem(data interface{}, path string) map[stri
 		}
 	}
 
+	expandMap := make(map[string]bool)
+	for _, exp := range expand {
+		expandMap[exp] = true
+		expandMap[toSnakeCase(exp)] = true
+		expandMap[toCamelCase(exp)] = true
+	}
+
 	for key, value := range itemMap {
+		if expandMap[key] {
+			if objMap, ok := value.(map[string]interface{}); ok {
+				itemMap[key] = s.addTypeToItemExpand(objMap, "/"+pluralize(key), nil)
+			}
+		}
+
 		isForeignKey := (strings.HasSuffix(key, "_id") || strings.HasSuffix(key, "Id")) && key != "id"
 		if isForeignKey {
 			if valueStr, ok := value.(string); ok && valueStr != "" {
@@ -131,4 +162,25 @@ func pluralize(word string) string {
 
 func isVowel(c byte) bool {
 	return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'
+}
+
+func toSnakeCase(s string) string {
+	var result strings.Builder
+	for i, r := range s {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			result.WriteRune('_')
+		}
+		result.WriteRune(r)
+	}
+	return strings.ToLower(result.String())
+}
+
+func toCamelCase(s string) string {
+	parts := strings.Split(s, "_")
+	for i := range parts {
+		if i > 0 && len(parts[i]) > 0 {
+			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+		}
+	}
+	return strings.Join(parts, "")
 }
