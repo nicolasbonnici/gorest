@@ -19,6 +19,7 @@ import (
 	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/pluginloader"
+	"github.com/nicolasbonnici/gorest/response"
 )
 
 var Version = "dev"
@@ -43,6 +44,9 @@ func Start(cfg Config) {
 		logger.Log.Error("Invalid configuration", "error", err)
 		os.Exit(1)
 	}
+
+	// Initialize response package with version
+	response.Initialize(Version)
 
 	db, err := database.Open("", appConfig.Database.URL)
 	if err != nil {

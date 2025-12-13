@@ -3,12 +3,21 @@
 # ----------------------------
 DB_TEST_CONTAINER=gorest_db_test
 
+# Version from git tag, fallback to git describe, or "dev" if no git
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || git describe --tags --always --dirty 2>/dev/null || echo "dev")
+
+# Build flags for version injection
+LDFLAGS=-ldflags "-X 'github.com/nicolasbonnici/gorest.Version=$(VERSION)'"
+
 # ----------------------------
 # Default target
 # ----------------------------
 .PHONY: help
 help:
 	@echo "Usage:"
+	@echo "  make build           - Build codegen binary with version injection"
+	@echo "  make install         - Install codegen binary with version injection"
+	@echo "  make version         - Show current version"
 	@echo "  make codegen         - Run all code generation (models + resources + openapi)"
 	@echo "  make codegen-models  - Generate models from database schema"
 	@echo "  make codegen-resources - Generate API resources from models"
@@ -28,27 +37,47 @@ tidy:
 	@go mod tidy
 
 # ----------------------------
+# Build targets
+# ----------------------------
+.PHONY: version
+version:
+	@echo "$(VERSION)"
+
+.PHONY: build
+build:
+	@echo "[INFO] Building codegen with version $(VERSION)..."
+	@go build $(LDFLAGS) -o bin/codegen ./cmd/codegen/main.go
+	@echo "[INFO] Binary built at bin/codegen"
+	@./bin/codegen --version 2>/dev/null || echo "[INFO] Version: $(VERSION)"
+
+.PHONY: install
+install:
+	@echo "[INFO] Installing codegen with version $(VERSION)..."
+	@go install $(LDFLAGS) ./cmd/codegen
+	@echo "[INFO] Installed to $(shell go env GOPATH)/bin/codegen"
+
+# ----------------------------
 # Code generation targets
 # ----------------------------
 .PHONY: codegen
 codegen:
-	@echo "[INFO] Running all code generation..."
-	@go run ./cmd/codegen/main.go all
+	@echo "[INFO] Running all code generation (version: $(VERSION))..."
+	@go run $(LDFLAGS) ./cmd/codegen/main.go all
 
 .PHONY: codegen-models
 codegen-models:
 	@echo "[INFO] Generating models from database schema..."
-	@go run ./cmd/codegen/main.go models
+	@go run $(LDFLAGS) ./cmd/codegen/main.go models
 
 .PHONY: codegen-resources
 codegen-resources:
 	@echo "[INFO] Generating API resources from models..."
-	@go run ./cmd/codegen/main.go resources
+	@go run $(LDFLAGS) ./cmd/codegen/main.go resources
 
 .PHONY: codegen-openapi
 codegen-openapi:
 	@echo "[INFO] Generating OpenAPI schema..."
-	@go run ./cmd/codegen/main.go openapi
+	@go run $(LDFLAGS) ./cmd/codegen/main.go openapi
 
 .PHONY: generate
 generate: codegen
