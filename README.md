@@ -621,6 +621,8 @@ By default relation are IRIs exemple: `/resource/{uuid}`, but you can also seria
 GET /resources?expand[]=user&expand[]=otherresource
 ---
 
+More details about this feature available in [expand/USAGE.md](expand module documentation).
+
 ## 🌐 JSON-LD Support
 
 Automatic semantic web support with content negotiation:
