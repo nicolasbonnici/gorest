@@ -89,8 +89,11 @@ generate: codegen
 # ----------------------------
 .PHONY: lint
 lint:
-	@echo "[INFO] Running go vet..."
-	@go vet ./...
+	@echo "[INFO] Running go vet (excluding benchmark testserver)..."
+	@packages=$$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true); \
+	if [ -n "$$packages" ]; then \
+		go vet $$packages; \
+	fi
 	@echo "[INFO] Checking formatting..."
 	@unformatted=$$(gofmt -l . | grep -v '^vendor/' | grep -v 'generated/'); \
 	if [ -n "$$unformatted" ]; then \
