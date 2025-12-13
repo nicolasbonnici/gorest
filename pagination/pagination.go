@@ -74,6 +74,76 @@ func buildPaginationURL(basePath string, params url.Values, limit, page, default
 	return basePath
 }
 
+func SendHydraCollectionWithExpanded(c *fiber.Ctx, expandedItems []interface{}, total *int, limit, page, defaultLimit int) error {
+	basePath := c.Path()
+	queryParams := c.Context().QueryArgs()
+	parsedParams := make(url.Values)
+	queryParams.VisitAll(func(key, value []byte) {
+		parsedParams.Add(string(key), string(value))
+	})
+
+	currentURL := buildPaginationURL(basePath, parsedParams, limit, page, defaultLimit)
+
+	view := &HydraView{
+		ID:    currentURL,
+		Type:  "hydra:PartialCollectionView",
+		First: buildPaginationURL(basePath, parsedParams, limit, 1, defaultLimit),
+	}
+
+	if page > 1 {
+		prevURL := buildPaginationURL(basePath, parsedParams, limit, page-1, defaultLimit)
+		view.Previous = &prevURL
+	}
+
+	if total != nil {
+		lastPage := (*total + limit - 1) / limit
+		if page < lastPage {
+			nextURL := buildPaginationURL(basePath, parsedParams, limit, page+1, defaultLimit)
+			view.Next = &nextURL
+		}
+
+		lastURL := buildPaginationURL(basePath, parsedParams, limit, lastPage, defaultLimit)
+		view.Last = &lastURL
+	}
+
+	format := response.DetermineFormat(c)
+	s := serializer.GetSerializer(format)
+	expand := response.ParseExpandQuery(c)
+
+	formattedItems := make([]interface{}, len(expandedItems))
+	for i, item := range expandedItems {
+		if itemMap, ok := item.(map[string]interface{}); ok {
+			if format == "jsonld" {
+				jsonBytes, _ := s.SerializeWithExpand(itemMap, basePath, expand)
+				var enriched map[string]interface{}
+				json.Unmarshal(jsonBytes, &enriched)
+				delete(enriched, "@context")
+				formattedItems[i] = enriched
+			} else {
+				formattedItems[i] = itemMap
+			}
+		} else {
+			formattedItems[i] = item
+		}
+	}
+
+	collection := HydraCollection{
+		Context:    "http://www.w3.org/ns/hydra/context.jsonld",
+		ID:         basePath,
+		Type:       "hydra:Collection",
+		TotalItems: total,
+		Member:     formattedItems,
+		View:       view,
+	}
+
+	if format == "jsonld" {
+		c.Set("Content-Type", "application/ld+json")
+	}
+
+	response.SetCommonHeaders(c)
+	return c.Status(fiber.StatusOK).JSON(collection)
+}
+
 func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, page, defaultLimit int) error {
 	basePath := c.Path()
 	queryParams := c.Context().QueryArgs()
