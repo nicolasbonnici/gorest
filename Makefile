@@ -95,7 +95,7 @@ lint:
 		go vet $$packages; \
 	fi
 	@echo "[INFO] Checking formatting..."
-	@unformatted=$$(gofmt -l . | grep -v '^vendor/' | grep -v 'generated/'); \
+	@unformatted=$$(gofmt -l . | grep -v '^vendor/' | grep -v 'generated/' || true); \
 	if [ -n "$$unformatted" ]; then \
 		echo "The following files need formatting:"; \
 		echo "$$unformatted"; \

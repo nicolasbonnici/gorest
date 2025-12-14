@@ -29,7 +29,7 @@ jobs:
 
       - name: Check formatting
         run: |
-          unformatted=$(gofmt -l . | grep -v '^vendor/' | grep -v 'generated/')
+          unformatted=$(gofmt -l . | grep -v '^vendor/' | grep -v 'generated/' || true)
           if [ -n "$unformatted" ]; then
             echo "The following files need formatting:"
             echo "$unformatted"
