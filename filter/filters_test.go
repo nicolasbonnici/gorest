@@ -12,11 +12,11 @@ func TestFilterSet_ParseFromQuery(t *testing.T) {
 	dialect := &postgres.PostgresDialect{}
 
 	tests := []struct {
-		name           string
-		queryString    string
-		allowedFields  []string
-		expectedCount  int
-		expectedOps    []FilterOperator
+		name          string
+		queryString   string
+		allowedFields []string
+		expectedCount int
+		expectedOps   []FilterOperator
 	}{
 		{
 			name:          "simple equality",

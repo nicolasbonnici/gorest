@@ -1,8 +1,11 @@
 package hooks
+
 import "fmt"
+
 type HookFactory struct {
 	registry map[string]interface{}
 }
+
 func NewHookFactory() *HookFactory {
 	return &HookFactory{
 		registry: make(map[string]interface{}),
@@ -43,7 +46,9 @@ func (f *HookFactory) HasHooks(resourceName string) bool {
 	_, exists := f.registry[resourceName]
 	return exists
 }
+
 var globalFactory *HookFactory
+
 func GlobalFactory() *HookFactory {
 	if globalFactory == nil {
 		globalFactory = NewHookFactory()

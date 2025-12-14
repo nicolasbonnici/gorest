@@ -65,9 +65,9 @@ func TestFilterSet_ILike_SQLite(t *testing.T) {
 
 func TestFilterSet_In_MultipleDialects(t *testing.T) {
 	tests := []struct {
-		name            string
-		dialect         interface{ Placeholder(n int) string }
-		expectedWhere   string
+		name          string
+		dialect       interface{ Placeholder(n int) string }
+		expectedWhere string
 	}{
 		{
 			name:          "PostgreSQL",
