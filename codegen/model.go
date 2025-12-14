@@ -84,10 +84,10 @@ func GenerateStructs(tables map[string]TableSchema) {
 	for _, table := range tables {
 		singularTable := singularize(table.TableName)
 		structName := toPascalCase(singularTable)
-        switch structName {
-        case "model":
-            continue
-        }
+		switch structName {
+		case "model":
+			continue
+		}
 
 		filePath := filepath.Join(modelsDir, strings.ToLower(structName)+".go")
 
@@ -161,22 +161,22 @@ func GenerateOpenAPI(tables map[string]TableSchema) {
 
 func pgToGoType(pgType string, nullable bool) string {
 	base := map[string]string{
-		"integer":  "int",
-		"bigint":   "int64",
-		"smallint": "int16",
-		"text":     "string",
-		"varchar":  "string",
-		"character varying": "string",
-		"boolean":  "bool",
+		"integer":                     "int",
+		"bigint":                      "int64",
+		"smallint":                    "int16",
+		"text":                        "string",
+		"varchar":                     "string",
+		"character varying":           "string",
+		"boolean":                     "bool",
 		"timestamp without time zone": "time.Time",
-		"timestamp with time zone": "time.Time",
-		"timestamp": "time.Time",
-		"uuid": "string",
-		"numeric": "float64",
-		"double precision": "float64",
-		"real": "float32",
-		"json": "map[string]interface{}",
-		"jsonb": "map[string]interface{}",
+		"timestamp with time zone":    "time.Time",
+		"timestamp":                   "time.Time",
+		"uuid":                        "string",
+		"numeric":                     "float64",
+		"double precision":            "float64",
+		"real":                        "float32",
+		"json":                        "map[string]interface{}",
+		"jsonb":                       "map[string]interface{}",
 	}
 	goType, ok := base[pgType]
 	if !ok {
@@ -231,7 +231,7 @@ func SingularizeExported(word string) string {
 		return word[:len(word)-2]
 	}
 	if strings.HasSuffix(word, "xes") || strings.HasSuffix(word, "zes") ||
-	   strings.HasSuffix(word, "ches") || strings.HasSuffix(word, "shes") {
+		strings.HasSuffix(word, "ches") || strings.HasSuffix(word, "shes") {
 		return word[:len(word)-2]
 	}
 	if strings.HasSuffix(word, "s") && !strings.HasSuffix(word, "ss") {

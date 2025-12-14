@@ -10,8 +10,8 @@ import (
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 	"github.com/nicolasbonnici/gorest/plugin"
-	_ "github.com/nicolasbonnici/gorest/plugins/benchmark"
 	"github.com/nicolasbonnici/gorest/pluginloader"
+	_ "github.com/nicolasbonnici/gorest/plugins/benchmark"
 )
 
 func main() {

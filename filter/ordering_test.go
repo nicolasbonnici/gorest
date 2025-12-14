@@ -81,10 +81,10 @@ func TestOrderSet_ParseFromQuery(t *testing.T) {
 
 func TestOrderSet_BuildOrderByClause(t *testing.T) {
 	tests := []struct {
-		name              string
-		queryString       string
-		allowedFields     []string
-		expectedOrderBy   string
+		name            string
+		queryString     string
+		allowedFields   []string
+		expectedOrderBy string
 	}{
 		{
 			name:            "single ascending",

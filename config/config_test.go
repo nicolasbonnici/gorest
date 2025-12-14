@@ -136,13 +136,13 @@ func TestValidate_AuthPluginJWTSecret(t *testing.T) {
 					},
 				},
 				Plugins: PluginsConfig{
-			{
-							Name:    "auth",
-							Enabled: true,
-							Config: map[string]interface{}{
-								"jwt_secret": tt.secret,
-							},
-		},
+					{
+						Name:    "auth",
+						Enabled: true,
+						Config: map[string]interface{}{
+							"jwt_secret": tt.secret,
+						},
+					},
 				},
 			}
 
@@ -177,12 +177,12 @@ func TestValidate_AuthPluginDisabled(t *testing.T) {
 		},
 		Plugins: PluginsConfig{
 			{
-					Name:    "auth",
-					Enabled: false,
-					Config: map[string]interface{}{
-						"jwt_secret": "short",
-					},
-		},
+				Name:    "auth",
+				Enabled: false,
+				Config: map[string]interface{}{
+					"jwt_secret": "short",
+				},
+			},
 		},
 	}
 
@@ -206,10 +206,10 @@ func TestValidate_AuthPluginMissingSecret(t *testing.T) {
 		},
 		Plugins: PluginsConfig{
 			{
-					Name:    "auth",
-					Enabled: true,
-					Config:  map[string]interface{}{},
-		},
+				Name:    "auth",
+				Enabled: true,
+				Config:  map[string]interface{}{},
+			},
 		},
 	}
 
@@ -469,18 +469,18 @@ func TestValidate_MultipleAuthPlugins(t *testing.T) {
 			},
 		},
 		Plugins: PluginsConfig{
-				{
-					Name:    "auth",
-					Enabled: true,
-					Config: map[string]interface{}{
-						"jwt_secret": "valid-secret-key-with-32-chars-minimum",
-					},
+			{
+				Name:    "auth",
+				Enabled: true,
+				Config: map[string]interface{}{
+					"jwt_secret": "valid-secret-key-with-32-chars-minimum",
 				},
-				{
-					Name:    "custom-auth",
-					Enabled: true,
-					Config:  map[string]interface{}{},
-				},
+			},
+			{
+				Name:    "custom-auth",
+				Enabled: true,
+				Config:  map[string]interface{}{},
+			},
 		},
 	}
 
@@ -504,12 +504,12 @@ func TestValidate_AuthPluginWrongType(t *testing.T) {
 		},
 		Plugins: PluginsConfig{
 			{
-					Name:    "auth",
-					Enabled: true,
-					Config: map[string]interface{}{
-						"jwt_secret": 123,
-					},
-		},
+				Name:    "auth",
+				Enabled: true,
+				Config: map[string]interface{}{
+					"jwt_secret": 123,
+				},
+			},
 		},
 	}
 

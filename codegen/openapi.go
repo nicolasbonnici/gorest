@@ -128,9 +128,9 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema, paginationLimit
 									"schema": map[string]interface{}{
 										"type": "object",
 										"properties": map[string]interface{}{
-											"@context": map[string]string{"type": "string"},
-											"@id":      map[string]string{"type": "string"},
-											"@type":    map[string]string{"type": "string", "example": "hydra:Collection"},
+											"@context":         map[string]string{"type": "string"},
+											"@id":              map[string]string{"type": "string"},
+											"@type":            map[string]string{"type": "string", "example": "hydra:Collection"},
 											"hydra:totalItems": map[string]interface{}{"type": "integer", "description": "Total count (only present if count=true)"},
 											"hydra:member": map[string]interface{}{
 												"type": "array",
@@ -289,7 +289,7 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema, paginationLimit
 					"content": map[string]interface{}{
 						"application/json": map[string]interface{}{
 							"schema": map[string]interface{}{
-								"type": "object",
+								"type":     "object",
 								"required": []string{"email", "password"},
 								"properties": map[string]interface{}{
 									"email": map[string]interface{}{

@@ -8,10 +8,10 @@ import (
 )
 
 type RelationConfig struct {
-	Field        string
+	Field           string
 	ForeignKeyField string
-	RelatedTable string
-	CRUD interface{}
+	RelatedTable    string
+	CRUD            interface{}
 }
 
 func ExpandRelations(ctx context.Context, data interface{}, relations []string, configs map[string]RelationConfig) (interface{}, error) {

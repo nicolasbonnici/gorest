@@ -62,12 +62,12 @@ func TestSecurityPlugin_Handler_AllHeaders(t *testing.T) {
 	}
 
 	expectedHeaders := map[string]string{
-		"X-Content-Type-Options":     "nosniff",
-		"X-Frame-Options":            "DENY",
-		"X-XSS-Protection":           "1; mode=block",
-		"Strict-Transport-Security":  "max-age=31536000; includeSubDomains",
-		"Referrer-Policy":            "strict-origin-when-cross-origin",
-		"Permissions-Policy":         "geolocation=(), microphone=(), camera=()",
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "DENY",
+		"X-XSS-Protection":          "1; mode=block",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+		"Referrer-Policy":           "strict-origin-when-cross-origin",
+		"Permissions-Policy":        "geolocation=(), microphone=(), camera=()",
 	}
 
 	for header, expectedValue := range expectedHeaders {
@@ -390,4 +390,3 @@ func TestSecurityPlugin_Handler_DoesNotBlockRequests(t *testing.T) {
 		t.Errorf("security headers should not block valid requests, got status %d", resp.StatusCode)
 	}
 }
-

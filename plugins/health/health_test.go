@@ -152,4 +152,3 @@ func TestHealthPlugin_HealthCheckNoDatabase(t *testing.T) {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 }
-

@@ -370,9 +370,9 @@ func TestCORSPlugin_Handler_CustomHeaders(t *testing.T) {
 
 func TestCORSPlugin_Handler_CredentialsOnlyWithSpecificOrigin(t *testing.T) {
 	tests := []struct {
-		name                  string
-		origins               string
-		expectedCredentials   bool
+		name                string
+		origins             string
+		expectedCredentials bool
 	}{
 		{
 			name:                "wildcard no credentials",
