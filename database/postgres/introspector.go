@@ -16,7 +16,11 @@ func (i *PostgresIntrospector) LoadSchema(ctx context.Context) ([]database.Table
 	tables := make(map[string]database.TableSchema)
 
 	colQuery := `
-	SELECT table_name, column_name, is_nullable, data_type
+	SELECT table_name, column_name, is_nullable,
+	       CASE
+	           WHEN data_type = 'USER-DEFINED' THEN udt_name
+	           ELSE data_type
+	       END as data_type
 	FROM information_schema.columns
 	WHERE table_schema='public'
 	ORDER BY table_name, ordinal_position;
@@ -93,7 +97,12 @@ func (i *PostgresIntrospector) LoadSchema(ctx context.Context) ([]database.Table
 
 func (i *PostgresIntrospector) GetColumns(ctx context.Context, tableName string) ([]database.Column, error) {
 	query := `
-	SELECT column_name, data_type, is_nullable
+	SELECT column_name,
+	       CASE
+	           WHEN data_type = 'USER-DEFINED' THEN udt_name
+	           ELSE data_type
+	       END as data_type,
+	       is_nullable
 	FROM information_schema.columns
 	WHERE table_schema='public' AND table_name=$1
 	ORDER BY ordinal_position;
