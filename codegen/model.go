@@ -180,7 +180,9 @@ func pgToGoType(pgType string, nullable bool) string {
 	}
 	goType, ok := base[pgType]
 	if !ok {
-		goType = "interface{}"
+		// For unknown types (likely custom enums, domains, etc.), default to string
+		// This handles PostgreSQL enums and other text-based custom types
+		goType = "string"
 	}
 
 	isTimestamp := goType == "time.Time"
