@@ -91,6 +91,10 @@ func extractStructFields(path string, structName string) []StructField {
 					if pkg, ok := t.X.(*ast.Ident); ok {
 						fieldType = pkg.Name + "." + t.Sel.Name
 					}
+				case *ast.InterfaceType:
+					fieldType = "interface{}"
+				case *ast.MapType:
+					fieldType = "map[string]interface{}"
 				}
 
 				jsonTag := ""
@@ -158,6 +162,10 @@ func extractStructFieldsFromAST(st *ast.StructType) []StructField {
 			if pkg, ok := t.X.(*ast.Ident); ok {
 				fieldType = pkg.Name + "." + t.Sel.Name
 			}
+		case *ast.InterfaceType:
+			fieldType = "interface{}"
+		case *ast.MapType:
+			fieldType = "map[string]interface{}"
 		}
 
 		jsonTag := ""
