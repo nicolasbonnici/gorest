@@ -49,17 +49,22 @@ codegen:
     dtos: "generated/dtos"
     openapi: "generated/openapi"
     config: "generated/config"
+    
+  enums:
+    enabled: true
+
   auth:
     enabled: true
-    # Secure by default - all methods require auth unless overridden
+    # Default: all methods require authentication
     defaults:
       GET: true
       POST: true
       PUT: true
       DELETE: true
+    # Per-resource overrides
     endpoints:
       - name: posts
-        GET: false    # Public read
+        GET: false  # Public read - GET /posts and GET /posts/:id
 
 
 server:
@@ -159,20 +164,21 @@ codegen:
     openapi: "generated/openapi"    # Where to generate OpenAPI
     config: "generated/config"      # Where to generate config files
 
-  auth:
+  enums:
     enabled: true
 
-    # Defaults - applied to all endpoints unless overridden
-    # Secure by default: all methods require auth
+  auth:
+    enabled: true
+    # Default: all methods require authentication
     defaults:
       GET: true
       POST: true
       PUT: true
       DELETE: true
-
+    # Per-resource overrides
     endpoints:
       - name: posts
-        GET: false  # Public read access
+        GET: false  # Public read - GET /posts and GET /posts/:id
 ```
 
 ### Runtime Configuration (`server`, `database`, `pagination`)
@@ -655,6 +661,150 @@ GET /todos?status=active&limit=10&expand[]=user
 
 See [expand/USAGE.md](expand/USAGE.md) and [expand/EXAMPLES.md](expand/EXAMPLES.md) for complete documentation.
 
+---
+
+## 🗄️ Database Migrations
+
+GoREST includes a production-ready database migration system with multi-database support, plugin migrations, and comprehensive safety features.
+
+### Features
+
+- ✅ **Multi-Database Support**: PostgreSQL, MySQL, SQLite
+- ✅ **Dialect-Specific Migrations**: Database-specific SQL files with generic fallback
+- ✅ **Plugin System Integration**: Each plugin can maintain its own migrations
+- ✅ **Checksum Verification**: Prevents migration drift between environments
+- ✅ **Advisory Locking**: Prevents concurrent execution
+- ✅ **Transaction Safety**: Automatic rollback on failure
+- ✅ **Dependency Resolution**: Plugin migrations run in correct order
+
+### Quick Start
+
+**1. Create Migration Files**
+
+Migration files use timestamp-based naming: `{timestamp}_{name}.{up|down}[.{dialect}].sql`
+
+```bash
+# Generate timestamp
+date +%Y%m%d%H%M%S
+# Output: 20250120143022
+```
+
+**2. Write Migrations**
+
+Create dialect-specific migration files:
+
+```
+migrations/
+├── 20250120143022_create_users.up.postgres.sql
+├── 20250120143022_create_users.down.postgres.sql
+├── 20250120143022_create_users.up.mysql.sql
+├── 20250120143022_create_users.down.mysql.sql
+├── 20250120143022_create_users.up.sqlite.sql
+└── 20250120143022_create_users.down.sqlite.sql
+```
+
+**Example (PostgreSQL):**
+
+```sql
+-- 20250120143022_create_users.up.postgres.sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_user_email ON users (email);
+```
+
+```sql
+-- 20250120143022_create_users.down.postgres.sql
+DROP INDEX IF EXISTS idx_user_email;
+DROP TABLE IF EXISTS users CASCADE;
+```
+
+**3. Embed and Run Migrations**
+
+```go
+package main
+
+import (
+    "context"
+    "embed"
+    "github.com/nicolasbonnici/gorest/database"
+    "github.com/nicolasbonnici/gorest/migrations"
+)
+
+//go:embed migrations/*.sql
+var migrationFiles embed.FS
+
+func main() {
+    db, _ := database.Open("postgres", "postgres://localhost/mydb")
+    defer db.Close()
+
+    // Create migration source
+    appSource := migrations.NewEmbeddedSource("app", migrationFiles, "migrations", db)
+
+    // Create migrator
+    migrator := migrations.NewMigrator(db, appSource)
+
+    // Run all pending migrations
+    if err := migrator.Up(context.Background()); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+### Migration Commands
+
+```go
+ctx := context.Background()
+
+// Apply all pending migrations
+migrator.Up(ctx)
+
+// Apply next pending migration
+migrator.UpOne(ctx)
+
+// Revert last migration
+migrator.Down(ctx)
+
+// Check migration status
+statuses, _ := migrator.Status(ctx)
+```
+
+### Plugin Migrations
+
+Plugins can provide their own migrations:
+
+```go
+package auth
+
+import (
+    "embed"
+    "github.com/nicolasbonnici/gorest/migrations"
+)
+
+//go:embed migrations/*.sql
+var migrationFiles embed.FS
+
+func (p *AuthPlugin) MigrationSource() plugin.MigrationSource {
+    return migrations.NewEmbeddedSource("auth", migrationFiles, "migrations", p.db)
+}
+
+func (p *AuthPlugin) MigrationDependencies() []string {
+    return []string{"app"} // Auth depends on app migrations
+}
+```
+
+See [migrations/README.md](migrations/README.md) for complete documentation including:
+- Detailed API reference
+- Safety features (checksums, locking, dirty database detection)
+- Plugin migration examples
+- Error handling and recovery
+- Best practices and troubleshooting
+
+---
+
 ## 🌐 JSON-LD Support
 
 Automatic semantic web support with content negotiation:
@@ -705,6 +855,7 @@ gorest/
 │   ├── postgres/
 │   ├── mysql/
 │   └── sqlite/
+├── migrations/             # Database migration system
 ├── expand/                 # Relation expansion
 ├── filter/                 # Query filtering
 ├── serializer/             # JSON-LD serialization
@@ -716,7 +867,7 @@ gorest/
 ├── plugin/                 # Plugin interfaces (core)
 ├── pluginloader/           # Plugin factory & loading system
 ├── plugins/                # Built-in plugin implementations
-│   ├── auth/              # JWT authentication
+│   ├── auth/              # JWT authentication (with migrations example)
 │   ├── contenttype/       # Content-Type validation
 │   ├── cors/              # CORS handling
 │   ├── logger/            # HTTP logging
