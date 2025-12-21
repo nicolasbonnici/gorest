@@ -16,7 +16,7 @@ import (
 	"github.com/nicolasbonnici/gorest/pagination"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/response"
-	auth "github.com/nicolasbonnici/gorest/plugins/auth"
+	auth "github.com/nicolasbonnici/gorest-auth"
 )
 
 type TodoResource struct {
