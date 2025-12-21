@@ -5,7 +5,6 @@ import (
 	"fmt"
 )
 
-// Migration-specific errors
 var (
 	ErrNoMigrations        = errors.New("no migrations found")
 	ErrNoPendingMigrations = errors.New("no pending migrations")
@@ -26,9 +25,9 @@ type MigrationError struct {
 	Migration   Migration
 	Err         error
 	SQL         string
-	Line        int    // Line number where error occurred (if parseable)
-	DatabaseErr string // Raw database error
-	Hint        string // Helpful hint for fixing
+	Line        int
+	DatabaseErr string
+	Hint        string
 }
 
 func (e *MigrationError) Error() string {
@@ -56,7 +55,7 @@ func (e *MigrationError) Unwrap() error {
 	return e.Err
 }
 
-// ChecksumMismatchError indicates migration file was modified
+// ChecksumMismatchError indicates migration file was modified after being applied
 type ChecksumMismatchError struct {
 	Migration        Migration
 	ExpectedChecksum string
@@ -76,7 +75,7 @@ func (e *ChecksumMismatchError) Error() string {
 	)
 }
 
-// DirtyDatabaseError indicates failed migrations exist
+// DirtyDatabaseError indicates failed migrations exist that must be resolved
 type DirtyDatabaseError struct {
 	FailedMigrations []MigrationStatus
 }

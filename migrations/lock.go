@@ -15,7 +15,6 @@ type MigrationLock struct {
 	lockKey  string
 }
 
-// NewMigrationLock creates a new migration lock
 func NewMigrationLock(db database.Database) *MigrationLock {
 	return &MigrationLock{
 		db:      db,
@@ -43,7 +42,6 @@ func (l *MigrationLock) Acquire(ctx context.Context) error {
 	}
 }
 
-// Release releases the advisory lock
 func (l *MigrationLock) Release(ctx context.Context) error {
 	if !l.acquired {
 		return nil
@@ -63,9 +61,7 @@ func (l *MigrationLock) Release(ctx context.Context) error {
 	}
 }
 
-// acquirePostgres uses PostgreSQL advisory locks
 func (l *MigrationLock) acquirePostgres(ctx context.Context) error {
-	// Convert lock key to integer using hash
 	lockID := l.hashLockKey()
 
 	query := "SELECT pg_advisory_lock($1)"
@@ -78,7 +74,6 @@ func (l *MigrationLock) acquirePostgres(ctx context.Context) error {
 	return nil
 }
 
-// releasePostgres releases PostgreSQL advisory lock
 func (l *MigrationLock) releasePostgres(ctx context.Context) error {
 	lockID := l.hashLockKey()
 
@@ -92,7 +87,6 @@ func (l *MigrationLock) releasePostgres(ctx context.Context) error {
 	return nil
 }
 
-// acquireMySQL uses MySQL GET_LOCK
 func (l *MigrationLock) acquireMySQL(ctx context.Context) error {
 	query := "SELECT GET_LOCK(?, 60)"
 
@@ -110,7 +104,6 @@ func (l *MigrationLock) acquireMySQL(ctx context.Context) error {
 	return nil
 }
 
-// releaseMySQL releases MySQL lock
 func (l *MigrationLock) releaseMySQL(ctx context.Context) error {
 	query := "SELECT RELEASE_LOCK(?)"
 
@@ -124,26 +117,20 @@ func (l *MigrationLock) releaseMySQL(ctx context.Context) error {
 	return nil
 }
 
-// acquireSQLite uses EXCLUSIVE transaction for SQLite
-// Note: The transaction must be managed by the caller for SQLite
+// acquireSQLite uses EXCLUSIVE transaction for SQLite.
+// The transaction must be managed by the caller.
 func (l *MigrationLock) acquireSQLite(ctx context.Context) error {
-	// SQLite doesn't have advisory locks
-	// We use BEGIN EXCLUSIVE which will be handled at transaction level
-	// For now, just mark as acquired
 	l.acquired = true
 	return nil
 }
 
-// releaseSQLite releases SQLite lock (handled by transaction commit/rollback)
 func (l *MigrationLock) releaseSQLite(ctx context.Context) error {
 	l.acquired = false
 	return nil
 }
 
-// hashLockKey converts the lock key string to an integer for PostgreSQL
 func (l *MigrationLock) hashLockKey() int64 {
 	h := fnv.New64a()
 	h.Write([]byte(l.lockKey))
-	// PostgreSQL advisory lock uses 64-bit integer, but we'll cast to int64
 	return int64(h.Sum64())
 }

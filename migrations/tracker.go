@@ -14,12 +14,10 @@ type MigrationTracker struct {
 	db database.Database
 }
 
-// NewMigrationTracker creates a new migration tracker
 func NewMigrationTracker(db database.Database) *MigrationTracker {
 	return &MigrationTracker{db: db}
 }
 
-// CreateTrackingTable creates the schema_migrations table if it doesn't exist
 func (t *MigrationTracker) CreateTrackingTable(ctx context.Context) error {
 	driverName := t.db.DriverName()
 
@@ -96,7 +94,6 @@ CREATE INDEX IF NOT EXISTS idx_migrations_source ON schema_migrations(source);
 	return err
 }
 
-// GetAppliedMigrations returns all migrations that have been applied
 func (t *MigrationTracker) GetAppliedMigrations(ctx context.Context) ([]MigrationStatus, error) {
 	query := `
 SELECT version, source, name, checksum, status, applied_at,
@@ -160,7 +157,6 @@ ORDER BY version ASC
 	return statuses, rows.Err()
 }
 
-// RecordMigration records a successfully applied migration
 func (t *MigrationTracker) RecordMigration(ctx context.Context, migration Migration, executionTime time.Duration) error {
 	hostname, _ := os.Hostname()
 	executedBy := os.Getenv("USER")
@@ -185,7 +181,6 @@ VALUES (` + t.placeholders(1, 8) + `)
 	return err
 }
 
-// RecordFailedMigration records a failed migration
 func (t *MigrationTracker) RecordFailedMigration(ctx context.Context, migration Migration, errorMsg string) error {
 	hostname, _ := os.Hostname()
 	executedBy := os.Getenv("USER")
@@ -200,7 +195,6 @@ ON CONFLICT (version, source) DO UPDATE SET
     applied_at = CURRENT_TIMESTAMP
 `
 
-	// For MySQL and SQLite, use different syntax
 	if t.db.DriverName() == "mysql" {
 		query = `
 INSERT INTO schema_migrations
@@ -237,7 +231,6 @@ ON CONFLICT(version, source) DO UPDATE SET
 	return err
 }
 
-// RemoveMigration removes a migration record (for rollback)
 func (t *MigrationTracker) RemoveMigration(ctx context.Context, version, source string) error {
 	query := `DELETE FROM schema_migrations WHERE version = ` + t.db.Dialect().Placeholder(1) + ` AND source = ` + t.db.Dialect().Placeholder(2)
 
@@ -245,7 +238,6 @@ func (t *MigrationTracker) RemoveMigration(ctx context.Context, version, source 
 	return err
 }
 
-// CheckForDirtyDatabase checks if there are any failed migrations
 func (t *MigrationTracker) CheckForDirtyDatabase(ctx context.Context) error {
 	query := `
 SELECT version, source, name, error_message
@@ -297,21 +289,18 @@ ORDER BY version ASC
 	return nil
 }
 
-// VerifyChecksums verifies that applied migrations match their stored checksums
 func (t *MigrationTracker) VerifyChecksums(ctx context.Context, migrations []Migration) error {
 	applied, err := t.GetAppliedMigrations(ctx)
 	if err != nil {
 		return err
 	}
 
-	// Build map of applied migrations by version+source
 	appliedMap := make(map[string]MigrationStatus)
 	for _, m := range applied {
 		key := m.Migration.Version + ":" + m.Migration.Source
 		appliedMap[key] = m
 	}
 
-	// Check each migration's checksum
 	for _, migration := range migrations {
 		key := migration.Version + ":" + migration.Source
 
@@ -329,7 +318,6 @@ func (t *MigrationTracker) VerifyChecksums(ctx context.Context, migrations []Mig
 	return nil
 }
 
-// ForceMigration marks a migration as applied without executing it (repair tool)
 func (t *MigrationTracker) ForceMigration(ctx context.Context, migration Migration) error {
 	hostname, _ := os.Hostname()
 	executedBy := os.Getenv("USER")
@@ -344,7 +332,6 @@ ON CONFLICT (version, source) DO UPDATE SET
     applied_at = CURRENT_TIMESTAMP
 `
 
-	// For MySQL and SQLite, use different syntax
 	if t.db.DriverName() == "mysql" {
 		query = `
 INSERT INTO schema_migrations
@@ -381,7 +368,6 @@ ON CONFLICT(version, source) DO UPDATE SET
 	return err
 }
 
-// placeholders generates SQL placeholders for PostgreSQL ($1, $2, ...)
 func (t *MigrationTracker) placeholders(start, count int) string {
 	if t.db.DriverName() == "postgres" {
 		placeholders := ""
@@ -394,7 +380,6 @@ func (t *MigrationTracker) placeholders(start, count int) string {
 		return placeholders
 	}
 
-	// MySQL and SQLite use ?
 	placeholders := ""
 	for i := 0; i < count; i++ {
 		if i > 0 {
@@ -405,7 +390,6 @@ func (t *MigrationTracker) placeholders(start, count int) string {
 	return placeholders
 }
 
-// getString safely extracts string from pointer
 func getString(s *string) string {
 	if s == nil {
 		return ""

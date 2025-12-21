@@ -16,14 +16,12 @@ type DependencyResolver struct {
 	sources map[string]SourceDependency
 }
 
-// NewDependencyResolver creates a new dependency resolver
 func NewDependencyResolver() *DependencyResolver {
 	return &DependencyResolver{
 		sources: make(map[string]SourceDependency),
 	}
 }
 
-// AddSource registers a source with its dependencies
 func (r *DependencyResolver) AddSource(name string, dependencies []string) {
 	r.sources[name] = SourceDependency{
 		Name:         name,
@@ -31,35 +29,27 @@ func (r *DependencyResolver) AddSource(name string, dependencies []string) {
 	}
 }
 
-// Resolve performs topological sort to determine execution order
+// Resolve performs topological sort using Kahn's algorithm to determine execution order.
 func (r *DependencyResolver) Resolve() ([]string, error) {
-	// Build adjacency list and in-degree map
 	inDegree := make(map[string]int)
 	adjList := make(map[string][]string)
 
-	// Initialize all sources with in-degree 0
 	for name := range r.sources {
 		inDegree[name] = 0
 		adjList[name] = []string{}
 	}
 
-	// Build graph
 	for name, dep := range r.sources {
 		for _, dependency := range dep.Dependencies {
-			// Check if dependency exists
 			if _, exists := r.sources[dependency]; !exists {
-				// Dependency not found - this might be OK if it's an external dependency
-				// For now, we'll skip it
 				continue
 			}
 
-			// Add edge from dependency to dependent
 			adjList[dependency] = append(adjList[dependency], name)
 			inDegree[name]++
 		}
 	}
 
-	// Kahn's algorithm for topological sort
 	var queue []string
 	for name, degree := range inDegree {
 		if degree == 0 {
@@ -67,32 +57,28 @@ func (r *DependencyResolver) Resolve() ([]string, error) {
 		}
 	}
 
-	// Sort queue for deterministic ordering
 	sort.Strings(queue)
 
 	var result []string
 
 	for len(queue) > 0 {
-		// Pop from queue
 		current := queue[0]
 		queue = queue[1:]
 
 		result = append(result, current)
 
-		// Reduce in-degree for neighbors
 		neighbors := adjList[current]
-		sort.Strings(neighbors) // For deterministic ordering
+		sort.Strings(neighbors)
 
 		for _, neighbor := range neighbors {
 			inDegree[neighbor]--
 			if inDegree[neighbor] == 0 {
 				queue = append(queue, neighbor)
-				sort.Strings(queue) // Keep queue sorted
+				sort.Strings(queue)
 			}
 		}
 	}
 
-	// Check for circular dependencies
 	if len(result) != len(r.sources) {
 		return nil, r.findCircularDependency()
 	}
@@ -139,23 +125,18 @@ func (r *DependencyResolver) findCircularDependency() error {
 	return ErrCircularDependency
 }
 
-// OrderMigrations orders migrations based on source dependencies and version
+// OrderMigrations orders migrations by source dependencies first, then by version timestamp.
 func (r *DependencyResolver) OrderMigrations(migrations []Migration) ([]Migration, error) {
-	// Get source execution order
 	sourceOrder, err := r.Resolve()
 	if err != nil {
 		return nil, err
 	}
 
-	// Create map of source to priority
 	sourcePriority := make(map[string]int)
 	for i, source := range sourceOrder {
 		sourcePriority[source] = i
 	}
 
-	// Sort migrations by:
-	// 1. Source priority (based on dependencies)
-	// 2. Version (timestamp) within same priority
 	sorted := make([]Migration, len(migrations))
 	copy(sorted, migrations)
 
@@ -163,12 +144,10 @@ func (r *DependencyResolver) OrderMigrations(migrations []Migration) ([]Migratio
 		priI := sourcePriority[sorted[i].Source]
 		priJ := sourcePriority[sorted[j].Source]
 
-		// If different priorities, sort by priority
 		if priI != priJ {
 			return priI < priJ
 		}
 
-		// Same priority, sort by version (timestamp)
 		return sorted[i].Version < sorted[j].Version
 	})
 
