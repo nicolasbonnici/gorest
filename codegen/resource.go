@@ -152,7 +152,7 @@ func generateResourceFromModel(structName string, fields []StructField, authCfg 
 
 	if needsAuthContext || hasUserIdField {
 		importsSection += `
-	auth "github.com/nicolasbonnici/gorest/plugins/auth"`
+	auth "github.com/nicolasbonnici/gorest-auth"`
 	}
 	if hasHooks {
 		hooksImport := moduleName + "/hooks"
