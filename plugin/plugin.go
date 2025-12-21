@@ -64,4 +64,3 @@ type MigrationProvider interface {
 	// Return nil or empty slice if no dependencies
 	MigrationDependencies() []string
 }
-
