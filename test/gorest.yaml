@@ -56,6 +56,8 @@ plugins:
     enabled: true
   - name: contenttype
     enabled: true
+  - name: health
+    enabled: true
   - name: auth
     enabled: false
     config:

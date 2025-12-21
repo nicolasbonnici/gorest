@@ -6,7 +6,7 @@ import (
 	"github.com/nicolasbonnici/gorest"
 	"github.com/nicolasbonnici/gorest/pluginloader"
 
-	authplugin "github.com/nicolasbonnici/gorest/plugins/auth"
+	authplugin "github.com/nicolasbonnici/gorest-auth"
 	contenttypeplugin "github.com/nicolasbonnici/gorest/plugins/contenttype"
 	corsplugin "github.com/nicolasbonnici/gorest/plugins/cors"
 	healthplugin "github.com/nicolasbonnici/gorest/plugins/health"
