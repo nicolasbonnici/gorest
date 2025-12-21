@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"strings"
 	"time"
@@ -10,9 +11,13 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/migrations"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"golang.org/x/crypto/bcrypt"
 )
+
+//go:embed migrations/*.sql
+var migrationFiles embed.FS
 
 type contextKey string
 
@@ -210,4 +215,17 @@ func HashPassword(password string) (string, error) {
 
 func verifyPassword(password, hash string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+}
+
+// MigrationSource implements plugin.MigrationProvider interface
+func (p *AuthPlugin) MigrationSource() interface{} {
+	// Return migration source
+	// Returns interface{} to avoid circular dependency, actual type is migrations.MigrationSource
+	return migrations.NewEmbeddedSource("auth", migrationFiles, "migrations", p.db)
+}
+
+// MigrationDependencies returns dependencies for auth plugin migrations
+// Auth plugin has no dependencies as it creates the base users table
+func (p *AuthPlugin) MigrationDependencies() []string {
+	return nil // No dependencies
 }
