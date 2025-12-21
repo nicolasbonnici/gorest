@@ -112,16 +112,16 @@ ORDER BY version ASC
 
 	for rows.Next() {
 		var (
-			version        string
-			source         string
-			name           string
-			checksum       string
-			status         string
-			appliedAt      time.Time
-			executionTime  *int
-			executedBy     *string
-			hostname       *string
-			errorMessage   *string
+			version       string
+			source        string
+			name          string
+			checksum      string
+			status        string
+			appliedAt     time.Time
+			executionTime *int
+			executedBy    *string
+			hostname      *string
+			errorMessage  *string
 		)
 
 		err := rows.Scan(

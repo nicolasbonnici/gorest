@@ -9,9 +9,9 @@ import (
 
 // Migration represents a single database migration with up/down SQL
 type Migration struct {
-	Version  string        // Timestamp: "20250120143022"
-	Name     string        // Descriptive name: "create_users"
-	Source   string        // Source identifier: "app", "auth", etc.
+	Version  string // Timestamp: "20250120143022"
+	Name     string // Descriptive name: "create_users"
+	Source   string // Source identifier: "app", "auth", etc.
 	UpSQL    string
 	DownSQL  string
 	Checksum string // Prevents drift when migration files are modified
