@@ -50,3 +50,18 @@ type CommandResult struct {
 type CommandProvider interface {
 	Commands() []Command
 }
+
+type MigrationProvider interface {
+	// MigrationSource returns a migration source for this plugin
+	// The source name should match the plugin name
+	// Returns interface{} to avoid circular dependency with migrations package
+	// Actual type should be migrations.MigrationSource
+	MigrationSource() interface{}
+
+	// MigrationDependencies returns list of sources this plugin depends on
+	// Example: ["app", "users-plugin"]
+	// Ensures migrations run in correct order
+	// Return nil or empty slice if no dependencies
+	MigrationDependencies() []string
+}
+
