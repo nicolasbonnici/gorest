@@ -44,8 +44,6 @@ plugins:
     enabled: true
     config:
       origins: "http://localhost:3000"
-  - name: security
-    enabled: true
   - name: contenttype
     enabled: true
   - name: health
