@@ -165,13 +165,41 @@ func TestGenerateResourceFromModel(t *testing.T) {
 }
 
 func TestGenerateResourceForStruct(t *testing.T) {
-	tempDir := t.TempDir()
-	generateResourceForStruct(tempDir, "TestModel", NoAuthConfig())
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("Failed to find project root: %v", err)
+	}
 
-	resourceFile := filepath.Join(tempDir, "testmodel.go")
+	// Create a temporary model file for testing
+	modelsDir := filepath.Join(projectRoot, "test/generated/models")
+	os.MkdirAll(modelsDir, 0755)
+
+	modelFile := filepath.Join(modelsDir, "testmodel.go")
+	modelContent := `package models
+
+type TestModel struct {
+	ID   string ` + "`json:\"id,omitempty\" db:\"id\"`" + `
+	Name string ` + "`json:\"name\" db:\"name\"`" + `
+}
+
+func (TestModel) TableName() string {
+	return "test_models"
+}
+`
+	err = os.WriteFile(modelFile, []byte(modelContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test model file: %v", err)
+	}
+	defer os.Remove(modelFile) // Clean up after test
+
+	resourcesDir := filepath.Join(projectRoot, "test/generated/resources")
+	generateResourceForStruct(resourcesDir, "TestModel", NoAuthConfig())
+
+	resourceFile := filepath.Join(resourcesDir, "testmodel.go")
 	if _, err := os.Stat(resourceFile); os.IsNotExist(err) {
 		t.Error("Expected testmodel.go to be generated")
 	}
+	defer os.Remove(resourceFile) // Clean up after test
 
 	content, err := os.ReadFile(resourceFile)
 	if err != nil {
