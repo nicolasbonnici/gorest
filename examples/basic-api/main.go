@@ -14,7 +14,6 @@ import (
 	openapiplugin "github.com/nicolasbonnici/gorest/plugins/openapi"
 	ratelimitplugin "github.com/nicolasbonnici/gorest/plugins/ratelimit"
 	requestidplugin "github.com/nicolasbonnici/gorest/plugins/requestid"
-	securityplugin "github.com/nicolasbonnici/gorest/plugins/security"
 )
 
 func init() {
@@ -23,7 +22,6 @@ func init() {
 	pluginloader.RegisterPluginFactory("logger", loggerplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("cors", corsplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("ratelimit", ratelimitplugin.NewPlugin)
-	pluginloader.RegisterPluginFactory("security", securityplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("contenttype", contenttypeplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("health", healthplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)

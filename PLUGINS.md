@@ -30,9 +30,10 @@ Soon there will be a repository avaailable
 | `logger` | Structured request/response logging | None |
 | `ratelimit` | Rate limiting with configurable limits | `requests_per_second`, `burst` |
 | `cors` | CORS headers for cross-origin requests | `origins` (comma-separated or `*`) |
-| `security` | Security headers (OWASP ASVS Level 2) | None |
 | `contenttype` | Content-Type validation and negotiation | None |
 | `auth` | JWT authentication middleware | `jwt_secret`, `jwt_ttl` |
+
+**Note:** Security headers (X-Frame-Options, X-Content-Type-Options, etc.) are now applied automatically as core middleware. No plugin configuration is needed.
 
 ### Endpoint Plugins
 
@@ -516,21 +517,23 @@ plugins:
 
 ## Middleware Execution Order
 
-Plugins are applied in a specific order for optimal security and functionality:
+Security headers and plugins are applied in a specific order for optimal security and functionality:
 
 ```
-1. requestid    - Generate unique request ID
-2. logger       - Log incoming request
-3. ratelimit    - Check rate limits
-4. cors         - Handle CORS preflight
-5. security     - Add security headers
+1. security     - Add security headers (automatic, core middleware)
+2. requestid    - Generate unique request ID
+3. logger       - Log incoming request
+4. ratelimit    - Check rate limits
+5. cors         - Handle CORS preflight
 6. contenttype  - Validate Content-Type
 7. auth         - JWT authentication (optional, route-specific)
 ```
 
-**Custom Order:**
+**Note:** Security headers are applied first as core middleware before any plugins. This ensures all requests are protected by security headers regardless of plugin configuration.
 
-To customize the order, modify `/pluginloader/loader.go`:
+**Custom Plugin Order:**
+
+To customize the plugin order, modify `/pluginloader/loader.go`:
 
 ```go
 func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
@@ -540,7 +543,6 @@ func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
         "myplugin",      // Your custom plugin
         "ratelimit",
         "cors",
-        "security",
         "contenttype",
     }
     // ...

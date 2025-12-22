@@ -92,8 +92,6 @@ plugins:
     enabled: true
     config:
       origins: "*"
-  - name: security
-    enabled: true
   - name: contenttype
     enabled: true
   - name: auth
@@ -217,8 +215,6 @@ plugins:
     enabled: true
     config:
       origins: "*"
-  - name: security
-    enabled: true
   - name: contenttype
     enabled: true
   - name: health
@@ -334,10 +330,11 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 - **logger** - HTTP request/response logging
 - **ratelimit** - Per-IP rate limiting
 - **cors** - Cross-Origin Resource Sharing
-- **security** - Security headers (X-Frame-Options, CSP, HSTS, etc.) and TRACE method blocking
 - **contenttype** - Validates Content-Type for mutations
 - **health** - Secure health check endpoint with database connectivity monitoring
 - **auth** - JWT authentication for protected routes
+
+**Note:** Security headers (X-Frame-Options, CSP, HSTS, etc.) and TRACE method blocking are now applied automatically as core middleware - no plugin configuration needed!
 
 ### Configuration
 
@@ -872,8 +869,8 @@ gorest/
 │   ├── cors/              # CORS handling
 │   ├── logger/            # HTTP logging
 │   ├── ratelimit/         # Rate limiting
-│   ├── requestid/         # Request ID tracking
-│   └── security/          # Security headers
+│   └── requestid/         # Request ID tracking
+├── middleware/             # Core middleware (security headers, etc.)
 ├── response/               # HTTP response helpers
 └── cmd/                    # CLI tool
     └── codegen/           # Unified code generator (models, resources, DTOs, OpenAPI)

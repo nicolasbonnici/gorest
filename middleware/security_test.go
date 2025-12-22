@@ -1,4 +1,4 @@
-package security
+package middleware
 
 import (
 	"net/http/httptest"
@@ -7,46 +7,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func TestNewPlugin(t *testing.T) {
-	plugin := NewPlugin()
-
-	if plugin == nil {
-		t.Fatal("expected non-nil plugin")
-	}
-
-	_, ok := plugin.(*SecurityPlugin)
-	if !ok {
-		t.Fatal("expected *SecurityPlugin type")
-	}
-}
-
-func TestSecurityPlugin_Name(t *testing.T) {
-	plugin := NewPlugin()
-
-	name := plugin.Name()
-
-	if name != "security" {
-		t.Errorf("expected plugin name 'security', got '%s'", name)
-	}
-}
-
-func TestSecurityPlugin_Initialize(t *testing.T) {
-	plugin := &SecurityPlugin{}
-
-	err := plugin.Initialize(map[string]interface{}{})
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-}
-
-func TestSecurityPlugin_Handler_AllHeaders(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity(t *testing.T) {
+	handler := Security()
 
 	if handler == nil {
 		t.Fatal("expected non-nil handler")
 	}
+}
+
+func TestSecurity_AllHeaders(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -78,9 +48,8 @@ func TestSecurityPlugin_Handler_AllHeaders(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_XContentTypeOptions(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_XContentTypeOptions(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -97,9 +66,8 @@ func TestSecurityPlugin_Handler_XContentTypeOptions(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_XFrameOptions(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_XFrameOptions(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -116,9 +84,8 @@ func TestSecurityPlugin_Handler_XFrameOptions(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_XXSSProtection(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_XXSSProtection(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -135,9 +102,8 @@ func TestSecurityPlugin_Handler_XXSSProtection(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_StrictTransportSecurity(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_StrictTransportSecurity(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -155,9 +121,8 @@ func TestSecurityPlugin_Handler_StrictTransportSecurity(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_ReferrerPolicy(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_ReferrerPolicy(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -174,9 +139,8 @@ func TestSecurityPlugin_Handler_ReferrerPolicy(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_PermissionsPolicy(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_PermissionsPolicy(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -194,9 +158,8 @@ func TestSecurityPlugin_Handler_PermissionsPolicy(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_MultipleRequests(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_MultipleRequests(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -219,9 +182,8 @@ func TestSecurityPlugin_Handler_MultipleRequests(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_DifferentMethods(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_DifferentMethods(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -254,9 +216,8 @@ func TestSecurityPlugin_Handler_DifferentMethods(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_MultipleEndpoints(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_MultipleEndpoints(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -289,9 +250,8 @@ func TestSecurityPlugin_Handler_MultipleEndpoints(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_HeadersPresent(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_HeadersPresent(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -319,9 +279,8 @@ func TestSecurityPlugin_Handler_HeadersPresent(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_BlocksTRACEMethod(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_BlocksTRACEMethod(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -329,7 +288,6 @@ func TestSecurityPlugin_Handler_BlocksTRACEMethod(t *testing.T) {
 		return c.SendString("ok")
 	})
 
-	// Test that TRACE method is blocked
 	req := httptest.NewRequest("TRACE", "/test", nil)
 	resp, _ := app.Test(req)
 
@@ -337,7 +295,6 @@ func TestSecurityPlugin_Handler_BlocksTRACEMethod(t *testing.T) {
 		t.Errorf("expected status 405 for TRACE method, got %d", resp.StatusCode)
 	}
 
-	// Test that normal methods work
 	req = httptest.NewRequest("GET", "/test", nil)
 	resp, _ = app.Test(req)
 
@@ -346,16 +303,9 @@ func TestSecurityPlugin_Handler_BlocksTRACEMethod(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_IntegrationWithFiber(t *testing.T) {
-	plugin := NewPlugin()
-
-	err := plugin.Initialize(map[string]interface{}{})
-	if err != nil {
-		t.Fatalf("failed to initialize plugin: %v", err)
-	}
-
+func TestSecurity_IntegrationWithFiber(t *testing.T) {
 	app := fiber.New()
-	app.Use(plugin.Handler())
+	app.Use(Security())
 	app.Get("/secure", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "secure"})
 	})
@@ -373,9 +323,8 @@ func TestSecurityPlugin_IntegrationWithFiber(t *testing.T) {
 	}
 }
 
-func TestSecurityPlugin_Handler_DoesNotBlockRequests(t *testing.T) {
-	plugin := &SecurityPlugin{}
-	handler := plugin.Handler()
+func TestSecurity_DoesNotBlockRequests(t *testing.T) {
+	handler := Security()
 
 	app := fiber.New()
 	app.Use(handler)
