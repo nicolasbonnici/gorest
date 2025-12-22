@@ -166,8 +166,8 @@ func TestPgToGoType(t *testing.T) {
 		{"boolean", true, "*bool"},
 		{"timestamp without time zone", false, "*time.Time"},
 		{"timestamp without time zone", true, "*time.Time"},
-		{"unknown_type", false, "interface{}"},
-		{"unknown_type", true, "interface{}"},
+		{"unknown_type", false, "string"},
+		{"unknown_type", true, "*string"},
 	}
 
 	for _, tt := range tests {
