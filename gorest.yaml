@@ -49,8 +49,6 @@ plugins:
     enabled: true
     config:
       origins: "*"
-  - name: security
-    enabled: true
   - name: contenttype
     enabled: true
   - name: auth

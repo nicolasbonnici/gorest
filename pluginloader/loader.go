@@ -51,7 +51,7 @@ func LoadPlugins(configs []config.PluginConfig, version string) (*plugin.PluginR
 
 // ApplyGlobalMiddleware applies middleware plugins to the app in the correct order
 func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
-	middlewareOrder := []string{"requestid", "logger", "ratelimit", "cors", "security", "contenttype"}
+	middlewareOrder := []string{"requestid", "logger", "ratelimit", "cors", "contenttype"}
 	for _, pluginName := range middlewareOrder {
 		if p, ok := registry.Get(pluginName); ok {
 			app.Use(p.Handler())

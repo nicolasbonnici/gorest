@@ -17,6 +17,7 @@ import (
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 	"github.com/nicolasbonnici/gorest/logger"
+	"github.com/nicolasbonnici/gorest/middleware"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/pluginloader"
 	"github.com/nicolasbonnici/gorest/response"
@@ -70,6 +71,8 @@ func Start(cfg Config) {
 			})
 		},
 	})
+
+	app.Use(middleware.Security())
 
 	enrichedConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins, db, appConfig)
 
