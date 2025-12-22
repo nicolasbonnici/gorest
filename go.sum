@@ -66,8 +66,8 @@ github.com/mattn/go-runewidth v0.0.16 h1:E5ScNMtiwvlvB5paMFdw9p4kSQzbXFikJ5SQO6T
 github.com/mattn/go-runewidth v0.0.16/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
 github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdhx/f4=
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
-github.com/nicolasbonnici/gorest-auth v0.0.0-20251221223515-399e642818ba h1:gdkKF7FXKfiIap7AhXG1gAhVOYS47hF7r0PC1+JaFuM=
-github.com/nicolasbonnici/gorest-auth v0.0.0-20251221223515-399e642818ba/go.mod h1:MQag/+mnMRrMGdlVmI2TNFaSC3M9/WFTdXg3vDGBmMs=
+github.com/nicolasbonnici/gorest-auth v0.1.0 h1:LCrIv7is+1G74WK3DXG6fmmD2daZVnIXez4zsxRMebM=
+github.com/nicolasbonnici/gorest-auth v0.1.0/go.mod h1:MQag/+mnMRrMGdlVmI2TNFaSC3M9/WFTdXg3vDGBmMs=
 github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c h1:dAMKvw0MlJT1GshSTtih8C2gDs04w8dReiOGXrGLNoY=
 github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c/go.mod h1:RqIHx9QI14HlwKwm98g9Re5prTQ6LdeRQn+gXJFxsJM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
