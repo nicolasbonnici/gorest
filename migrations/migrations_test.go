@@ -22,7 +22,9 @@ func setupTestDB(t *testing.T) database.Database {
 	// Use SQLite for tests by default
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "file::memory:?cache=shared"
+		// Use unique in-memory database for each test to avoid transaction conflicts
+		// The mode=memory parameter with a unique name ensures complete isolation
+		dbURL = fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
 	}
 
 	db, err := database.Open("", dbURL)
@@ -37,20 +39,13 @@ func setupTestDB(t *testing.T) database.Database {
 func cleanupTestDB(t *testing.T, db database.Database) {
 	t.Helper()
 
-	ctx := context.Background()
-
-	// Drop test tables
-	db.Exec(ctx, "DROP TABLE IF EXISTS schema_migrations")
-	db.Exec(ctx, "DROP TABLE IF EXISTS test_table")
-	db.Exec(ctx, "DROP TABLE IF EXISTS users")
-	db.Exec(ctx, "DROP TABLE IF EXISTS test")
-	db.Exec(ctx, "DROP TABLE IF EXISTS test2")
-	db.Exec(ctx, "DROP TABLE IF EXISTS plugin_table")
-	db.Exec(ctx, "DROP TABLE IF EXISTS error_test_1")
-	db.Exec(ctx, "DROP TABLE IF EXISTS error_test_2")
-	db.Exec(ctx, "DROP TABLE IF EXISTS down_error_test")
-
-	db.Close()
+	if db != nil {
+		// Close the database connection to release any locks
+		// SQLite in-memory databases are automatically destroyed when the connection closes
+		if err := db.Close(); err != nil {
+			t.Logf("Warning: failed to close database: %v", err)
+		}
+	}
 }
 
 func TestMigrationCalculateChecksum(t *testing.T) {

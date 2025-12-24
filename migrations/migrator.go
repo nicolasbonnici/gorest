@@ -460,18 +460,27 @@ func (m *migrator) executeMigration(ctx context.Context, migration Migration) er
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	_, err = tx.Exec(ctx, migration.UpSQL)
+	// Create a transaction wrapper that implements database.Database
+	txDB := &transactionDB{tx: tx, db: m.db}
+
+	// Execute migration using new executor interface or legacy SQL
+	err = migration.ExecuteUp(ctx, txDB)
 	if err != nil {
 		tx.Rollback(ctx)
 
 		m.tracker.RecordFailedMigration(ctx, migration, err.Error())
 
+		sql := migration.UpSQL
+		if migration.Executor != nil {
+			sql = "(Go-based migration)"
+		}
+
 		return &MigrationError{
 			Migration:   migration,
 			Err:         ErrMigrationFailed,
-			SQL:         migration.UpSQL,
+			SQL:         sql,
 			DatabaseErr: err.Error(),
-			Hint:        "Check SQL syntax and database state",
+			Hint:        "Check migration code and database state",
 		}
 	}
 
@@ -497,15 +506,25 @@ func (m *migrator) executeDown(ctx context.Context, migration Migration) error {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	_, err = tx.Exec(ctx, migration.DownSQL)
+	// Create a transaction wrapper that implements database.Database
+	txDB := &transactionDB{tx: tx, db: m.db}
+
+	// Execute down migration using new executor interface or legacy SQL
+	err = migration.ExecuteDown(ctx, txDB)
 	if err != nil {
 		tx.Rollback(ctx)
+
+		sql := migration.DownSQL
+		if migration.Executor != nil {
+			sql = "(Go-based migration)"
+		}
+
 		return &MigrationError{
 			Migration:   migration,
 			Err:         ErrMigrationFailed,
-			SQL:         migration.DownSQL,
+			SQL:         sql,
 			DatabaseErr: err.Error(),
-			Hint:        "Check down migration SQL syntax",
+			Hint:        "Check down migration code",
 		}
 	}
 
@@ -572,4 +591,50 @@ func (m *migrator) executeTransactional(ctx context.Context, migrations []Migrat
 	log.Printf("✓ All %d migrations applied successfully", len(migrations))
 
 	return nil
+}
+
+// transactionDB wraps a transaction to implement the Database interface
+type transactionDB struct {
+	tx database.Tx
+	db database.Database
+}
+
+func (t *transactionDB) Connect(ctx context.Context, dsn string) error {
+	return fmt.Errorf("cannot connect using transaction wrapper")
+}
+
+func (t *transactionDB) Close() error {
+	return fmt.Errorf("cannot close transaction wrapper")
+}
+
+func (t *transactionDB) Ping(ctx context.Context) error {
+	return fmt.Errorf("cannot ping using transaction wrapper")
+}
+
+func (t *transactionDB) Query(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+	return t.tx.Query(ctx, query, args...)
+}
+
+func (t *transactionDB) QueryRow(ctx context.Context, query string, args ...interface{}) database.Row {
+	return t.tx.QueryRow(ctx, query, args...)
+}
+
+func (t *transactionDB) Exec(ctx context.Context, query string, args ...interface{}) (database.Result, error) {
+	return t.tx.Exec(ctx, query, args...)
+}
+
+func (t *transactionDB) Begin(ctx context.Context) (database.Tx, error) {
+	return nil, fmt.Errorf("nested transactions not supported")
+}
+
+func (t *transactionDB) Dialect() database.Dialect {
+	return t.db.Dialect()
+}
+
+func (t *transactionDB) DriverName() string {
+	return t.db.DriverName()
+}
+
+func (t *transactionDB) Introspector() database.SchemaIntrospector {
+	return t.db.Introspector()
 }
