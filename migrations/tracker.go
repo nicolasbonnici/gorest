@@ -27,7 +27,7 @@ func (t *MigrationTracker) CreateTrackingTable(ctx context.Context) error {
 	case "postgres":
 		createSQL = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
-    version VARCHAR(14) NOT NULL,
+    version VARCHAR(17) NOT NULL,
     source VARCHAR(100) NOT NULL DEFAULT 'app',
     name VARCHAR(255) NOT NULL,
     checksum CHAR(64) NOT NULL,
@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_migrations_source ON schema_migrations(source);
 	case "mysql":
 		createSQL = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
-    version VARCHAR(14) NOT NULL,
+    version VARCHAR(17) NOT NULL,
     source VARCHAR(100) NOT NULL DEFAULT 'app',
     name VARCHAR(255) NOT NULL,
     checksum CHAR(64) NOT NULL,

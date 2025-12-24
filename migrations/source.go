@@ -42,8 +42,9 @@ func (s *EmbeddedSource) Name() string {
 
 // Migrations discovers and parses migration files from embedded FS.
 // File pattern: {timestamp}_{name}.{up|down}[.{dialect}].sql
+// Supports both 14-digit (legacy) and 17-digit (with milliseconds) timestamps
 func (s *EmbeddedSource) Migrations() ([]Migration, error) {
-	pattern := regexp.MustCompile(`^(\d{14})_([^.]+)\.(up|down)(?:\.([a-z]+))?\.sql$`)
+	pattern := regexp.MustCompile(`^(\d{14}|\d{17})_([^.]+)\.(up|down)(?:\.([a-z]+))?\.sql$`)
 
 	migrationPairs := make(map[string]*Migration)
 
@@ -146,14 +147,78 @@ func (s *EmbeddedSource) SetDialect(db database.Database) {
 }
 
 func ValidateTimestamp(version string) error {
-	if len(version) != 14 {
-		return fmt.Errorf("%w: version must be 14 digits (YYYYMMDDHHMMSS), got: %s", ErrInvalidVersion, version)
+	if len(version) == 14 {
+		// Legacy format: YYYYMMDDHHMMSS
+		_, err := time.Parse("20060102150405", version)
+		if err != nil {
+			return fmt.Errorf("%w: invalid timestamp format: %s", ErrInvalidVersion, version)
+		}
+		return nil
 	}
 
-	_, err := time.Parse("20060102150405", version)
-	if err != nil {
-		return fmt.Errorf("%w: invalid timestamp format: %s", ErrInvalidVersion, version)
+	if len(version) == 17 {
+		// New format with milliseconds: YYYYMMDDHHMMSSmmm
+		_, err := time.Parse("20060102150405.000", version[:14]+"."+version[14:])
+		if err != nil {
+			return fmt.Errorf("%w: invalid timestamp format: %s", ErrInvalidVersion, version)
+		}
+		return nil
 	}
 
-	return nil
+	return fmt.Errorf("%w: version must be 14 digits (YYYYMMDDHHMMSS) or 17 digits (YYYYMMDDHHMMSSmmm), got: %s", ErrInvalidVersion, version)
+}
+
+// GenerateTimestamp generates a new migration timestamp with milliseconds
+func GenerateTimestamp() string {
+	now := time.Now()
+	return fmt.Sprintf("%s%03d",
+		now.Format("20060102150405"),
+		now.Nanosecond()/1000000,
+	)
+}
+
+// GoMigrationSource provides migrations defined in Go code using the MigrationExecutor interface
+type GoMigrationSource struct {
+	name       string
+	migrations []Migration
+}
+
+func NewGoMigrationSource(name string, migrations []Migration) *GoMigrationSource {
+	return &GoMigrationSource{
+		name:       name,
+		migrations: migrations,
+	}
+}
+
+func (s *GoMigrationSource) Name() string {
+	return s.name
+}
+
+func (s *GoMigrationSource) Migrations() ([]Migration, error) {
+	// Validate and calculate checksums
+	for i := range s.migrations {
+		if s.migrations[i].Source == "" {
+			s.migrations[i].Source = s.name
+		}
+		if s.migrations[i].Checksum == "" {
+			s.migrations[i].Checksum = s.migrations[i].CalculateChecksum()
+		}
+		if s.migrations[i].Timeout == 0 {
+			s.migrations[i].Timeout = 30 * time.Second
+		}
+
+		// Validate timestamp
+		if err := ValidateTimestamp(s.migrations[i].Version); err != nil {
+			return nil, err
+		}
+	}
+
+	// Sort by version
+	sorted := make([]Migration, len(s.migrations))
+	copy(sorted, s.migrations)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Version < sorted[j].Version
+	})
+
+	return sorted, nil
 }

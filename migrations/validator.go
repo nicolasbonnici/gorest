@@ -25,16 +25,19 @@ func (v *MigrationValidator) Validate(migration Migration) error {
 		return fmt.Errorf("%w: migration source cannot be empty", ErrInvalidMigrationFile)
 	}
 
-	if strings.TrimSpace(migration.UpSQL) == "" {
-		return fmt.Errorf("%w: up migration SQL cannot be empty for %s", ErrInvalidMigrationFile, migration.FullName())
+	// Check that migration has either Executor or SQL
+	hasExecutor := migration.Executor != nil
+	hasSQL := strings.TrimSpace(migration.UpSQL) != "" && strings.TrimSpace(migration.DownSQL) != ""
+
+	if !hasExecutor && !hasSQL {
+		return fmt.Errorf("%w: migration must have either Executor or SQL for %s", ErrInvalidMigrationFile, migration.FullName())
 	}
 
-	if strings.TrimSpace(migration.DownSQL) == "" {
-		return fmt.Errorf("%w: down migration SQL cannot be empty for %s", ErrInvalidMigrationFile, migration.FullName())
-	}
-
-	if err := v.checkDangerousOperations(migration.UpSQL, migration); err != nil {
-		return err
+	// For SQL-based migrations, check for dangerous operations
+	if hasSQL {
+		if err := v.checkDangerousOperations(migration.UpSQL, migration); err != nil {
+			return err
+		}
 	}
 
 	if migration.Checksum == "" {
