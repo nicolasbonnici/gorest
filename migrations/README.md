@@ -4,72 +4,123 @@ A production-ready database migration system with support for multiple databases
 
 ## Features
 
-- ✅ **Multi-Database Support**: PostgreSQL, MySQL, SQLite
-- ✅ **Dialect-Specific Migrations**: Database-specific SQL files with generic fallback
+- ✅ **Go-Based Migrations**: Define migrations in Go code using the Database Abstraction Layer (DAL)
+- ✅ **Multi-Database Support**: PostgreSQL, MySQL, SQLite - write once, run anywhere
+- ✅ **Timestamp Naming**: Millisecond-precision timestamps prevent conflicts between developers
 - ✅ **Plugin System Integration**: Each plugin can maintain its own migrations
 - ✅ **Checksum Verification**: Prevents migration drift between environments
 - ✅ **Advisory Locking**: Prevents concurrent execution
 - ✅ **Dirty Database Detection**: Tracks and blocks on failed migrations
 - ✅ **Transaction Safety**: Automatic rollback on failure
 - ✅ **Dependency Resolution**: Plugin migrations run in correct order
+- ✅ **SQL File Support**: Legacy support for .sql files (deprecated)
 
 ## Quick Start
 
-### 1. Create Migration Files
+### 1. Generate a New Migration
 
-Migration files use timestamp-based naming:
+Use the migration generator to create a timestamped migration file:
 
-```
-{timestamp}_{descriptive_name}.{up|down}[.{dialect}].sql
-```
-
-**Example:**
-```
-migrations/
-├── 20250120143022_create_users.up.postgres.sql
-├── 20250120143022_create_users.down.postgres.sql
-├── 20250120143022_create_users.up.mysql.sql
-├── 20250120143022_create_users.down.mysql.sql
-├── 20250120143022_create_users.up.sqlite.sql
-└── 20250120143022_create_users.down.sqlite.sql
-```
-
-**Generate Timestamp:**
 ```bash
-date +%Y%m%d%H%M%S
-# Output: 20250120143022
+go run github.com/nicolasbonnici/gorest/migrations/cmd/generate-migration -name=create_users_table
+
+# Output:
+# ✓ Created migration: 20251222204530123_create_users_table.go
 ```
 
-### 2. Embed Migrations in Your Application
+This creates a file like `20251222204530123_create_users_table.go` with the timestamp format:
+- `YYYYMMDDHHMMSSmmm` (17 digits with milliseconds)
+- Example: `20251222204530123` = December 22, 2025 at 20:45:30.123
+
+### 2. Define Your Migration
+
+Edit the generated file to implement your migration logic:
+
+```go
+package migrations
+
+import (
+    "context"
+
+    "github.com/nicolasbonnici/gorest/database"
+    "github.com/nicolasbonnici/gorest/migrations"
+)
+
+func Migration_20251222204530123_CreateUsersTable() migrations.Migration {
+    return migrations.NewGoMigration("20251222204530123", "create_users_table").
+        Up(func(ctx context.Context, db database.Database) error {
+            return migrations.SQL(ctx, db, migrations.DialectSQL{
+                Postgres: `CREATE TABLE users (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )`,
+                MySQL: `CREATE TABLE users (
+                    id CHAR(36) PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    password VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+                SQLite: `CREATE TABLE users (
+                    id TEXT PRIMARY KEY,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )`,
+            })
+        }).
+        Down(func(ctx context.Context, db database.Database) error {
+            return migrations.DropTableIfExists(ctx, db, "users")
+        }).
+        Build()
+}
+```
+
+### 3. Register Migrations
+
+Create a migration source with your migrations:
 
 ```go
 package main
 
 import (
     "context"
-    "embed"
     "log"
 
     "github.com/nicolasbonnici/gorest/database"
     "github.com/nicolasbonnici/gorest/migrations"
 )
 
-//go:embed migrations/*.sql
-var migrationFiles embed.FS
-
 func main() {
-    // Connect to database
     db, err := database.Open("postgres", "postgres://localhost/mydb")
     if err != nil {
         log.Fatal(err)
     }
     defer db.Close()
 
-    // Create migration source
-    appSource := migrations.NewEmbeddedSource("app", migrationFiles, "migrations", db)
+    // Build migration source using the fluent API
+    builder := migrations.NewMigrationBuilder("app")
+
+    // Add your migrations
+    builder.Add(
+        "20251222204530123",
+        "create_users_table",
+        createUsersUp,
+        createUsersDown,
+    )
+
+    builder.Add(
+        "20251222204530124",
+        "add_users_email_index",
+        addEmailIndexUp,
+        addEmailIndexDown,
+    )
+
+    source := builder.Build()
 
     // Create migrator
-    migrator := migrations.NewMigrator(db, appSource)
+    migrator := migrations.NewMigrator(db, source)
 
     // Run all pending migrations
     if err := migrator.Up(context.Background()); err != nil {
@@ -78,9 +129,29 @@ func main() {
 
     log.Println("Migrations applied successfully")
 }
+
+func createUsersUp(ctx context.Context, db database.Database) error {
+    return migrations.SQL(ctx, db, migrations.DialectSQL{
+        Postgres: `CREATE TABLE users (...)`,
+        MySQL:    `CREATE TABLE users (...)`,
+        SQLite:   `CREATE TABLE users (...)`,
+    })
+}
+
+func createUsersDown(ctx context.Context, db database.Database) error {
+    return migrations.DropTableIfExists(ctx, db, "users")
+}
+
+func addEmailIndexUp(ctx context.Context, db database.Database) error {
+    return migrations.CreateIndex(ctx, db, "idx_users_email", "users", "email")
+}
+
+func addEmailIndexDown(ctx context.Context, db database.Database) error {
+    return migrations.DropIndex(ctx, db, "idx_users_email", "users")
+}
 ```
 
-### 3. Run Migrations
+### 4. Run Migrations
 
 ```go
 ctx := context.Background()
@@ -92,13 +163,13 @@ migrator.Up(ctx)
 migrator.UpOne(ctx)
 
 // Apply migrations up to specific version
-migrator.UpTo(ctx, "20250120143022")
+migrator.UpTo(ctx, "20251222204530123")
 
 // Revert last migration
 migrator.Down(ctx)
 
 // Revert to specific version
-migrator.DownTo(ctx, "20250120143022")
+migrator.DownTo(ctx, "20251222204530123")
 
 // Check migration status
 statuses, _ := migrator.Status(ctx)
@@ -107,125 +178,196 @@ for _, s := range statuses {
 }
 ```
 
-## Migration File Format
+## Migration Helpers
 
-### Up Migration (PostgreSQL Example)
+The migration system provides helper functions for common operations:
 
-**20250120143022_create_users.up.postgres.sql:**
-```sql
--- Create users table for authentication
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+### Table Operations
 
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    firstname TEXT NOT NULL,
-    lastname TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT,
-    created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+```go
+// Create table (dialect-aware)
+migrations.CreateTableIfNotExists(ctx, db, "users", "id TEXT PRIMARY KEY, email TEXT")
 
-CREATE INDEX idx_user_email ON users (email);
+// Drop table
+migrations.DropTableIfExists(ctx, db, "users")
 ```
 
-### Down Migration
+### Column Operations
 
-**20250120143022_create_users.down.postgres.sql:**
-```sql
--- Rollback users table creation
-DROP INDEX IF EXISTS idx_user_email;
-DROP TABLE IF EXISTS users CASCADE;
+```go
+// Add column
+migrations.AddColumn(ctx, db, "users", "name TEXT")
+
+// Drop column
+migrations.DropColumn(ctx, db, "users", "name")
 ```
 
-### Dialect-Specific vs Generic Files
+### Index Operations
 
-The migration system supports both dialect-specific and generic migration files:
+```go
+// Create index
+migrations.CreateIndex(ctx, db, "idx_users_email", "users", "email")
 
-1. **Dialect-Specific** (Recommended): Separate files per database
-   - `20250120143022_create_users.up.postgres.sql`
-   - `20250120143022_create_users.up.mysql.sql`
-   - `20250120143022_create_users.up.sqlite.sql`
+// Drop index
+migrations.DropIndex(ctx, db, "idx_users_email", "users")
+```
 
-2. **Generic Fallback**: Single file for all databases
-   - `20250120143022_create_users.up.sql`
-   - Use only if SQL is truly database-agnostic
+### Dialect-Specific SQL
 
-**Loading Priority:**
-1. Try dialect-specific file first (e.g., `.postgres.sql`)
-2. Fall back to generic file (e.g., `.sql`)
+```go
+migrations.SQL(ctx, db, migrations.DialectSQL{
+    Postgres: `postgres SQL here`,
+    MySQL:    `mysql SQL here`,
+    SQLite:   `sqlite SQL here`,
+})
+
+// All fields are optional - specify only what you need
+migrations.SQL(ctx, db, migrations.DialectSQL{
+    Postgres: `postgres-only SQL here`,
+})
+```
+
+## Migration Builder
+
+Use the fluent builder API for clean migration code:
+
+```go
+builder := migrations.NewMigrationBuilder("app")
+
+builder.Add(
+    "20251222204530123",
+    "create_users",
+    func(ctx context.Context, db database.Database) error {
+        return migrations.CreateTableIfNotExists(ctx, db, "users", "id TEXT PRIMARY KEY")
+    },
+    func(ctx context.Context, db database.Database) error {
+        return migrations.DropTableIfExists(ctx, db, "users")
+    },
+)
+
+// For SQL-only migrations (simple cases)
+builder.AddSQL(
+    "20251222204530124",
+    "add_index",
+    "CREATE INDEX idx_users_email ON users(email)",
+    "DROP INDEX idx_users_email",
+)
+
+source := builder.Build()
+```
+
+## Examples
+
+See `migrations/examples.go` for comprehensive examples including:
+
+1. Creating tables with dialect-aware SQL
+2. Adding indexes
+3. Adding/dropping columns
+4. Foreign key relationships
+5. Data migrations
+6. Complex multi-step migrations
 
 ## Plugin Migrations
 
-Plugins can provide their own migrations by implementing the `MigrationProvider` interface.
+Plugins can provide their own migrations:
 
-### Example: Auth Plugin
-
-**plugins/auth/auth.go:**
 ```go
 package auth
 
 import (
-    "embed"
     "github.com/nicolasbonnici/gorest/migrations"
     "github.com/nicolasbonnici/gorest/plugin"
 )
 
-//go:embed migrations/*.sql
-var migrationFiles embed.FS
-
 type AuthPlugin struct {
     db database.Database
-    // ...
 }
 
 // MigrationSource implements plugin.MigrationProvider
-func (p *AuthPlugin) MigrationSource() plugin.MigrationSource {
-    return migrations.NewEmbeddedSource("auth", migrationFiles, "migrations", p.db)
+func (p *AuthPlugin) MigrationSource() interface{} {
+    builder := migrations.NewMigrationBuilder("auth")
+
+    builder.Add(
+        "20251222204530200",
+        "create_sessions_table",
+        p.createSessionsUp,
+        p.createSessionsDown,
+    )
+
+    return builder.Build()
 }
 
 // MigrationDependencies returns dependencies
 func (p *AuthPlugin) MigrationDependencies() []string {
     return []string{"app"} // Auth depends on app migrations
 }
+
+func (p *AuthPlugin) createSessionsUp(ctx context.Context, db database.Database) error {
+    return migrations.SQL(ctx, db, migrations.DialectSQL{
+        Postgres: `CREATE TABLE sessions (...)`,
+        MySQL:    `CREATE TABLE sessions (...)`,
+        SQLite:   `CREATE TABLE sessions (...)`,
+    })
+}
+
+func (p *AuthPlugin) createSessionsDown(ctx context.Context, db database.Database) error {
+    return migrations.DropTableIfExists(ctx, db, "sessions")
+}
 ```
 
 ### Using Plugin Migrations
 
 ```go
-package main
+db, _ := database.Open("postgres", "postgres://localhost/mydb")
+defer db.Close()
 
-import (
-    "github.com/nicolasbonnici/gorest/migrations"
-    "github.com/nicolasbonnici/gorest/plugins/auth"
-)
+// Core app migrations
+appSource := buildAppMigrations()
 
-func main() {
-    db, _ := database.Open("postgres", "postgres://localhost/mydb")
-    defer db.Close()
+// Collect plugin migrations
+sources := []migrations.MigrationSource{appSource}
 
-    // Core app migrations
-    appSource := migrations.NewEmbeddedSource("app", appMigrations, "migrations", db)
-
-    // Collect plugin migrations
-    sources := []migrations.MigrationSource{appSource}
-
-    authPlugin := auth.NewPlugin()
-    if provider, ok := authPlugin.(plugin.MigrationProvider); ok {
-        sources = append(sources, provider.MigrationSource())
-    }
-
-    // Create migrator with all sources
-    migrator := migrations.NewMigrator(db, sources...)
-
-    // Set dependencies (if plugin implements MigrationDependencies)
-    if provider, ok := authPlugin.(plugin.MigrationProvider); ok {
-        deps := provider.MigrationDependencies()
-        migrator.(*migrations.Migrator).SetSourceDependencies("auth", deps)
-    }
-
-    // Run all migrations (app + plugins)
-    migrator.Up(context.Background())
+authPlugin := auth.NewPlugin()
+if provider, ok := authPlugin.(plugin.MigrationProvider); ok {
+    sources = append(sources, provider.MigrationSource().(migrations.MigrationSource))
 }
+
+// Create migrator with all sources
+migrator := migrations.NewMigrator(db, sources...)
+
+// Set dependencies
+if provider, ok := authPlugin.(plugin.MigrationProvider); ok {
+    deps := provider.MigrationDependencies()
+    migrator.SetSourceDependencies("auth", deps)
+}
+
+// Run all migrations (app + plugins)
+migrator.Up(context.Background())
+```
+
+## Timestamp Format
+
+Migrations use millisecond-precision timestamps to prevent conflicts:
+
+- **Format**: `YYYYMMDDHHMMSSmmm` (17 digits)
+- **Example**: `20251222204530123`
+  - Year: 2025
+  - Month: 12 (December)
+  - Day: 22
+  - Hour: 20 (8 PM)
+  - Minute: 45
+  - Second: 30
+  - Milliseconds: 123
+
+**Benefits:**
+- Chronological ordering
+- No conflicts between developers
+- Clear when migration was created
+- Sortable as strings
+
+**Generate timestamp:**
+```bash
+go run github.com/nicolasbonnici/gorest/migrations/cmd/generate-migration -name=my_migration
 ```
 
 ## API Reference
@@ -234,43 +376,18 @@ func main() {
 
 ```go
 type Migrator interface {
-    // Apply all pending migrations
     Up(ctx context.Context) error
-
-    // Apply migrations with custom options
     UpWithOptions(ctx context.Context, opts MigrationOptions) error
-
-    // Apply next pending migration
     UpOne(ctx context.Context) error
-
-    // Apply migrations up to specific version
     UpTo(ctx context.Context, version string) error
-
-    // Revert last migration
     Down(ctx context.Context) error
-
-    // Revert to specific version
     DownTo(ctx context.Context, version string) error
-
-    // Get migration status
     Status(ctx context.Context) ([]MigrationStatus, error)
-
-    // List pending migrations
     Pending(ctx context.Context) ([]Migration, error)
-
-    // Validate migrations without executing
     Validate(ctx context.Context) error
-
-    // Preview what would be executed
     DryRun(ctx context.Context) ([]Migration, error)
-
-    // Force mark migration as applied (repair tool)
     Force(ctx context.Context, version, source string) error
-
-    // Apply pending migrations for specific source
     UpSource(ctx context.Context, sourceName string) error
-
-    // Revert last migration for specific source
     DownSource(ctx context.Context, sourceName string) error
 }
 ```
@@ -279,7 +396,7 @@ type Migrator interface {
 
 ```go
 type MigrationOptions struct {
-    Transactional bool // Wrap all migrations in single transaction (all-or-nothing)
+    Transactional bool // Wrap all migrations in single transaction
     DryRun        bool // Show what would execute without executing
     StopOnError   bool // Stop on first error (default: true)
 }
@@ -294,68 +411,49 @@ migrator.UpWithOptions(ctx, migrations.MigrationOptions{
 
 ### 1. Checksum Verification
 
-Every migration file is hashed (SHA256). If an applied migration file is modified, the system detects it and fails:
+Every migration is hashed. If modified after being applied, the system detects it:
 
 ```
-CRITICAL: Migration app/20250120143022_create_users has been modified after being applied!
+CRITICAL: Migration app/20251222204530123_create_users has been modified!
 Expected checksum: abc123...
 Actual checksum:   def456...
-DO NOT modify migrations that have been applied!
 ```
 
 ### 2. Advisory Locking
 
-Prevents concurrent migrations from multiple deployments:
-
+Prevents concurrent migrations:
 - **PostgreSQL**: Uses `pg_advisory_lock()`
 - **MySQL**: Uses `GET_LOCK()` with 60s timeout
 - **SQLite**: Uses EXCLUSIVE transactions
 
 ### 3. Dirty Database Detection
 
-Tracks failed migrations and blocks execution until resolved:
+Blocks execution if migrations failed:
 
 ```
-Database is in dirty state - 1 failed migration(s) detected:
-  - [app] 20250120143022_create_users: syntax error at line 5
+Database is in dirty state - 1 failed migration(s):
+  - [app] 20251222204530123_create_users: syntax error
 
-You must:
-  1. Fix the failing migration SQL and retry, OR
-  2. Use Force() to mark as skipped (dangerous), OR
-  3. Manually repair database and update schema_migrations status
+Fix the migration and retry, or use Force()
 ```
 
 ### 4. Transaction Rollback
 
-Each migration runs in its own transaction. If it fails:
-- SQL changes are automatically rolled back
-- Migration is marked as `status='failed'`
+Each migration runs in a transaction. On failure:
+- SQL changes rolled back
+- Migration marked as failed
 - Execution stops
-- Database enters "dirty" state
-
-### 5. Dependency Resolution
-
-Plugin migrations respect dependencies via topological sort:
-
-```go
-// auth depends on app
-func (p *AuthPlugin) MigrationDependencies() []string {
-    return []string{"app"}
-}
-
-// Execution order: app → auth
-```
 
 ## Schema Migrations Table
 
-Migrations are tracked in the `schema_migrations` table:
+Migrations are tracked in `schema_migrations`:
 
 ```sql
 CREATE TABLE schema_migrations (
-    version VARCHAR(14) NOT NULL,             -- Timestamp: YYYYMMDDHHMMSS
+    version VARCHAR(17) NOT NULL,              -- Timestamp with milliseconds
     source VARCHAR(100) NOT NULL DEFAULT 'app',
     name VARCHAR(255) NOT NULL,
-    checksum CHAR(64) NOT NULL,               -- SHA256 hash
+    checksum CHAR(64) NOT NULL,                -- SHA256 hash
     status VARCHAR(20) NOT NULL DEFAULT 'applied',
     applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     execution_time_ms INTEGER,
@@ -366,141 +464,137 @@ CREATE TABLE schema_migrations (
 );
 ```
 
-**Query Migration Status:**
+**Query status:**
 ```sql
 SELECT version, source, name, status, applied_at, execution_time_ms
 FROM schema_migrations
 ORDER BY applied_at DESC;
 ```
 
-## Error Handling
-
-### Common Errors
-
-#### ErrDirtyDatabase
-```go
-if err == migrations.ErrDirtyDatabase {
-    // Database has failed migrations
-    // Fix SQL and retry, or use Force()
-}
-```
-
-#### ErrChecksumMismatch
-```go
-if errors.Is(err, migrations.ErrChecksumMismatch) {
-    // Migration file was modified after being applied
-    // DO NOT modify applied migrations!
-}
-```
-
-#### ErrLockTimeout
-```go
-if err == migrations.ErrLockTimeout {
-    // Another process is running migrations
-    // Wait and retry
-}
-```
-
-### Recovery from Dirty Database
-
-**Option 1: Fix SQL and Retry**
-```bash
-# Fix the failing migration file
-# Then run migrations again
-```
-
-**Option 2: Force Migration (Dangerous)**
-```go
-// Mark migration as applied without executing
-migrator.Force(ctx, "20250120143022", "app")
-```
-
-**Option 3: Manual Recovery**
-```sql
--- Fix database manually
--- Then update migration status
-UPDATE schema_migrations
-SET status = 'applied', error_message = NULL
-WHERE version = '20250120143022' AND source = 'app';
-```
-
 ## Best Practices
 
 ### 1. Never Modify Applied Migrations
 
-Once a migration is applied in any environment (dev, staging, prod), **never modify it**. Create a new migration instead.
+Once applied in any environment, **never modify** the migration. Create a new one instead.
 
 ❌ **Wrong:**
-```sql
--- 20250120143022_create_users.up.sql (already applied)
-CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    name TEXT  -- Added column after migration was applied
-);
+```go
+// Already applied migration - DON'T MODIFY
+builder.Add("20251222204530123", "create_users",
+    func(ctx context.Context, db database.Database) error {
+        // Adding a new column to already-applied migration
+        return migrations.CreateTableIfNotExists(ctx, db, "users", "id TEXT, email TEXT, name TEXT")
+    },
+    // ...
+)
 ```
 
 ✅ **Correct:**
-```sql
--- 20250120150000_add_name_to_users.up.sql (new migration)
-ALTER TABLE users ADD COLUMN name TEXT;
+```go
+// New migration to add column
+builder.Add("20251222204530456", "add_name_to_users",
+    func(ctx context.Context, db database.Database) error {
+        return migrations.AddColumn(ctx, db, "users", "name TEXT")
+    },
+    func(ctx context.Context, db database.Database) error {
+        return migrations.DropColumn(ctx, db, "users", "name")
+    },
+)
 ```
 
 ### 2. Always Provide Down Migrations
 
-Every `up` migration must have a corresponding `down` migration that reverses it:
+Every migration must be reversible:
 
-```sql
--- up: create table
-CREATE TABLE users (id UUID PRIMARY KEY);
-
--- down: drop table
-DROP TABLE IF EXISTS users;
+```go
+builder.Add(version, "create_table",
+    func(ctx context.Context, db database.Database) error {
+        return migrations.CreateTableIfNotExists(ctx, db, "users", "...")
+    },
+    func(ctx context.Context, db database.Database) error {
+        return migrations.DropTableIfExists(ctx, db, "users")
+    },
+)
 ```
 
-### 3. Use Dialect-Specific Files
+### 3. Use Helpers for Portability
 
-Different databases have different SQL syntax. Use dialect-specific files:
+Prefer migration helpers over raw SQL:
 
+✅ **Good:**
+```go
+migrations.CreateTableIfNotExists(ctx, db, "users", "id TEXT PRIMARY KEY")
+migrations.CreateIndex(ctx, db, "idx_users_email", "users", "email")
 ```
-migrations/
-├── 20250120143022_create_users.up.postgres.sql  (gen_random_uuid())
-├── 20250120143022_create_users.up.mysql.sql     (UUID())
-└── 20250120143022_create_users.up.sqlite.sql    (randomblob())
+
+❌ **Avoid:**
+```go
+db.Exec(ctx, "CREATE TABLE users (...)")  // May not work on all databases
 ```
 
 ### 4. Test Migrations
 
-Always test migrations:
-- Test `up` migration
-- Test `down` migration
-- Test on all supported databases
-- Test in a transaction
+Test both up and down:
+```go
+// Test up
+migrator.Up(ctx)
 
-### 5. Keep Migrations Small
+// Verify table exists
+// ...
 
-Each migration should do one logical thing:
+// Test down
+migrator.Down(ctx)
+
+// Verify table removed
+// ...
+```
+
+### 5. Keep Migrations Focused
+
+One logical change per migration:
 - Create a table
 - Add a column
 - Create an index
 
-Avoid:
-- Multiple unrelated schema changes in one migration
-- Large data migrations (use separate tool)
-
 ### 6. Use Descriptive Names
 
 ```
-✅ 20250120143022_create_users_table.up.sql
-✅ 20250120150000_add_email_index_to_users.up.sql
-❌ 20250120143022_migration.up.sql
-❌ 20250120143022_update.up.sql
+✅ 20251222204530123_create_users_table
+✅ 20251222204530456_add_email_index_to_users
+❌ 20251222204530789_migration
+❌ 20251222204531000_update
+```
+
+## Legacy: SQL File Migrations (Deprecated)
+
+The system still supports SQL files for backward compatibility:
+
+```
+migrations/
+├── 20250120143022_create_users.up.postgres.sql
+├── 20250120143022_create_users.down.postgres.sql
+```
+
+**However, Go-based migrations are strongly recommended because:**
+- Single codebase for all databases
+- Type safety and compile-time checking
+- Access to the full DAL
+- Easier testing and debugging
+- Better IDE support
+
+To use SQL files:
+```go
+//go:embed migrations/*.sql
+var migrationFiles embed.FS
+
+source := migrations.NewEmbeddedSource("app", migrationFiles, "migrations", db)
 ```
 
 ## Troubleshooting
 
 ### Migrations Won't Run
 
-**Check dirty database:**
+Check for dirty database:
 ```go
 statuses, _ := migrator.Status(ctx)
 for _, s := range statuses {
@@ -510,36 +604,21 @@ for _, s := range statuses {
 }
 ```
 
-**Check for lock:**
-```sql
--- PostgreSQL
-SELECT * FROM pg_locks WHERE locktype = 'advisory';
-
--- MySQL
-SELECT IS_USED_LOCK('gorest_migrations');
-```
-
 ### Checksum Mismatch
 
-Migration file was modified after being applied. Options:
+Migration modified after being applied. Options:
 
-1. **Revert the file change** (recommended)
-2. **Update stored checksum** (if intentional):
+1. **Revert the change** (recommended)
+2. **Update checksum** (if intentional):
    ```sql
    UPDATE schema_migrations
-   SET checksum = 'new_checksum_here'
-   WHERE version = '20250120143022' AND source = 'app';
+   SET checksum = 'new_checksum'
+   WHERE version = '20251222204530123';
    ```
 
-### Migration Fails Mid-Execution
+### Migration Fails
 
-The migration is in a transaction, so changes are rolled back. Check:
-
-1. SQL syntax errors
-2. Constraint violations
-3. Permission issues
-
-Fix the SQL and re-run.
+The migration runs in a transaction, so changes are rolled back. Fix and retry.
 
 ## Testing
 
@@ -556,40 +635,6 @@ TEST_DATABASE_URL="postgres://localhost/test" go test -v
 go test -cover -coverprofile=coverage.out
 go tool cover -html=coverage.out
 ```
-
-## Performance Tips
-
-### 1. Add Indexes in Separate Migrations
-
-```sql
--- Migration 1: Create table
-CREATE TABLE users (id UUID PRIMARY KEY, email TEXT);
-
--- Migration 2: Add index (can be done online in production)
-CREATE INDEX CONCURRENTLY idx_users_email ON users(email);
-```
-
-### 2. Use Migration Timeouts
-
-```go
-migration.Timeout = 5 * time.Minute  // For long-running migrations
-```
-
-### 3. Batch Large Data Migrations
-
-For data migrations affecting millions of rows, use batching:
-
-```sql
--- Instead of: UPDATE users SET status = 'active';
--- Use batching in application code or separate tool
-```
-
-## Examples
-
-See:
-- `/plugins/auth/migrations/` - Auth plugin migrations example
-- `/migrations/testdata/` - Test migration examples
-- `/examples/basic-api/` - Full application example
 
 ## License
 
