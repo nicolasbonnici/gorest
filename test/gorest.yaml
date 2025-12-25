@@ -27,17 +27,15 @@ server:
   port: 3000
   environment: test
   cors_origins: '*'
+  ratelimit_enabled: false
+  ratelimit_requests_per_second: 100
+  ratelimit_burst: 200
 database:
   url: ${DATABASE_URL}
 pagination:
   default_limit: 10
   max_limit: 1000
 plugins:
-- name: ratelimit
-  enabled: false
-  config:
-    requests_per_second: 100
-    burst: 200
 - name: contenttype
   enabled: true
 - name: health

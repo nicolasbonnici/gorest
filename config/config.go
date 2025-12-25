@@ -50,9 +50,12 @@ type EndpointAuthConfig struct {
 }
 
 type ServerConfig struct {
-	Port        int    `yaml:"port"`
-	Environment string `yaml:"environment"`
-	CORSOrigins string `yaml:"cors_origins"`
+	Port                  int    `yaml:"port"`
+	Environment           string `yaml:"environment"`
+	CORSOrigins           string `yaml:"cors_origins"`
+	RateLimitRPS          int    `yaml:"ratelimit_requests_per_second"`
+	RateLimitBurst        int    `yaml:"ratelimit_burst"`
+	RateLimitEnabled      bool   `yaml:"ratelimit_enabled"`
 }
 
 type DatabaseConfig struct {
@@ -157,6 +160,13 @@ func (c *Config) SetDefaults() {
 	if c.Server.Environment == "" {
 		c.Server.Environment = "development"
 	}
+	if c.Server.RateLimitRPS == 0 {
+		c.Server.RateLimitRPS = 100
+	}
+	if c.Server.RateLimitBurst == 0 {
+		c.Server.RateLimitBurst = 200
+	}
+	// RateLimitEnabled defaults to false (disabled by default)
 
 	if c.Pagination.DefaultLimit == 0 {
 		c.Pagination.DefaultLimit = 10

@@ -28,6 +28,9 @@ server:
   port: 3001
   environment: "test"
   cors_origins: "*"
+  ratelimit_enabled: false
+  ratelimit_requests_per_second: 100
+  ratelimit_burst: 200
 
 database:
   url: "${DATABASE_URL}"
@@ -37,11 +40,6 @@ pagination:
   max_limit: 10000
 
 plugins:
-  - name: ratelimit
-    enabled: true
-    config:
-      requests_per_second: 100
-      burst: 200
   - name: contenttype
     enabled: true
   - name: auth

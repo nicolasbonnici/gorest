@@ -77,6 +77,10 @@ func Start(cfg Config) {
 	app.Use(middleware.RequestID())
 	app.Use(middleware.Logger())
 
+	if appConfig.Server.RateLimitEnabled {
+		app.Use(middleware.RateLimit(appConfig.Server.RateLimitRPS, appConfig.Server.RateLimitBurst))
+	}
+
 	enrichedConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins, db, appConfig)
 
 	// Load plugins (plugins are NOT automatically applied - user must use app.Use() or fiber groups)
