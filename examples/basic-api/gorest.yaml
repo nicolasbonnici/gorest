@@ -1,62 +1,51 @@
 codegen:
   output:
-    models: "generated/models"
-    resources: "generated/resources"
-    dtos: "generated/dtos"
-    openapi: "generated/openapi"
-    config: "generated/config"
+    models: generated/models
+    resources: generated/resources
+    dtos: generated/dtos
+    openapi: generated/openapi
+    config: generated/config
   auth:
     enabled: true
-    # Auth defaults (applied to all endpoints unless overridden)
-    # Secure by default - all methods require auth unless explicitly set to false
     defaults:
       GET: true
       POST: true
       PUT: true
       DELETE: true
     endpoints:
-      - name: posts
-        GET: false # Public read - anyone can view blog posts
-
+    - name: posts
+      GET: false
 server:
   port: 3000
-  environment: "development"
-
+  environment: development
+  cors_origins: http://localhost:3000
 database:
-  url: "${DATABASE_URL}"
-
+  url: ${DATABASE_URL}
 pagination:
   default_limit: 10
   max_limit: 1000
-
-# Plugin system configuration (unified)
 plugins:
-  - name: requestid
-    enabled: true
-  - name: logger
-    enabled: true
-  - name: ratelimit
-    enabled: true
-    config:
-      requests_per_second: 200
-      burst: 400
-  - name: cors
-    enabled: true
-    config:
-      origins: "http://localhost:3000"
-  - name: contenttype
-    enabled: true
-  - name: health
-    enabled: true
-  - name: openapi
-    enabled: true
-  # Custom dummy plugin example
-  - name: dummy
-    enabled: true
-    config:
-      message: "Custom plugin is working!"
-  - name: auth
-    enabled: true
-    config:
-      jwt_secret: "${JWT_SECRET}"
-      jwt_ttl: 900
+- name: requestid
+  enabled: true
+- name: logger
+  enabled: true
+- name: ratelimit
+  enabled: true
+  config:
+    requests_per_second: 200
+    burst: 400
+- name: contenttype
+  enabled: true
+- name: health
+  enabled: true
+- name: openapi
+  enabled: true
+- name: dummy
+  enabled: true
+  config:
+    message: Custom plugin is working!
+- name: auth
+  enabled: true
+  config:
+    jwt_secret: ${JWT_SECRET}
+    jwt_ttl: 900

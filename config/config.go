@@ -52,6 +52,7 @@ type EndpointAuthConfig struct {
 type ServerConfig struct {
 	Port        int    `yaml:"port"`
 	Environment string `yaml:"environment"`
+	CORSOrigins string `yaml:"cors_origins"`
 }
 
 type DatabaseConfig struct {
