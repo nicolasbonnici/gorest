@@ -19,17 +19,15 @@ server:
   port: 3000
   environment: development
   cors_origins: http://localhost:3000
+  ratelimit_enabled: true
+  ratelimit_requests_per_second: 200
+  ratelimit_burst: 400
 database:
   url: ${DATABASE_URL}
 pagination:
   default_limit: 10
   max_limit: 1000
 plugins:
-- name: ratelimit
-  enabled: true
-  config:
-    requests_per_second: 200
-    burst: 400
 - name: contenttype
   enabled: true
 - name: health

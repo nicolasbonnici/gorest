@@ -10,11 +10,9 @@ import (
 	contenttypeplugin "github.com/nicolasbonnici/gorest/plugins/contenttype"
 	healthplugin "github.com/nicolasbonnici/gorest/plugins/health"
 	openapiplugin "github.com/nicolasbonnici/gorest/plugins/openapi"
-	ratelimitplugin "github.com/nicolasbonnici/gorest/plugins/ratelimit"
 )
 
 func init() {
-	pluginloader.RegisterPluginFactory("ratelimit", ratelimitplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("contenttype", contenttypeplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("health", healthplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
