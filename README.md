@@ -310,16 +310,16 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 
 ### Built-in Plugins
 
-- **ratelimit** - Per-IP rate limiting
 - **contenttype** - Validates Content-Type for mutations
 - **health** - Secure health check endpoint with database connectivity monitoring
 - **auth** - JWT authentication for protected routes
 
-**Core Middleware (always enabled, no plugin needed):**
-- **Security Headers** - X-Frame-Options, CSP, HSTS, etc. and TRACE method blocking
-- **CORS** - Cross-Origin Resource Sharing (configure via `server.cors_origins` in YAML)
-- **RequestID** - Unique request ID tracking with UUID generation
-- **Logger** - HTTP request/response logging with structured logs
+**Core Middleware:**
+- **Security Headers** - Always enabled (X-Frame-Options, CSP, HSTS, etc. and TRACE method blocking)
+- **CORS** - Always enabled (configure via `server.cors_origins` in YAML)
+- **RequestID** - Always enabled (unique request ID tracking with UUID generation)
+- **Logger** - Always enabled (HTTP request/response logging with structured logs)
+- **RateLimit** - Optional (per-IP rate limiting, configure via `server.ratelimit_*` in YAML)
 
 ### Configuration
 
