@@ -9,7 +9,6 @@ import (
 	authplugin "github.com/nicolasbonnici/gorest-auth"
 	contenttypeplugin "github.com/nicolasbonnici/gorest/plugins/contenttype"
 	healthplugin "github.com/nicolasbonnici/gorest/plugins/health"
-	loggerplugin "github.com/nicolasbonnici/gorest/plugins/logger"
 	openapiplugin "github.com/nicolasbonnici/gorest/plugins/openapi"
 	ratelimitplugin "github.com/nicolasbonnici/gorest/plugins/ratelimit"
 	requestidplugin "github.com/nicolasbonnici/gorest/plugins/requestid"
@@ -17,7 +16,6 @@ import (
 
 func init() {
 	pluginloader.RegisterPluginFactory("requestid", requestidplugin.NewPlugin)
-	pluginloader.RegisterPluginFactory("logger", loggerplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("ratelimit", ratelimitplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("contenttype", contenttypeplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("health", healthplugin.NewPlugin)
