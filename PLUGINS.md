@@ -38,17 +38,17 @@ Soon there will be a repository avaailable
 
 ### Endpoint Plugins
 
-| Plugin | Description | Endpoints Created |
-|--------|-------------|-------------------|
-| `auth` | User authentication with JWT | `POST /login` |
-| `health` | Health check with database ping | `GET /health` |
-| `openapi` | OpenAPI documentation UI | `GET /openapi`, `GET /openapi.json` |
+| Plugin | Description | Endpoints Created | Repository |
+|--------|-------------|-------------------|------------|
+| `auth` | User authentication with JWT | `POST /login` | Built-in |
+| `status` | Status check with database ping | `GET /status` | [gorest-status](https://github.com/nicolasbonnici/gorest-status) |
+| `openapi` | OpenAPI documentation UI | `GET /openapi`, `GET /openapi.json` | [gorest-openapi](https://github.com/nicolasbonnici/gorest-openapi) |
 
 ### Command Plugins
 
-| Plugin | Description | Command |
-|--------|-------------|---------|
-| `benchmark` | API performance benchmarking | `make benchmark` |
+| Plugin | Description | Command | Repository |
+|--------|-------------|---------|------------|
+| `benchmark` | API performance benchmarking | `make benchmark` | [gorest-benchmark](https://github.com/nicolasbonnici/gorest-benchmark) |
 
 ## Plugin Interfaces
 
@@ -730,7 +730,7 @@ func (p *MyPlugin) Handler() fiber.Handler {
 func (p *MyPlugin) Handler() fiber.Handler {
     return func(c *fiber.Ctx) error {
         // Skip for certain paths
-        if c.Path() == "/health" {
+        if c.Path() == "/status" {
             return c.Next()
         }
 
