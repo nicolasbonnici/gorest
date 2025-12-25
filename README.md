@@ -23,7 +23,7 @@
 - 🛡️ Production grade errors and processes management
 - 🐳 Docker support with multi-database testing
 - 🧪 Full test coverage with automated testing
-- 💚 Health check endpoint (`/health`)
+- 💚 Status check endpoint (`/status`)
 - 📜 OpenAPI 3 spec generation
 
 ---
@@ -133,7 +133,7 @@ go run main.go
 
 Your API is now running at: **http://localhost:3000/**
 - 📚 API specs: **http://localhost:3000/openapi** (JSON format **http://localhost:3000/openapi.json**)
-- 💚 Health: **http://localhost:3000/health**
+- 💚 Status: **http://localhost:3000/status**
 
 ---
 
@@ -197,14 +197,7 @@ server:
   cors_origins: "*"
 
 plugins:
-  - name: ratelimit
-    enabled: true
-    config:
-      requests_per_second: 100
-      burst: 200
-  - name: contenttype
-    enabled: true
-  - name: health
+  - name: status
     enabled: true
   - name: auth
     enabled: true
@@ -310,8 +303,12 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 
 ### Built-in Plugins
 
-- **health** - Secure health check endpoint with database connectivity monitoring
 - **auth** - JWT authentication for protected routes
+
+**External Plugins:**
+- **status** - Status check endpoint with database connectivity monitoring - [gorest-status](https://github.com/nicolasbonnici/gorest-status)
+- **openapi** - OpenAPI documentation UI and schema serving - [gorest-openapi](https://github.com/nicolasbonnici/gorest-openapi)
+- **benchmark** - API performance benchmarking tool - [gorest-benchmark](https://github.com/nicolasbonnici/gorest-benchmark)
 
 **Core Middleware:**
 - **Security Headers** - Always enabled (X-Frame-Options, CSP, HSTS, etc. and TRACE method blocking)
@@ -875,7 +872,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/status"]
       interval: 30s
 ```
 
@@ -903,7 +900,7 @@ server {
 ```yaml
 livenessProbe:
   httpGet:
-    path: /health
+    path: /status
     port: 3000
   initialDelaySeconds: 10
   periodSeconds: 30
