@@ -50,12 +50,12 @@ type EndpointAuthConfig struct {
 }
 
 type ServerConfig struct {
-	Port                  int    `yaml:"port"`
-	Environment           string `yaml:"environment"`
-	CORSOrigins           string `yaml:"cors_origins"`
-	RateLimitRPS          int    `yaml:"ratelimit_requests_per_second"`
-	RateLimitBurst        int    `yaml:"ratelimit_burst"`
-	RateLimitEnabled      bool   `yaml:"ratelimit_enabled"`
+	Port             int    `yaml:"port"`
+	Environment      string `yaml:"environment"`
+	CORSOrigins      string `yaml:"cors_origins"`
+	RateLimitRPS     int    `yaml:"ratelimit_requests_per_second"`
+	RateLimitBurst   int    `yaml:"ratelimit_burst"`
+	RateLimitEnabled bool   `yaml:"ratelimit_enabled"`
 }
 
 type DatabaseConfig struct {
