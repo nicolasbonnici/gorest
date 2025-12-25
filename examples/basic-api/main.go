@@ -7,13 +7,11 @@ import (
 	"github.com/nicolasbonnici/gorest/pluginloader"
 
 	authplugin "github.com/nicolasbonnici/gorest-auth"
-	contenttypeplugin "github.com/nicolasbonnici/gorest/plugins/contenttype"
 	healthplugin "github.com/nicolasbonnici/gorest/plugins/health"
 	openapiplugin "github.com/nicolasbonnici/gorest/plugins/openapi"
 )
 
 func init() {
-	pluginloader.RegisterPluginFactory("contenttype", contenttypeplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("health", healthplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("openapi", openapiplugin.NewPlugin)
