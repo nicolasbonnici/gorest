@@ -40,7 +40,6 @@ func TestRateLimit_AllowsRequestsUnderLimit(t *testing.T) {
 		return c.SendString("ok")
 	})
 
-	// Make several requests under the limit
 	for i := 0; i < 10; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
 		resp, _ := app.Test(req)
@@ -68,7 +67,6 @@ func TestRateLimit_BlocksExcessiveRequests(t *testing.T) {
 	var blockedCount int
 	var allowedCount int
 
-	// Make many requests to trigger rate limit
 	for i := 0; i < 15; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
 		resp, _ := app.Test(req)
@@ -76,7 +74,6 @@ func TestRateLimit_BlocksExcessiveRequests(t *testing.T) {
 		if resp.StatusCode == 429 {
 			blockedCount++
 
-			// Check error message
 			body, _ := io.ReadAll(resp.Body)
 			var errorResp map[string]interface{}
 			if err := json.Unmarshal(body, &errorResp); err == nil {
@@ -89,12 +86,10 @@ func TestRateLimit_BlocksExcessiveRequests(t *testing.T) {
 		}
 	}
 
-	// At least some requests should be blocked
 	if blockedCount == 0 {
 		t.Error("expected at least some requests to be blocked by rate limiter")
 	}
 
-	// At least some requests should be allowed
 	if allowedCount == 0 {
 		t.Error("expected at least some requests to be allowed")
 	}
@@ -109,7 +104,6 @@ func TestRateLimit_ErrorMessageFormat(t *testing.T) {
 		return c.SendString("ok")
 	})
 
-	// Make enough requests to trigger rate limit
 	for i := 0; i < 10; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
 		resp, _ := app.Test(req)
@@ -125,7 +119,6 @@ func TestRateLimit_ErrorMessageFormat(t *testing.T) {
 				t.Error("expected 'error' field in response")
 			}
 
-			// Successfully tested error format
 			return
 		}
 	}
@@ -140,8 +133,6 @@ func TestRateLimit_DifferentIPsGetSeparateLimits(t *testing.T) {
 		return c.SendString("ok")
 	})
 
-	// The test framework doesn't support different IPs easily,
-	// so we just verify the handler works with multiple requests
 	for i := 0; i < 3; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
 		resp, _ := app.Test(req)
@@ -176,7 +167,6 @@ func TestRateLimit_RespectsConfiguredLimits(t *testing.T) {
 			req := httptest.NewRequest("GET", "/test", nil)
 			resp, _ := app.Test(req)
 
-			// First request should always succeed
 			if resp.StatusCode != 200 {
 				t.Errorf("%s: expected first request to succeed, got status %d", tt.name, resp.StatusCode)
 			}
@@ -193,7 +183,6 @@ func TestRateLimit_DoesNotBlockNormalUsage(t *testing.T) {
 		return c.SendString("ok")
 	})
 
-	// Make a reasonable number of requests
 	for i := 0; i < 5; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
 		resp, _ := app.Test(req)
@@ -213,16 +202,13 @@ func TestRateLimit_RecoverAfterExpiration(t *testing.T) {
 		return c.SendString("ok")
 	})
 
-	// Make requests to hit the limit
 	for i := 0; i < 10; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
 		app.Test(req)
 	}
 
-	// Wait for rate limit window to expire
 	time.Sleep(1100 * time.Millisecond)
 
-	// Request should succeed after expiration
 	req := httptest.NewRequest("GET", "/test", nil)
 	resp, _ := app.Test(req)
 
