@@ -73,6 +73,7 @@ func Start(cfg Config) {
 	})
 
 	app.Use(middleware.Security())
+	app.Use(middleware.CORS(appConfig.Server.CORSOrigins))
 
 	enrichedConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins, db, appConfig)
 

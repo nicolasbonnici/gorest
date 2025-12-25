@@ -1,4 +1,4 @@
-package cors
+package middleware
 
 import (
 	"io"
@@ -8,127 +8,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func TestNewPlugin(t *testing.T) {
-	plugin := NewPlugin()
-
-	if plugin == nil {
-		t.Fatal("expected non-nil plugin")
-	}
-
-	corsPlugin, ok := plugin.(*CORSPlugin)
-	if !ok {
-		t.Fatal("expected *CORSPlugin type")
-	}
-
-	if corsPlugin.origins != "*" {
-		t.Errorf("expected default origins '*', got '%s'", corsPlugin.origins)
-	}
-}
-
-func TestCORSPlugin_Name(t *testing.T) {
-	plugin := NewPlugin()
-
-	name := plugin.Name()
-
-	if name != "cors" {
-		t.Errorf("expected plugin name 'cors', got '%s'", name)
-	}
-}
-
-func TestCORSPlugin_Initialize_DefaultConfig(t *testing.T) {
-	plugin := &CORSPlugin{}
-
-	err := plugin.Initialize(map[string]interface{}{})
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if plugin.origins != "" {
-		t.Errorf("expected empty origins after empty init, got '%s'", plugin.origins)
-	}
-}
-
-func TestCORSPlugin_Initialize_WithStringOrigins(t *testing.T) {
-	plugin := &CORSPlugin{}
-
-	config := map[string]interface{}{
-		"origins": "https://example.com",
-	}
-
-	err := plugin.Initialize(config)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if plugin.origins != "https://example.com" {
-		t.Errorf("expected origins 'https://example.com', got '%s'", plugin.origins)
-	}
-}
-
-func TestCORSPlugin_Initialize_WithMultipleOrigins(t *testing.T) {
-	plugin := &CORSPlugin{}
-
-	config := map[string]interface{}{
-		"origins": "https://example.com,https://test.com,https://api.example.com",
-	}
-
-	err := plugin.Initialize(config)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	expected := "https://example.com,https://test.com,https://api.example.com"
-	if plugin.origins != expected {
-		t.Errorf("expected origins '%s', got '%s'", expected, plugin.origins)
-	}
-}
-
-func TestCORSPlugin_Initialize_WithWildcard(t *testing.T) {
-	plugin := &CORSPlugin{}
-
-	config := map[string]interface{}{
-		"origins": "*",
-	}
-
-	err := plugin.Initialize(config)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if plugin.origins != "*" {
-		t.Errorf("expected origins '*', got '%s'", plugin.origins)
-	}
-}
-
-func TestCORSPlugin_Initialize_NonStringOrigins(t *testing.T) {
-	plugin := &CORSPlugin{origins: "initial"}
-
-	config := map[string]interface{}{
-		"origins": 12345,
-	}
-
-	err := plugin.Initialize(config)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if plugin.origins != "initial" {
-		t.Errorf("expected origins to remain 'initial', got '%s'", plugin.origins)
-	}
-}
-
-func TestCORSPlugin_Handler_DefaultWildcard(t *testing.T) {
-	plugin := &CORSPlugin{origins: "*"}
-	handler := plugin.Handler()
-
-	if handler == nil {
-		t.Fatal("expected non-nil handler")
-	}
+func TestCORS_DefaultWildcard(t *testing.T) {
+	handler := CORS("")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -156,9 +37,33 @@ func TestCORSPlugin_Handler_DefaultWildcard(t *testing.T) {
 	}
 }
 
-func TestCORSPlugin_Handler_SpecificOrigin(t *testing.T) {
-	plugin := &CORSPlugin{origins: "https://example.com"}
-	handler := plugin.Handler()
+func TestCORS_ExplicitWildcard(t *testing.T) {
+	handler := CORS("*")
+
+	app := fiber.New()
+	app.Use(handler)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.SendString("ok")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	resp, _ := app.Test(req)
+
+	allowOrigin := resp.Header.Get("Access-Control-Allow-Origin")
+	if allowOrigin != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin '*', got '%s'", allowOrigin)
+	}
+
+	allowCredentials := resp.Header.Get("Access-Control-Allow-Credentials")
+	if allowCredentials != "" {
+		t.Errorf("expected no Access-Control-Allow-Credentials with wildcard, got '%s'", allowCredentials)
+	}
+}
+
+func TestCORS_SpecificOrigin(t *testing.T) {
+	handler := CORS("https://example.com")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -186,9 +91,8 @@ func TestCORSPlugin_Handler_SpecificOrigin(t *testing.T) {
 	}
 }
 
-func TestCORSPlugin_Handler_MultipleOrigins(t *testing.T) {
-	plugin := &CORSPlugin{origins: "https://example.com,https://test.com"}
-	handler := plugin.Handler()
+func TestCORS_MultipleOrigins(t *testing.T) {
+	handler := CORS("https://example.com,https://test.com")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -243,9 +147,8 @@ func TestCORSPlugin_Handler_MultipleOrigins(t *testing.T) {
 	}
 }
 
-func TestCORSPlugin_Handler_PreflightRequest(t *testing.T) {
-	plugin := &CORSPlugin{origins: "https://example.com"}
-	handler := plugin.Handler()
+func TestCORS_PreflightRequest(t *testing.T) {
+	handler := CORS("https://example.com")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -285,9 +188,8 @@ func TestCORSPlugin_Handler_PreflightRequest(t *testing.T) {
 	}
 }
 
-func TestCORSPlugin_Handler_AllowedMethods(t *testing.T) {
-	plugin := &CORSPlugin{origins: "*"}
-	handler := plugin.Handler()
+func TestCORS_AllowedMethods(t *testing.T) {
+	handler := CORS("*")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -317,9 +219,8 @@ func TestCORSPlugin_Handler_AllowedMethods(t *testing.T) {
 	}
 }
 
-func TestCORSPlugin_Handler_WithoutOriginHeader(t *testing.T) {
-	plugin := &CORSPlugin{origins: "*"}
-	handler := plugin.Handler()
+func TestCORS_WithoutOriginHeader(t *testing.T) {
+	handler := CORS("*")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -341,9 +242,8 @@ func TestCORSPlugin_Handler_WithoutOriginHeader(t *testing.T) {
 	}
 }
 
-func TestCORSPlugin_Handler_CustomHeaders(t *testing.T) {
-	plugin := &CORSPlugin{origins: "https://example.com"}
-	handler := plugin.Handler()
+func TestCORS_CustomHeaders(t *testing.T) {
+	handler := CORS("https://example.com")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -368,7 +268,7 @@ func TestCORSPlugin_Handler_CustomHeaders(t *testing.T) {
 	}
 }
 
-func TestCORSPlugin_Handler_CredentialsOnlyWithSpecificOrigin(t *testing.T) {
+func TestCORS_CredentialsOnlyWithSpecificOrigin(t *testing.T) {
 	tests := []struct {
 		name                string
 		origins             string
@@ -393,8 +293,7 @@ func TestCORSPlugin_Handler_CredentialsOnlyWithSpecificOrigin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plugin := &CORSPlugin{origins: tt.origins}
-			handler := plugin.Handler()
+			handler := CORS(tt.origins)
 
 			app := fiber.New()
 			app.Use(handler)
@@ -418,82 +317,5 @@ func TestCORSPlugin_Handler_CredentialsOnlyWithSpecificOrigin(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestCORSPlugin_Handler_ComplexPreflightScenario(t *testing.T) {
-	plugin := &CORSPlugin{origins: "https://app.example.com,https://admin.example.com"}
-	handler := plugin.Handler()
-
-	app := fiber.New()
-	app.Use(handler)
-	app.Post("/api/data", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"data": "success"})
-	})
-
-	req := httptest.NewRequest("OPTIONS", "/api/data", nil)
-	req.Header.Set("Origin", "https://app.example.com")
-	req.Header.Set("Access-Control-Request-Method", "POST")
-	req.Header.Set("Access-Control-Request-Headers", "Content-Type,Authorization,X-Custom-Header")
-
-	resp, _ := app.Test(req)
-
-	if resp.StatusCode != 204 {
-		t.Errorf("expected status 204, got %d", resp.StatusCode)
-	}
-
-	allowOrigin := resp.Header.Get("Access-Control-Allow-Origin")
-	if allowOrigin != "https://app.example.com" {
-		t.Errorf("expected Access-Control-Allow-Origin 'https://app.example.com', got '%s'", allowOrigin)
-	}
-
-	allowCredentials := resp.Header.Get("Access-Control-Allow-Credentials")
-	if allowCredentials != "true" {
-		t.Errorf("expected Access-Control-Allow-Credentials 'true', got '%s'", allowCredentials)
-	}
-
-	allowMethods := resp.Header.Get("Access-Control-Allow-Methods")
-	if allowMethods == "" {
-		t.Error("expected Access-Control-Allow-Methods to be set")
-	}
-
-	allowHeaders := resp.Header.Get("Access-Control-Allow-Headers")
-	if allowHeaders == "" {
-		t.Error("expected Access-Control-Allow-Headers to be set")
-	}
-}
-
-func TestCORSPlugin_IntegrationWithFiber(t *testing.T) {
-	plugin := NewPlugin()
-	err := plugin.Initialize(map[string]interface{}{
-		"origins": "https://example.com",
-	})
-	if err != nil {
-		t.Fatalf("failed to initialize plugin: %v", err)
-	}
-
-	app := fiber.New()
-	app.Use(plugin.Handler())
-	app.Get("/api/users", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"users": []string{"alice", "bob"}})
-	})
-
-	req := httptest.NewRequest("GET", "/api/users", nil)
-	req.Header.Set("Origin", "https://example.com")
-
-	resp, _ := app.Test(req)
-
-	if resp.StatusCode != 200 {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
-	}
-
-	allowOrigin := resp.Header.Get("Access-Control-Allow-Origin")
-	if allowOrigin != "https://example.com" {
-		t.Errorf("expected Access-Control-Allow-Origin 'https://example.com', got '%s'", allowOrigin)
-	}
-
-	allowCredentials := resp.Header.Get("Access-Control-Allow-Credentials")
-	if allowCredentials != "true" {
-		t.Errorf("expected Access-Control-Allow-Credentials 'true', got '%s'", allowCredentials)
 	}
 }

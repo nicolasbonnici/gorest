@@ -27,6 +27,7 @@ codegen:
 server:
   port: 3001
   environment: "test"
+  cors_origins: "*"
 
 database:
   url: "${DATABASE_URL}"
@@ -45,10 +46,6 @@ plugins:
     config:
       requests_per_second: 100
       burst: 200
-  - name: cors
-    enabled: true
-    config:
-      origins: "*"
   - name: contenttype
     enabled: true
   - name: auth
