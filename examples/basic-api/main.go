@@ -11,11 +11,9 @@ import (
 	healthplugin "github.com/nicolasbonnici/gorest/plugins/health"
 	openapiplugin "github.com/nicolasbonnici/gorest/plugins/openapi"
 	ratelimitplugin "github.com/nicolasbonnici/gorest/plugins/ratelimit"
-	requestidplugin "github.com/nicolasbonnici/gorest/plugins/requestid"
 )
 
 func init() {
-	pluginloader.RegisterPluginFactory("requestid", requestidplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("ratelimit", ratelimitplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("contenttype", contenttypeplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("health", healthplugin.NewPlugin)

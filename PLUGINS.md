@@ -26,7 +26,6 @@ Soon there will be a repository avaailable
 
 | Plugin | Description | Configuration |
 |--------|-------------|---------------|
-| `requestid` | Generates unique request IDs for tracing | None |
 | `ratelimit` | Rate limiting with configurable limits | `requests_per_second`, `burst` |
 | `contenttype` | Content-Type validation and negotiation | None |
 | `auth` | JWT authentication middleware | `jwt_secret`, `jwt_ttl` |
@@ -34,6 +33,7 @@ Soon there will be a repository avaailable
 **Core Middleware (always enabled, no plugin needed):**
 - **Security Headers** - X-Frame-Options, X-Content-Type-Options, CSP, HSTS, etc.
 - **CORS** - Cross-Origin Resource Sharing (configure via `server.cors_origins` in YAML)
+- **RequestID** - Unique request ID generation and tracking with UUID v4
 - **Logger** - Structured request/response logging with JSON output
 
 ### Endpoint Plugins
@@ -190,9 +190,6 @@ func (c *MyCommand) Run(ctx *plugin.CommandContext) *plugin.CommandResult {
 
 ```yaml
 plugins:
-  - name: requestid
-    enabled: true
-
   - name: ratelimit
     enabled: true
     config:
@@ -516,14 +513,14 @@ Security headers and plugins are applied in a specific order for optimal securit
 ```
 1. security     - Add security headers (core middleware)
 2. cors         - Handle CORS (core middleware)
-3. logger       - Log incoming request (core middleware)
-4. requestid    - Generate unique request ID
+3. requestid    - Generate unique request ID (core middleware)
+4. logger       - Log incoming request (core middleware)
 5. ratelimit    - Check rate limits
 6. contenttype  - Validate Content-Type
 7. auth         - JWT authentication (optional, route-specific)
 ```
 
-**Note:** Security headers, CORS, and Logger are applied first as core middleware before any plugins. This ensures all requests are protected and logged regardless of plugin configuration.
+**Note:** Security headers, CORS, RequestID, and Logger are applied first as core middleware before any plugins. This ensures all requests are protected, tracked, and logged regardless of plugin configuration.
 
 **Custom Plugin Order:**
 
@@ -532,7 +529,6 @@ To customize the plugin order, modify `/pluginloader/loader.go`:
 ```go
 func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
     middlewareOrder := []string{
-        "requestid",
         "myplugin",      // Your custom plugin
         "ratelimit",
         "contenttype",
