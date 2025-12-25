@@ -1,4 +1,4 @@
-package requestid
+package middleware
 
 import (
 	"io"
@@ -9,75 +9,29 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func TestNewPlugin(t *testing.T) {
-	plugin := NewPlugin()
-
-	if plugin == nil {
-		t.Fatal("expected non-nil plugin")
-	}
-
-	_, ok := plugin.(*RequestIDPlugin)
-	if !ok {
-		t.Fatal("expected *RequestIDPlugin type")
-	}
-}
-
-func TestRequestIDPlugin_Name(t *testing.T) {
-	plugin := NewPlugin()
-
-	name := plugin.Name()
-
-	if name != "requestid" {
-		t.Errorf("expected plugin name 'requestid', got '%s'", name)
-	}
-}
-
-func TestRequestIDPlugin_Initialize_EmptyConfig(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-
-	err := plugin.Initialize(map[string]interface{}{})
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-}
-
-func TestRequestIDPlugin_Initialize_WithConfig(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-
-	config := map[string]interface{}{
-		"header": "X-Custom-Request-ID",
-	}
-
-	err := plugin.Initialize(config)
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-}
-
-func TestRequestIDPlugin_Initialize_NilConfig(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-
-	err := plugin.Initialize(nil)
-
-	if err != nil {
-		t.Fatalf("expected no error with nil config, got %v", err)
-	}
-}
-
-func TestRequestIDPlugin_Handler_NotNil(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_ReturnsHandler(t *testing.T) {
+	handler := RequestID()
 
 	if handler == nil {
 		t.Fatal("expected non-nil handler")
 	}
+
+	app := fiber.New()
+	app.Use(handler)
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.SendString("ok")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	resp, _ := app.Test(req)
+
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
 }
 
-func TestRequestIDPlugin_Handler_GeneratesRequestID(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_GeneratesRequestID(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -98,9 +52,8 @@ func TestRequestIDPlugin_Handler_GeneratesRequestID(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_UUIDFormat(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_UUIDFormat(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -122,9 +75,8 @@ func TestRequestIDPlugin_Handler_UUIDFormat(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_UniqueIDs(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_UniqueIDs(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -154,9 +106,8 @@ func TestRequestIDPlugin_Handler_UniqueIDs(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_DifferentEndpoints(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_DifferentEndpoints(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -183,9 +134,8 @@ func TestRequestIDPlugin_Handler_DifferentEndpoints(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_DifferentMethods(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_DifferentMethods(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -215,9 +165,8 @@ func TestRequestIDPlugin_Handler_DifferentMethods(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_RequestIDInResponse(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_ContextLocals(t *testing.T) {
+	handler := RequestID()
 
 	var capturedRequestID string
 
@@ -246,9 +195,8 @@ func TestRequestIDPlugin_Handler_RequestIDInResponse(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_DoesNotBlockRequests(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_DoesNotBlockRequests(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -269,9 +217,8 @@ func TestRequestIDPlugin_Handler_DoesNotBlockRequests(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_MultipleRequests(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_MultipleRequests(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -294,9 +241,8 @@ func TestRequestIDPlugin_Handler_MultipleRequests(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_SuccessAndErrorRequests(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_SuccessAndErrorRequests(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -336,9 +282,8 @@ func TestRequestIDPlugin_Handler_SuccessAndErrorRequests(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_ConcurrentRequests(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_ConcurrentRequests(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -369,9 +314,8 @@ func TestRequestIDPlugin_Handler_ConcurrentRequests(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_PreservesResponseBody(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_PreservesResponseBody(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -397,9 +341,8 @@ func TestRequestIDPlugin_Handler_PreservesResponseBody(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_WithQueryParameters(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_WithQueryParameters(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -420,106 +363,8 @@ func TestRequestIDPlugin_Handler_WithQueryParameters(t *testing.T) {
 	}
 }
 
-func TestRequestIDPlugin_Handler_WithHeaders(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
-
-	app := fiber.New()
-	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
-		return c.SendString("ok")
-	})
-
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("User-Agent", "test-agent")
-	req.Header.Set("Authorization", "Bearer token123")
-	req.Header.Set("Accept", "application/json")
-
-	resp, _ := app.Test(req)
-
-	if resp.StatusCode != 200 {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
-	}
-
-	requestID := resp.Header.Get("X-Request-ID")
-	if requestID == "" {
-		t.Error("expected X-Request-ID header to be set")
-	}
-}
-
-func TestRequestIDPlugin_IntegrationWithFiber(t *testing.T) {
-	plugin := NewPlugin()
-	err := plugin.Initialize(map[string]interface{}{})
-	if err != nil {
-		t.Fatalf("failed to initialize plugin: %v", err)
-	}
-
-	app := fiber.New()
-	app.Use(plugin.Handler())
-	app.Get("/api/data", func(c *fiber.Ctx) error {
-		requestID := c.Locals("requestid")
-		return c.JSON(fiber.Map{
-			"data":       "test",
-			"request_id": requestID,
-		})
-	})
-
-	req := httptest.NewRequest("GET", "/api/data", nil)
-	resp, _ := app.Test(req)
-
-	if resp.StatusCode != 200 {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
-	}
-
-	headerRequestID := resp.Header.Get("X-Request-ID")
-	if headerRequestID == "" {
-		t.Error("expected X-Request-ID header to be set")
-	}
-}
-
-func TestRequestIDPlugin_Handler_UUIDv4Format(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
-
-	app := fiber.New()
-	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
-		return c.SendString("ok")
-	})
-
-	req := httptest.NewRequest("GET", "/test", nil)
-	resp, _ := app.Test(req)
-
-	requestID := resp.Header.Get("X-Request-ID")
-	if requestID == "" {
-		t.Fatal("expected X-Request-ID header to be set")
-	}
-
-	parts := regexp.MustCompile(`-`).Split(requestID, -1)
-	if len(parts) != 5 {
-		t.Errorf("expected 5 UUID parts, got %d", len(parts))
-	}
-
-	if len(parts[0]) != 8 {
-		t.Errorf("first part should be 8 chars, got %d", len(parts[0]))
-	}
-	if len(parts[1]) != 4 {
-		t.Errorf("second part should be 4 chars, got %d", len(parts[1]))
-	}
-	if len(parts[2]) != 4 {
-		t.Errorf("third part should be 4 chars, got %d", len(parts[2]))
-	}
-	if len(parts[3]) != 4 {
-		t.Errorf("fourth part should be 4 chars, got %d", len(parts[3]))
-	}
-	if len(parts[4]) != 12 {
-		t.Errorf("fifth part should be 12 chars, got %d", len(parts[4]))
-	}
-}
-
-func TestRequestIDPlugin_Handler_NoCollisions(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
+func TestRequestID_NoCollisions(t *testing.T) {
+	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
@@ -546,25 +391,5 @@ func TestRequestIDPlugin_Handler_NoCollisions(t *testing.T) {
 		if count > 1 {
 			t.Errorf("request ID '%s' appeared %d times, expected 1", id, count)
 		}
-	}
-}
-
-func TestRequestIDPlugin_Handler_HeaderPresence(t *testing.T) {
-	plugin := &RequestIDPlugin{}
-	handler := plugin.Handler()
-
-	app := fiber.New()
-	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
-		return c.SendString("ok")
-	})
-
-	req := httptest.NewRequest("GET", "/test", nil)
-	resp, _ := app.Test(req)
-
-	headers := resp.Header
-
-	if _, ok := headers["X-Request-Id"]; !ok {
-		t.Error("expected X-Request-ID header to be present")
 	}
 }
