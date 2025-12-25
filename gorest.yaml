@@ -40,8 +40,6 @@ pagination:
   max_limit: 10000
 
 plugins:
-  - name: contenttype
-    enabled: true
   - name: auth
     enabled: false
     config:

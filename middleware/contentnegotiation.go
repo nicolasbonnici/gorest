@@ -1,27 +1,14 @@
-package contenttype
+package middleware
 
 import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nicolasbonnici/gorest/plugin"
 )
 
-type ContentTypePlugin struct{}
-
-func NewPlugin() plugin.Plugin {
-	return &ContentTypePlugin{}
-}
-
-func (p *ContentTypePlugin) Name() string {
-	return "contenttype"
-}
-
-func (p *ContentTypePlugin) Initialize(config map[string]interface{}) error {
-	return nil
-}
-
-func (p *ContentTypePlugin) Handler() fiber.Handler {
+// ContentNegotiation validates Content-Type for mutation requests (POST, PUT, PATCH).
+// Requires application/json for all mutation operations.
+func ContentNegotiation() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		method := c.Method()
 		if method == "POST" || method == "PUT" || method == "PATCH" {
