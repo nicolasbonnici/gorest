@@ -37,8 +37,6 @@ pagination:
   max_limit: 10000
 
 plugins:
-  - name: requestid
-    enabled: true
   - name: ratelimit
     enabled: true
     config:

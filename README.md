@@ -79,8 +79,6 @@ pagination:
   max_limit: 1000
 
 plugins:
-  - name: requestid
-    enabled: true
   - name: ratelimit
     enabled: true
     config:
@@ -199,8 +197,6 @@ server:
   cors_origins: "*"
 
 plugins:
-  - name: requestid
-    enabled: true
   - name: ratelimit
     enabled: true
     config:
@@ -314,7 +310,6 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 
 ### Built-in Plugins
 
-- **requestid** - Adds unique request ID tracking
 - **ratelimit** - Per-IP rate limiting
 - **contenttype** - Validates Content-Type for mutations
 - **health** - Secure health check endpoint with database connectivity monitoring
@@ -323,6 +318,7 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 **Core Middleware (always enabled, no plugin needed):**
 - **Security Headers** - X-Frame-Options, CSP, HSTS, etc. and TRACE method blocking
 - **CORS** - Cross-Origin Resource Sharing (configure via `server.cors_origins` in YAML)
+- **RequestID** - Unique request ID tracking with UUID generation
 - **Logger** - HTTP request/response logging with structured logs
 
 ### Configuration
@@ -432,14 +428,12 @@ import (
     "github.com/nicolasbonnici/gorest/pluginloader"
 
     authplugin "github.com/nicolasbonnici/gorest/plugins/auth"
-    requestidplugin "github.com/nicolasbonnici/gorest/plugins/requestid"
 
     customplugins "yourapp/plugins"
 )
 
 func init() {
     pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
-    pluginloader.RegisterPluginFactory("requestid", requestidplugin.NewPlugin)
 
     pluginloader.RegisterPluginFactory("custom", customplugins.NewCustomPlugin)
     pluginloader.RegisterPluginFactory("apikey", customplugins.NewAPIKeyPlugin)
@@ -471,11 +465,6 @@ func main() {
 
     // Load plugins from config
     registry, _ := pluginloader.LoadPlugins(config.Plugins, version)
-
-    // Apply global plugins to all routes
-    if requestid, ok := registry.Get("requestid"); ok {
-        app.Use(requestid.Handler())
-    }
 
     // Create a protected route group with auth plugin
     if authPlugin, ok := registry.Get("auth"); ok {
@@ -841,9 +830,8 @@ gorest/
 ├── plugins/                # Built-in plugin implementations
 │   ├── auth/              # JWT authentication (with migrations example)
 │   ├── contenttype/       # Content-Type validation
-│   ├── ratelimit/         # Rate limiting
-│   └── requestid/         # Request ID tracking
-├── middleware/             # Core middleware (security, CORS, logger, etc.)
+│   └── ratelimit/         # Rate limiting
+├── middleware/             # Core middleware (security, CORS, requestid, logger, etc.)
 ├── response/               # HTTP response helpers
 └── cmd/                    # CLI tool
     └── codegen/           # Unified code generator (models, resources, DTOs, OpenAPI)
