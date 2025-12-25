@@ -29,11 +29,12 @@ Soon there will be a repository avaailable
 | `requestid` | Generates unique request IDs for tracing | None |
 | `logger` | Structured request/response logging | None |
 | `ratelimit` | Rate limiting with configurable limits | `requests_per_second`, `burst` |
-| `cors` | CORS headers for cross-origin requests | `origins` (comma-separated or `*`) |
 | `contenttype` | Content-Type validation and negotiation | None |
 | `auth` | JWT authentication middleware | `jwt_secret`, `jwt_ttl` |
 
-**Note:** Security headers (X-Frame-Options, X-Content-Type-Options, etc.) are now applied automatically as core middleware. No plugin configuration is needed.
+**Core Middleware (always enabled, no plugin needed):**
+- **Security Headers** - X-Frame-Options, X-Content-Type-Options, CSP, HSTS, etc.
+- **CORS** - Cross-Origin Resource Sharing (configure via `server.cors_origins` in YAML)
 
 ### Endpoint Plugins
 
@@ -201,16 +202,14 @@ plugins:
       requests_per_second: 100
       burst: 200
 
-  - name: cors
-    enabled: true
-    config:
-      origins: "*"
-
   - name: auth
     enabled: true
     config:
       jwt_secret: "${JWT_SECRET}"
       jwt_ttl: 3600
+
+server:
+  cors_origins: "*"
 ```
 
 ### Environment Variables in Configuration
@@ -218,17 +217,15 @@ plugins:
 Use `${VAR_NAME}` syntax to reference environment variables:
 
 ```yaml
+server:
+  cors_origins: "${CORS_ORIGINS}"
+
 plugins:
   - name: auth
     enabled: true
     config:
-      jwt_secret: "${JWT_SECRET}"          # Required
+      jwt_secret: "${JWT_SECRET}"
       jwt_ttl: 900
-
-  - name: cors
-    enabled: true
-    config:
-      origins: "${CORS_ORIGINS}"            # e.g., "http://localhost:3000"
 ```
 
 **Example .env:**
@@ -520,16 +517,16 @@ plugins:
 Security headers and plugins are applied in a specific order for optimal security and functionality:
 
 ```
-1. security     - Add security headers (automatic, core middleware)
-2. requestid    - Generate unique request ID
-3. logger       - Log incoming request
-4. ratelimit    - Check rate limits
-5. cors         - Handle CORS preflight
+1. security     - Add security headers (core middleware)
+2. cors         - Handle CORS (core middleware)
+3. requestid    - Generate unique request ID
+4. logger       - Log incoming request
+5. ratelimit    - Check rate limits
 6. contenttype  - Validate Content-Type
 7. auth         - JWT authentication (optional, route-specific)
 ```
 
-**Note:** Security headers are applied first as core middleware before any plugins. This ensures all requests are protected by security headers regardless of plugin configuration.
+**Note:** Security headers and CORS are applied first as core middleware before any plugins. This ensures all requests are protected by security headers and CORS policy regardless of plugin configuration.
 
 **Custom Plugin Order:**
 
@@ -542,7 +539,6 @@ func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
         "logger",
         "myplugin",      // Your custom plugin
         "ratelimit",
-        "cors",
         "contenttype",
     }
     // ...
@@ -574,16 +570,6 @@ plugins:
     config:
       requests_per_second: 100       # Max requests per second per IP
       burst: 200                     # Max burst size
-```
-
-### CORS Plugin
-
-```yaml
-plugins:
-  - name: cors
-    enabled: true
-    config:
-      origins: "*"                   # Allowed origins (use "*" for all, or comma-separated URLs)
 ```
 
 ### OpenAPI Plugin

@@ -88,10 +88,6 @@ plugins:
     config:
       requests_per_second: 100
       burst: 200
-  - name: cors
-    enabled: true
-    config:
-      origins: "*"
   - name: contenttype
     enabled: true
   - name: auth
@@ -201,6 +197,9 @@ pagination:
 All middleware and features are configured through plugins. Plugins are loaded in the order specified and must be manually applied to routes or route groups:
 
 ```yaml
+server:
+  cors_origins: "*"
+
 plugins:
   - name: requestid
     enabled: true
@@ -211,10 +210,6 @@ plugins:
     config:
       requests_per_second: 100
       burst: 200
-  - name: cors
-    enabled: true
-    config:
-      origins: "*"
   - name: contenttype
     enabled: true
   - name: health
@@ -234,12 +229,9 @@ Create `gorest.{environment}.yaml` files to override base config:
 ```yaml
 server:
   environment: "production"
+  cors_origins: "https://app.example.com"
 
 plugins:
-  - name: cors
-    enabled: true
-    config:
-      origins: "https://app.example.com"
   - name: ratelimit
     enabled: true
     config:
@@ -329,12 +321,13 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 - **requestid** - Adds unique request ID tracking
 - **logger** - HTTP request/response logging
 - **ratelimit** - Per-IP rate limiting
-- **cors** - Cross-Origin Resource Sharing
 - **contenttype** - Validates Content-Type for mutations
 - **health** - Secure health check endpoint with database connectivity monitoring
 - **auth** - JWT authentication for protected routes
 
-**Note:** Security headers (X-Frame-Options, CSP, HSTS, etc.) and TRACE method blocking are now applied automatically as core middleware - no plugin configuration needed!
+**Core Middleware (always enabled, no plugin needed):**
+- **Security Headers** - X-Frame-Options, CSP, HSTS, etc. and TRACE method blocking
+- **CORS** - Cross-Origin Resource Sharing (configure via `server.cors_origins` in YAML)
 
 ### Configuration
 
@@ -444,22 +437,18 @@ import (
     "github.com/nicolasbonnici/gorest"
     "github.com/nicolasbonnici/gorest/pluginloader"
 
-    // Import built-in plugins you want to use
     authplugin "github.com/nicolasbonnici/gorest/plugins/auth"
     loggerplugin "github.com/nicolasbonnici/gorest/plugins/logger"
-    corsplugin "github.com/nicolasbonnici/gorest/plugins/cors"
+    requestidplugin "github.com/nicolasbonnici/gorest/plugins/requestid"
 
-    // Import your custom plugins
     customplugins "yourapp/plugins"
 )
 
 func init() {
-    // Register built-in plugins
     pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
     pluginloader.RegisterPluginFactory("logger", loggerplugin.NewPlugin)
-    pluginloader.RegisterPluginFactory("cors", corsplugin.NewPlugin)
+    pluginloader.RegisterPluginFactory("requestid", requestidplugin.NewPlugin)
 
-    // Register custom plugins
     pluginloader.RegisterPluginFactory("custom", customplugins.NewCustomPlugin)
     pluginloader.RegisterPluginFactory("apikey", customplugins.NewAPIKeyPlugin)
 }
@@ -497,9 +486,6 @@ func main() {
     }
     if logger, ok := registry.Get("logger"); ok {
         app.Use(logger.Handler())
-    }
-    if cors, ok := registry.Get("cors"); ok {
-        app.Use(cors.Handler())
     }
 
     // Create a protected route group with auth plugin
@@ -866,7 +852,6 @@ gorest/
 ├── plugins/                # Built-in plugin implementations
 │   ├── auth/              # JWT authentication (with migrations example)
 │   ├── contenttype/       # Content-Type validation
-│   ├── cors/              # CORS handling
 │   ├── logger/            # HTTP logging
 │   ├── ratelimit/         # Rate limiting
 │   └── requestid/         # Request ID tracking
@@ -954,10 +939,11 @@ livenessProbe:
 
 - **Passwords**: bcrypt hashing with automatic salts
 - **JWT**: 32+ character secrets required
-- **CORS**: Configurable origins
+- **CORS**: Configurable origins (core middleware, always enabled)
 - **Rate Limiting**: Configurable per-IP limits
 - **SQL Injection**: Parameterized queries
 - **Input Validation**: go-playground/validator support
+- **Security Headers**: X-Frame-Options, CSP, HSTS, etc. (core middleware, always enabled)
 
 ---
 
