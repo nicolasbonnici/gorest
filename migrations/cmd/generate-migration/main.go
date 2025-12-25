@@ -62,9 +62,9 @@ type MigrationData struct {
 
 func main() {
 	var (
-		name       string
-		outputDir  string
-		showHelp   bool
+		name        string
+		outputDir   string
+		showHelp    bool
 		listHelpers bool
 	)
 
