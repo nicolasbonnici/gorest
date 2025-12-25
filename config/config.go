@@ -166,7 +166,6 @@ func (c *Config) SetDefaults() {
 	if c.Server.RateLimitBurst == 0 {
 		c.Server.RateLimitBurst = 200
 	}
-	// RateLimitEnabled defaults to false (disabled by default)
 
 	if c.Pagination.DefaultLimit == 0 {
 		c.Pagination.DefaultLimit = 10
