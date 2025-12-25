@@ -81,8 +81,6 @@ pagination:
 plugins:
   - name: requestid
     enabled: true
-  - name: logger
-    enabled: true
   - name: ratelimit
     enabled: true
     config:
@@ -203,8 +201,6 @@ server:
 plugins:
   - name: requestid
     enabled: true
-  - name: logger
-    enabled: true
   - name: ratelimit
     enabled: true
     config:
@@ -319,7 +315,6 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 ### Built-in Plugins
 
 - **requestid** - Adds unique request ID tracking
-- **logger** - HTTP request/response logging
 - **ratelimit** - Per-IP rate limiting
 - **contenttype** - Validates Content-Type for mutations
 - **health** - Secure health check endpoint with database connectivity monitoring
@@ -328,6 +323,7 @@ GoREST uses a modular unified plugin system for API customization. All plugins i
 **Core Middleware (always enabled, no plugin needed):**
 - **Security Headers** - X-Frame-Options, CSP, HSTS, etc. and TRACE method blocking
 - **CORS** - Cross-Origin Resource Sharing (configure via `server.cors_origins` in YAML)
+- **Logger** - HTTP request/response logging with structured logs
 
 ### Configuration
 
@@ -336,8 +332,6 @@ Plugins are configured in `gorest.yaml` as a flat list:
 ```yaml
 plugins:
   - name: requestid
-    enabled: true
-  - name: logger
     enabled: true
   - name: ratelimit
     enabled: true
@@ -438,7 +432,6 @@ import (
     "github.com/nicolasbonnici/gorest/pluginloader"
 
     authplugin "github.com/nicolasbonnici/gorest/plugins/auth"
-    loggerplugin "github.com/nicolasbonnici/gorest/plugins/logger"
     requestidplugin "github.com/nicolasbonnici/gorest/plugins/requestid"
 
     customplugins "yourapp/plugins"
@@ -446,7 +439,6 @@ import (
 
 func init() {
     pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
-    pluginloader.RegisterPluginFactory("logger", loggerplugin.NewPlugin)
     pluginloader.RegisterPluginFactory("requestid", requestidplugin.NewPlugin)
 
     pluginloader.RegisterPluginFactory("custom", customplugins.NewCustomPlugin)
@@ -483,9 +475,6 @@ func main() {
     // Apply global plugins to all routes
     if requestid, ok := registry.Get("requestid"); ok {
         app.Use(requestid.Handler())
-    }
-    if logger, ok := registry.Get("logger"); ok {
-        app.Use(logger.Handler())
     }
 
     // Create a protected route group with auth plugin
@@ -852,10 +841,9 @@ gorest/
 ├── plugins/                # Built-in plugin implementations
 │   ├── auth/              # JWT authentication (with migrations example)
 │   ├── contenttype/       # Content-Type validation
-│   ├── logger/            # HTTP logging
 │   ├── ratelimit/         # Rate limiting
 │   └── requestid/         # Request ID tracking
-├── middleware/             # Core middleware (security headers, etc.)
+├── middleware/             # Core middleware (security, CORS, logger, etc.)
 ├── response/               # HTTP response helpers
 └── cmd/                    # CLI tool
     └── codegen/           # Unified code generator (models, resources, DTOs, OpenAPI)
