@@ -27,8 +27,6 @@ pagination:
 plugins:
 - name: requestid
   enabled: true
-- name: logger
-  enabled: true
 - name: ratelimit
   enabled: true
   config:
