@@ -30,3 +30,6 @@ bin
 
 # pentest
 pentest.sh
+
+# Parallel plugin runner script
+run-all-plugins.sh
