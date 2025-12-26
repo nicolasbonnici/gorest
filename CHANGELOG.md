@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved modularity and flexibility
 - **CLI Structure**:
   - `cmd/codegen/` - Core code generation CLI
-  - `cmd/benchmark/` - Symlink to `plugins/benchmark/cmd/` for discoverability
+  - Benchmark plugin migrated to external repository: gorest-benchmark
 - **Performance**:
   - Sub-millisecond response times for small payloads (871µs median)
   - Under 2ms for medium payloads (100 items)
