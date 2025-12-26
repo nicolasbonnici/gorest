@@ -255,7 +255,6 @@ go get github.com/nicolasbonnici/gorest@latest
 | `hooks` | Lifecycle hooks for business logic |
 | `plugin` | Plugin interfaces (core only - no implementations) |
 | `pluginloader` | Plugin factory registration system |
-| `plugins/*` | Built-in plugin implementations (separate from core) |
 | `pagination` | Hydra-compliant pagination |
 | `response` | HTTP response helpers |
 
@@ -266,7 +265,7 @@ import (
     "github.com/gofiber/fiber/v2"
     "github.com/nicolasbonnici/gorest/database"
     "github.com/nicolasbonnici/gorest/crud"
-    auth "github.com/nicolasbonnici/gorest/plugins/auth"
+    auth "github.com/nicolasbonnici/gorest-auth"
 )
 
 type User struct {
@@ -424,7 +423,7 @@ import (
     "github.com/nicolasbonnici/gorest"
     "github.com/nicolasbonnici/gorest/pluginloader"
 
-    authplugin "github.com/nicolasbonnici/gorest/plugins/auth"
+    authplugin "github.com/nicolasbonnici/gorest-auth"
 
     customplugins "yourapp/plugins"
 )
@@ -818,16 +817,12 @@ gorest/
 ├── filter/                 # Query filtering
 ├── serializer/             # JSON-LD serialization
 ├── codegen/                # Code generation
-├── health/                 # Health check endpoint
 ├── hooks/                  # Lifecycle hooks
 ├── logger/                 # Logging utilities
+├── migrations/             # Database migration system
 ├── pagination/             # Hydra pagination
 ├── plugin/                 # Plugin interfaces (core)
 ├── pluginloader/           # Plugin factory & loading system
-├── plugins/                # Built-in plugin implementations
-│   ├── auth/              # JWT authentication (with migrations example)
-│   ├── contenttype/       # Content-Type validation
-│   └── ratelimit/         # Rate limiting
 ├── middleware/             # Core middleware (security, CORS, requestid, logger, etc.)
 ├── response/               # HTTP response helpers
 └── cmd/                    # CLI tool
