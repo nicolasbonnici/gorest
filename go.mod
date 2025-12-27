@@ -7,7 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/nicolasbonnici/gorest-auth v0.1.2
+	github.com/nicolasbonnici/gorest-auth v0.1.4
 	golang.org/x/text v0.32.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.41.0
@@ -34,7 +34,7 @@ require (
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/tinylib/msgp v1.2.5 // indirect
