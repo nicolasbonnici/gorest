@@ -21,7 +21,7 @@ GET /todos?limit=10&order[created_at]=desc&expand[]=user
 
 ```go
 import (
-	"github.com/nicolasbonnici/gorest/expand"
+	"github.com/nicolasbonnici/gorest/serializer"
 	"github.com/nicolasbonnici/gorest/crud"
 )
 
@@ -35,8 +35,8 @@ type TodoResource struct {
 }
 
 // Define expand configurations
-func (r *TodoResource) getExpandConfigs() map[string]expand.RelationConfig {
-	return map[string]expand.RelationConfig{
+func (r *TodoResource) getExpandConfigs() map[string]serializer.RelationConfig {
+	return map[string]serializer.RelationConfig{
 		"user": {
 			Field:           "user",
 			ForeignKeyField: "userId",
@@ -75,9 +75,9 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 	expandParams := response.ParseExpandQuery(c)
 	if len(expandParams) > 0 {
 		configs := r.getExpandConfigs()
-		validExpand := expand.ParseExpand(expandParams, configs)
+		validExpand := serializer.ParseExpand(expandParams, configs)
 
-		expandedData, err := expand.ExpandRelations(ctx, dtoItems, validExpand, configs)
+		expandedData, err := serializer.ExpandRelations(ctx, dtoItems, validExpand, configs)
 		if err == nil {
 			dtoItems = expandedData.([]interface{})
 		}
@@ -105,9 +105,9 @@ func (r *TodoResource) Get(c *fiber.Ctx) error {
 	expandParams := response.ParseExpandQuery(c)
 	if len(expandParams) > 0 {
 		configs := r.getExpandConfigs()
-		validExpand := expand.ParseExpand(expandParams, configs)
+		validExpand := serializer.ParseExpand(expandParams, configs)
 
-		expandedData, err := expand.ExpandRelations(ctx, dto, validExpand, configs)
+		expandedData, err := serializer.ExpandRelations(ctx, dto, validExpand, configs)
 		if err == nil {
 			return response.SendFormatted(c, 200, expandedData)
 		}
@@ -182,8 +182,8 @@ GET /todos/todo-123?expand[]=user
 ## Technical Implementation
 
 1. **Query Parsing**: `response.ParseExpandQuery(c)` extracts `expand[]` parameters
-2. **Validation**: `expand.ParseExpand()` validates against allowed relations
-3. **Fetching**: `expand.ExpandRelations()` fetches related objects via CRUD
+2. **Validation**: `serializer.ParseExpand()` validates against allowed relations
+3. **Fetching**: `serializer.ExpandRelations()` fetches related objects via CRUD
 4. **Serialization**: Serializer replaces IRIs with nested objects
 5. **Response**: Normal `SendFormatted()` or `SendHydraCollection()`
 

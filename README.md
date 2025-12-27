@@ -616,7 +616,7 @@ GET /todos?status=active&limit=10&expand[]=user
 - ✅ Supports collections and single items
 - ✅ Respects DTO field visibility rules
 
-See [expand/USAGE.md](expand/USAGE.md) and [expand/EXAMPLES.md](expand/EXAMPLES.md) for complete documentation.
+See [serializer/EXPAND_USAGE.md](serializer/EXPAND_USAGE.md) for complete documentation about expanding IRIs onto objects.
 
 ---
 
