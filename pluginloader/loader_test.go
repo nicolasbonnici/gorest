@@ -3,6 +3,7 @@ package pluginloader
 import (
 	"context"
 	"errors"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -392,5 +393,449 @@ func TestLoadPlugins_MixedEnabledDisabled(t *testing.T) {
 	}
 	if _, exists := plugins["disabled"]; exists {
 		t.Error("Expected disabled plugin not to exist")
+	}
+}
+
+func TestApplyGlobalMiddleware_EmptyRegistry(t *testing.T) {
+	registry := plugin.NewPluginRegistry()
+	app := fiber.New()
+
+	ApplyGlobalMiddleware(registry, app)
+}
+
+func TestApplyGlobalMiddleware_WithMiddlewarePlugins(t *testing.T) {
+	pluginFactories = make(map[string]PluginFactory)
+
+	middlewareCalled := make(map[string]bool)
+
+	RegisterPluginFactory("requestid", func() plugin.Plugin {
+		return &mockPlugin{
+			name: "requestid",
+			handlerFunc: func(c *fiber.Ctx) error {
+				middlewareCalled["requestid"] = true
+				return c.Next()
+			},
+		}
+	})
+
+	RegisterPluginFactory("logger", func() plugin.Plugin {
+		return &mockPlugin{
+			name: "logger",
+			handlerFunc: func(c *fiber.Ctx) error {
+				middlewareCalled["logger"] = true
+				return c.Next()
+			},
+		}
+	})
+
+	RegisterPluginFactory("cors", func() plugin.Plugin {
+		return &mockPlugin{
+			name: "cors",
+			handlerFunc: func(c *fiber.Ctx) error {
+				middlewareCalled["cors"] = true
+				return c.Next()
+			},
+		}
+	})
+
+	configs := []config.PluginConfig{
+		{Name: "requestid", Enabled: true, Config: map[string]interface{}{}},
+		{Name: "logger", Enabled: true, Config: map[string]interface{}{}},
+		{Name: "cors", Enabled: true, Config: map[string]interface{}{}},
+	}
+
+	registry, err := LoadPlugins(configs, "1.0.0")
+	if err != nil {
+		t.Fatalf("LoadPlugins() failed: %v", err)
+	}
+
+	app := fiber.New()
+	ApplyGlobalMiddleware(registry, app)
+
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.SendString("OK")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	_, err = app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to test: %v", err)
+	}
+
+	if !middlewareCalled["requestid"] {
+		t.Error("requestid middleware should be called")
+	}
+	if !middlewareCalled["logger"] {
+		t.Error("logger middleware should be called")
+	}
+	if !middlewareCalled["cors"] {
+		t.Error("cors middleware should be called")
+	}
+}
+
+func TestApplyGlobalMiddleware_PartialPluginsPresent(t *testing.T) {
+	pluginFactories = make(map[string]PluginFactory)
+
+	RegisterPluginFactory("requestid", func() plugin.Plugin {
+		return &mockPlugin{
+			name: "requestid",
+			handlerFunc: func(c *fiber.Ctx) error {
+				return c.Next()
+			},
+		}
+	})
+
+	configs := []config.PluginConfig{
+		{Name: "requestid", Enabled: true, Config: map[string]interface{}{}},
+	}
+
+	registry, err := LoadPlugins(configs, "1.0.0")
+	if err != nil {
+		t.Fatalf("LoadPlugins() failed: %v", err)
+	}
+
+	app := fiber.New()
+	ApplyGlobalMiddleware(registry, app)
+}
+
+type mockEndpointSetupPlugin struct {
+	mockPlugin
+	setupCalled bool
+	setupErr    error
+}
+
+func (m *mockEndpointSetupPlugin) SetupEndpoints(app *fiber.App) error {
+	m.setupCalled = true
+	return m.setupErr
+}
+
+func TestSetupPluginEndpoints_WithEndpointSetup(t *testing.T) {
+	pluginFactories = make(map[string]PluginFactory)
+
+	mockEndpoint := &mockEndpointSetupPlugin{
+		mockPlugin: mockPlugin{name: "endpoint-plugin"},
+	}
+
+	RegisterPluginFactory("endpoint-plugin", func() plugin.Plugin {
+		return mockEndpoint
+	})
+
+	configs := []config.PluginConfig{
+		{Name: "endpoint-plugin", Enabled: true, Config: map[string]interface{}{}},
+	}
+
+	registry, err := LoadPlugins(configs, "1.0.0")
+	if err != nil {
+		t.Fatalf("LoadPlugins() failed: %v", err)
+	}
+
+	app := fiber.New()
+	err = SetupPluginEndpoints(registry, app)
+	if err != nil {
+		t.Errorf("SetupPluginEndpoints() should not error, got: %v", err)
+	}
+
+	if !mockEndpoint.setupCalled {
+		t.Error("SetupEndpoints should be called on plugin")
+	}
+}
+
+func TestSetupPluginEndpoints_Error(t *testing.T) {
+	pluginFactories = make(map[string]PluginFactory)
+
+	expectedErr := errors.New("setup failed")
+	mockEndpoint := &mockEndpointSetupPlugin{
+		mockPlugin: mockPlugin{name: "failing-endpoint"},
+		setupErr:   expectedErr,
+	}
+
+	RegisterPluginFactory("failing-endpoint", func() plugin.Plugin {
+		return mockEndpoint
+	})
+
+	configs := []config.PluginConfig{
+		{Name: "failing-endpoint", Enabled: true, Config: map[string]interface{}{}},
+	}
+
+	registry, err := LoadPlugins(configs, "1.0.0")
+	if err != nil {
+		t.Fatalf("LoadPlugins() failed: %v", err)
+	}
+
+	app := fiber.New()
+	err = SetupPluginEndpoints(registry, app)
+	if err == nil {
+		t.Fatal("Expected error from SetupPluginEndpoints")
+	}
+
+	if !strings.Contains(err.Error(), "failing-endpoint") {
+		t.Errorf("Error should mention plugin name, got: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "failed to setup endpoints") {
+		t.Errorf("Error should indicate setup failure, got: %v", err)
+	}
+}
+
+func TestInjectSharedConfig_WithPaginationConfig(t *testing.T) {
+	mockDB := &mockDatabase{}
+
+	configs := []config.PluginConfig{
+		{
+			Name:    "auth",
+			Enabled: true,
+			Config: map[string]interface{}{
+				"jwt_secret": "secret123",
+			},
+		},
+	}
+
+	appConfig := &config.Config{
+		Pagination: config.PaginationConfig{
+			DefaultLimit: 50,
+			MaxLimit:     200,
+		},
+	}
+
+	enriched := InjectSharedConfig(configs, mockDB, appConfig)
+
+	if len(enriched) != 1 {
+		t.Fatalf("Expected 1 enriched config, got %d", len(enriched))
+	}
+
+	if paginationLimit, ok := enriched[0].Config["pagination_limit"].(int); !ok || paginationLimit != 50 {
+		t.Errorf("pagination_limit should be 50, got %v", enriched[0].Config["pagination_limit"])
+	}
+
+	if paginationMaxLimit, ok := enriched[0].Config["pagination_max_limit"].(int); !ok || paginationMaxLimit != 200 {
+		t.Errorf("pagination_max_limit should be 200, got %v", enriched[0].Config["pagination_max_limit"])
+	}
+
+	if cfg, ok := enriched[0].Config["config"].(*config.Config); !ok || cfg == nil {
+		t.Error("config should be injected")
+	}
+}
+
+func TestInjectSharedConfig_OpenAPIPlugin(t *testing.T) {
+	mockDB := &mockDatabase{}
+
+	configs := []config.PluginConfig{
+		{
+			Name:    "openapi",
+			Enabled: true,
+			Config:  map[string]interface{}{},
+		},
+	}
+
+	appConfig := &config.Config{
+		Codegen: config.CodegenConfig{
+			Output: config.OutputConfig{
+				DTOs: "generated/dtos",
+			},
+		},
+		Pagination: config.PaginationConfig{
+			DefaultLimit: 25,
+			MaxLimit:     100,
+		},
+	}
+
+	enriched := InjectSharedConfig(configs, mockDB, appConfig)
+
+	if len(enriched) != 1 {
+		t.Fatalf("Expected 1 enriched config, got %d", len(enriched))
+	}
+}
+
+type mockCommandPlugin struct {
+	mockPlugin
+	commands []plugin.Command
+}
+
+func (m *mockCommandPlugin) Commands() []plugin.Command {
+	return m.commands
+}
+
+type mockCommand struct {
+	name        string
+	description string
+}
+
+func (m *mockCommand) Name() string        { return m.name }
+func (m *mockCommand) Description() string { return m.description }
+func (m *mockCommand) Run(ctx *plugin.CommandContext) *plugin.CommandResult {
+	return &plugin.CommandResult{Success: true}
+}
+
+func TestLoadAllCommandPlugins_Success(t *testing.T) {
+	pluginFactories = make(map[string]PluginFactory)
+
+	cmd := &mockCommand{name: "test-cmd", description: "test command"}
+	RegisterPluginFactory("cmd-plugin", func() plugin.Plugin {
+		return &mockCommandPlugin{
+			mockPlugin: mockPlugin{name: "cmd-plugin"},
+			commands:   []plugin.Command{cmd},
+		}
+	})
+
+	RegisterPluginFactory("regular-plugin", func() plugin.Plugin {
+		return &mockPlugin{name: "regular-plugin"}
+	})
+
+	mockDB := &mockDatabase{}
+	appConfig := &config.Config{}
+
+	commandPlugins, err := LoadAllCommandPlugins(mockDB, appConfig)
+	if err != nil {
+		t.Fatalf("LoadAllCommandPlugins() failed: %v", err)
+	}
+
+	if len(commandPlugins) != 1 {
+		t.Fatalf("Expected 1 command plugin, got %d", len(commandPlugins))
+	}
+
+	if commandPlugins[0].Name() != "cmd-plugin" {
+		t.Errorf("Expected cmd-plugin, got %s", commandPlugins[0].Name())
+	}
+
+	if cmdProvider, ok := commandPlugins[0].(plugin.CommandProvider); ok {
+		commands := cmdProvider.Commands()
+		if len(commands) != 1 {
+			t.Fatalf("Expected 1 command, got %d", len(commands))
+		}
+		if commands[0].Name() != "test-cmd" {
+			t.Errorf("Expected test-cmd, got %s", commands[0].Name())
+		}
+	} else {
+		t.Error("Plugin should implement CommandProvider")
+	}
+}
+
+func TestLoadAllCommandPlugins_InitializationError(t *testing.T) {
+	pluginFactories = make(map[string]PluginFactory)
+
+	RegisterPluginFactory("failing-cmd-plugin", func() plugin.Plugin {
+		return &mockCommandPlugin{
+			mockPlugin: mockPlugin{
+				name:    "failing-cmd-plugin",
+				initErr: errors.New("init error"),
+			},
+		}
+	})
+
+	mockDB := &mockDatabase{}
+	appConfig := &config.Config{}
+
+	_, err := LoadAllCommandPlugins(mockDB, appConfig)
+	if err == nil {
+		t.Fatal("Expected error from LoadAllCommandPlugins")
+	}
+
+	if !strings.Contains(err.Error(), "failing-cmd-plugin") {
+		t.Errorf("Error should mention plugin name, got: %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "failed to initialize") {
+		t.Errorf("Error should indicate initialization failure, got: %v", err)
+	}
+}
+
+func TestLoadAllCommandPlugins_EmptyRegistry(t *testing.T) {
+	pluginFactories = make(map[string]PluginFactory)
+
+	mockDB := &mockDatabase{}
+	appConfig := &config.Config{}
+
+	commandPlugins, err := LoadAllCommandPlugins(mockDB, appConfig)
+	if err != nil {
+		t.Fatalf("LoadAllCommandPlugins() failed: %v", err)
+	}
+
+	if len(commandPlugins) != 0 {
+		t.Errorf("Expected 0 command plugins with empty registry, got %d", len(commandPlugins))
+	}
+}
+
+func TestLoadAllCommandPlugins_ConfigInjection(t *testing.T) {
+	pluginFactories = make(map[string]PluginFactory)
+
+	cmdPlugin := &mockCommandPlugin{
+		mockPlugin: mockPlugin{name: "cmd-plugin"},
+		commands:   []plugin.Command{},
+	}
+
+	RegisterPluginFactory("cmd-plugin", func() plugin.Plugin {
+		return cmdPlugin
+	})
+
+	mockDB := &mockDatabase{}
+	appConfig := &config.Config{}
+
+	_, err := LoadAllCommandPlugins(mockDB, appConfig)
+	if err != nil {
+		t.Fatalf("LoadAllCommandPlugins() failed: %v", err)
+	}
+
+	if !cmdPlugin.initCalled {
+		t.Error("Initialize should be called on command plugin")
+	}
+
+	if cmdPlugin.config["database"] == nil {
+		t.Error("Database should be injected into command plugin config")
+	}
+
+	if cmdPlugin.config["config"] == nil {
+		t.Error("Config should be injected into command plugin config")
+	}
+}
+
+func TestFindProjectRoot_Success(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Logf("findProjectRoot() returned error: %v (this is expected if go.mod is not in the current directory)", err)
+		return
+	}
+
+	if root == "" {
+		t.Error("findProjectRoot() should return non-empty path when successful")
+	}
+}
+
+func TestInjectSharedConfig_PreservesEnabledFlag(t *testing.T) {
+	mockDB := &mockDatabase{}
+
+	configs := []config.PluginConfig{
+		{
+			Name:    "plugin1",
+			Enabled: true,
+			Config:  map[string]interface{}{},
+		},
+		{
+			Name:    "plugin2",
+			Enabled: false,
+			Config:  map[string]interface{}{},
+		},
+	}
+
+	appConfig := &config.Config{}
+	enriched := InjectSharedConfig(configs, mockDB, appConfig)
+
+	if len(enriched) != 2 {
+		t.Fatalf("Expected 2 enriched configs, got %d", len(enriched))
+	}
+
+	if enriched[0].Enabled != true {
+		t.Error("First plugin Enabled flag should be preserved as true")
+	}
+
+	if enriched[1].Enabled != false {
+		t.Error("Second plugin Enabled flag should be preserved as false")
+	}
+
+	if enriched[0].Name != "plugin1" {
+		t.Error("First plugin name should be preserved")
+	}
+
+	if enriched[1].Name != "plugin2" {
+		t.Error("Second plugin name should be preserved")
 	}
 }
