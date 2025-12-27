@@ -1196,3 +1196,224 @@ func TestMultipleDialects_PlaceholderDifferences(t *testing.T) {
 		})
 	}
 }
+
+func TestGetByIDs_Success(t *testing.T) {
+	db := &mockDatabase{
+		dialect: &mockDialect{name: "postgres"},
+		queryFunc: func(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+			callCount := 0
+			return &mockRows{
+				nextFunc: func() bool {
+					callCount++
+					return callCount <= 2
+				},
+				scanFunc: func(dest ...interface{}) error {
+					if id, ok := dest[0].(*int64); ok {
+						if callCount == 1 {
+							*id = 1
+							if name, ok := dest[1].(*string); ok {
+								*name = "Test1"
+							}
+							if email, ok := dest[2].(*string); ok {
+								*email = "test1@example.com"
+							}
+						} else {
+							*id = 2
+							if name, ok := dest[1].(*string); ok {
+								*name = "Test2"
+							}
+							if email, ok := dest[2].(*string); ok {
+								*email = "test2@example.com"
+							}
+						}
+					}
+					return nil
+				},
+			}, nil
+		},
+	}
+
+	crud := New[testModel](db)
+	ids := []any{int64(1), int64(2)}
+
+	items, err := crud.GetByIDs(context.Background(), ids)
+	if err != nil {
+		t.Fatalf("GetByIDs failed: %v", err)
+	}
+
+	if len(items) != 2 {
+		t.Fatalf("Expected 2 items, got %d", len(items))
+	}
+
+	if items[0].ID != 1 || items[0].Name != "Test1" {
+		t.Errorf("First item incorrect: %+v", items[0])
+	}
+
+	if items[1].ID != 2 || items[1].Name != "Test2" {
+		t.Errorf("Second item incorrect: %+v", items[1])
+	}
+}
+
+func TestGetByIDs_EmptySlice(t *testing.T) {
+	db := &mockDatabase{
+		dialect: &mockDialect{name: "postgres"},
+	}
+
+	crud := New[testModel](db)
+	ids := []any{}
+
+	items, err := crud.GetByIDs(context.Background(), ids)
+	if err != nil {
+		t.Fatalf("GetByIDs failed: %v", err)
+	}
+
+	if len(items) != 0 {
+		t.Errorf("Expected empty slice, got %d items", len(items))
+	}
+}
+
+func TestGetByIDs_QueryError(t *testing.T) {
+	db := &mockDatabase{
+		dialect: &mockDialect{name: "postgres"},
+		queryFunc: func(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+			return nil, errors.New("query error")
+		},
+	}
+
+	crud := New[testModel](db)
+	ids := []any{int64(1), int64(2)}
+
+	_, err := crud.GetByIDs(context.Background(), ids)
+	if err == nil {
+		t.Fatal("Expected error from GetByIDs")
+	}
+
+	if err.Error() != "query error" {
+		t.Errorf("Expected 'query error', got %v", err)
+	}
+}
+
+func TestGetByIDs_ScanError(t *testing.T) {
+	db := &mockDatabase{
+		dialect: &mockDialect{name: "postgres"},
+		queryFunc: func(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+			callCount := 0
+			return &mockRows{
+				nextFunc: func() bool {
+					callCount++
+					return callCount == 1
+				},
+				scanFunc: func(dest ...interface{}) error {
+					return errors.New("scan error")
+				},
+			}, nil
+		},
+	}
+
+	crud := New[testModel](db)
+	ids := []any{int64(1)}
+
+	_, err := crud.GetByIDs(context.Background(), ids)
+	if err == nil {
+		t.Fatal("Expected error from GetByIDs")
+	}
+
+	if err.Error() != "scan error" {
+		t.Errorf("Expected 'scan error', got %v", err)
+	}
+}
+
+func TestGetByIDs_SingleID(t *testing.T) {
+	db := &mockDatabase{
+		dialect: &mockDialect{name: "postgres"},
+		queryFunc: func(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+			callCount := 0
+			return &mockRows{
+				nextFunc: func() bool {
+					callCount++
+					return callCount == 1
+				},
+				scanFunc: func(dest ...interface{}) error {
+					if id, ok := dest[0].(*int64); ok {
+						*id = 1
+					}
+					if name, ok := dest[1].(*string); ok {
+						*name = "Test"
+					}
+					if email, ok := dest[2].(*string); ok {
+						*email = "test@example.com"
+					}
+					return nil
+				},
+			}, nil
+		},
+	}
+
+	crud := New[testModel](db)
+	ids := []any{int64(1)}
+
+	items, err := crud.GetByIDs(context.Background(), ids)
+	if err != nil {
+		t.Fatalf("GetByIDs failed: %v", err)
+	}
+
+	if len(items) != 1 {
+		t.Fatalf("Expected 1 item, got %d", len(items))
+	}
+
+	if items[0].ID != 1 {
+		t.Errorf("Expected ID 1, got %d", items[0].ID)
+	}
+}
+
+func TestGetByIDs_MultipleDialects(t *testing.T) {
+	tests := []struct {
+		name       string
+		dialectName string
+	}{
+		{"postgres", "postgres"},
+		{"mysql", "mysql"},
+		{"sqlite", "sqlite"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := &mockDatabase{
+				dialect: &mockDialect{name: tt.dialectName},
+				queryFunc: func(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+					callCount := 0
+					return &mockRows{
+						nextFunc: func() bool {
+							callCount++
+							return callCount == 1
+						},
+						scanFunc: func(dest ...interface{}) error {
+							if id, ok := dest[0].(*int64); ok {
+								*id = 1
+							}
+							if name, ok := dest[1].(*string); ok {
+								*name = "Test"
+							}
+							if email, ok := dest[2].(*string); ok {
+								*email = "test@example.com"
+							}
+							return nil
+						},
+					}, nil
+				},
+			}
+
+			crud := New[testModel](db)
+			ids := []any{int64(1)}
+
+			items, err := crud.GetByIDs(context.Background(), ids)
+			if err != nil {
+				t.Fatalf("GetByIDs failed for %s: %v", tt.dialectName, err)
+			}
+
+			if len(items) != 1 {
+				t.Fatalf("Expected 1 item for %s, got %d", tt.dialectName, len(items))
+			}
+		})
+	}
+}
