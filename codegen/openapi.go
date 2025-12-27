@@ -7,6 +7,231 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// discoverNonResourceRoutes inspects the Fiber app to find routes not handled by resource DTOs
+func discoverNonResourceRoutes(app *fiber.App, resourcePaths map[string]bool) map[string]map[string]interface{} {
+	routes := app.GetRoutes(true) // Filter middleware-only routes
+	discovered := make(map[string]map[string]interface{})
+
+	for _, route := range routes {
+		path := route.Path
+		method := strings.ToUpper(route.Method)
+
+		// Skip routes we don't want to document
+		if shouldSkipRoute(path, resourcePaths) {
+			continue
+		}
+
+		// Group by path
+		if discovered[path] == nil {
+			discovered[path] = make(map[string]interface{})
+		}
+
+		// Add method to this path
+		discovered[path][strings.ToLower(method)] = generateRouteSpec(path, method)
+	}
+
+	return discovered
+}
+
+// shouldSkipRoute determines if a route should be excluded from OpenAPI docs
+func shouldSkipRoute(path string, resourcePaths map[string]bool) bool {
+	// Skip OpenAPI routes
+	if path == "/openapi" || path == "/openapi.json" {
+		return true
+	}
+
+	// Skip resource routes (already handled)
+	if resourcePaths[path] {
+		return true
+	}
+
+	// Skip empty paths
+	if path == "" || path == "/" {
+		return true
+	}
+
+	return false
+}
+
+// generateRouteSpec creates a basic OpenAPI spec for a discovered route
+func generateRouteSpec(path, method string) map[string]interface{} {
+	// Determine tag from path (e.g., /auth/login -> Authentication)
+	tag := determineTag(path)
+
+	// Generate summary and description
+	summary := generateSummary(path, method)
+	description := generateDescription(path, method)
+
+	spec := map[string]interface{}{
+		"summary":     summary,
+		"description": description,
+		"tags":        []string{tag},
+	}
+
+	// Add parameters for path params
+	if strings.Contains(path, ":") {
+		spec["parameters"] = extractPathParameters(path)
+	}
+
+	// Add request body for POST/PUT/PATCH
+	if method == "POST" || method == "PUT" || method == "PATCH" {
+		spec["requestBody"] = generateRequestBody(path)
+	}
+
+	// Add responses
+	spec["responses"] = generateResponses(method)
+
+	return spec
+}
+
+// determineTag extracts a tag name from the route path
+func determineTag(path string) string {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) == 0 {
+		return "General"
+	}
+
+	// Use the first path segment as tag
+	segment := parts[0]
+
+	// Capitalize and clean up
+	switch segment {
+	case "auth":
+		return "Authentication"
+	case "health":
+		return "System"
+	default:
+		return strings.ToUpper(segment[:1]) + segment[1:]
+	}
+}
+
+// generateSummary creates a human-readable summary for a route
+func generateSummary(path, method string) string {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	action := ""
+
+	switch method {
+	case "GET":
+		action = "Get"
+	case "POST":
+		action = "Create or execute"
+	case "PUT":
+		action = "Update"
+	case "PATCH":
+		action = "Partially update"
+	case "DELETE":
+		action = "Delete"
+	default:
+		action = method
+	}
+
+	// Create readable path name
+	pathName := strings.Join(parts, " ")
+	pathName = strings.ReplaceAll(pathName, ":", "")
+
+	return fmt.Sprintf("%s %s", action, pathName)
+}
+
+// generateDescription creates a description for a route
+func generateDescription(path, method string) string {
+	return fmt.Sprintf("%s %s", method, path)
+}
+
+// extractPathParameters extracts parameters from a Fiber route path
+func extractPathParameters(path string) []map[string]interface{} {
+	var params []map[string]interface{}
+
+	parts := strings.Split(path, "/")
+	for _, part := range parts {
+		if strings.HasPrefix(part, ":") {
+			paramName := strings.TrimPrefix(part, ":")
+			params = append(params, map[string]interface{}{
+				"name":        paramName,
+				"in":          "path",
+				"required":    true,
+				"description": fmt.Sprintf("Path parameter: %s", paramName),
+				"schema":      map[string]string{"type": "string"},
+			})
+		}
+	}
+
+	return params
+}
+
+// generateRequestBody creates a generic request body spec
+func generateRequestBody(path string) map[string]interface{} {
+	return map[string]interface{}{
+		"required": true,
+		"content": map[string]interface{}{
+			"application/json": map[string]interface{}{
+				"schema": map[string]interface{}{
+					"type": "object",
+				},
+			},
+		},
+	}
+}
+
+// generateResponses creates standard responses for a method
+func generateResponses(method string) map[string]interface{} {
+	responses := map[string]interface{}{}
+
+	switch method {
+	case "GET":
+		responses["200"] = map[string]interface{}{
+			"description": "Successful response",
+			"content": map[string]interface{}{
+				"application/json": map[string]interface{}{
+					"schema": map[string]interface{}{
+						"type": "object",
+					},
+				},
+			},
+		}
+	case "POST":
+		responses["201"] = map[string]interface{}{
+			"description": "Successfully created",
+			"content": map[string]interface{}{
+				"application/json": map[string]interface{}{
+					"schema": map[string]interface{}{
+						"type": "object",
+					},
+				},
+			},
+		}
+		responses["400"] = map[string]interface{}{
+			"description": "Bad request",
+		}
+	case "PUT", "PATCH":
+		responses["200"] = map[string]interface{}{
+			"description": "Successfully updated",
+			"content": map[string]interface{}{
+				"application/json": map[string]interface{}{
+					"schema": map[string]interface{}{
+						"type": "object",
+					},
+				},
+			},
+		}
+		responses["404"] = map[string]interface{}{
+			"description": "Not found",
+		}
+	case "DELETE":
+		responses["204"] = map[string]interface{}{
+			"description": "Successfully deleted",
+		}
+		responses["404"] = map[string]interface{}{
+			"description": "Not found",
+		}
+	default:
+		responses["200"] = map[string]interface{}{
+			"description": "Successful response",
+		}
+	}
+
+	return responses
+}
+
 func buildSchemaPropertiesFromDTO(fields []StructField) map[string]interface{} {
 	properties := make(map[string]interface{})
 
@@ -63,6 +288,9 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema, paginationLimit
 			"schemas": make(map[string]interface{}),
 		}
 
+		// Track resource paths so we can filter them out from discovery
+		resourcePaths := make(map[string]bool)
+
 		for _, resource := range resourceDTOs {
 			mainDTO := resource.GetMainDTO()
 			if mainDTO == nil {
@@ -88,6 +316,10 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema, paginationLimit
 		for _, resource := range resourceDTOs {
 			schemaName := strings.ToUpper(resource.Name[:1]) + resource.Name[1:]
 			base := "/" + resource.PluralName
+
+			// Mark resource paths
+			resourcePaths[base] = true
+			resourcePaths[base+"/:id"] = true
 
 			paths[base] = map[string]interface{}{
 				"get": map[string]interface{}{
@@ -279,164 +511,10 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema, paginationLimit
 			}
 		}
 
-		paths["/login"] = map[string]interface{}{
-			"post": map[string]interface{}{
-				"summary":     "User login",
-				"description": "Authenticate a user and receive a JWT token",
-				"tags":        []string{"Authentication"},
-				"requestBody": map[string]interface{}{
-					"required": true,
-					"content": map[string]interface{}{
-						"application/json": map[string]interface{}{
-							"schema": map[string]interface{}{
-								"type":     "object",
-								"required": []string{"email", "password"},
-								"properties": map[string]interface{}{
-									"email": map[string]interface{}{
-										"type":        "string",
-										"format":      "email",
-										"description": "User email address",
-									},
-									"password": map[string]interface{}{
-										"type":        "string",
-										"format":      "password",
-										"description": "User password",
-									},
-								},
-							},
-						},
-					},
-				},
-				"responses": map[string]interface{}{
-					"200": map[string]interface{}{
-						"description": "Successful authentication",
-						"content": map[string]interface{}{
-							"application/json": map[string]interface{}{
-								"schema": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"token": map[string]interface{}{
-											"type":        "string",
-											"description": "JWT authentication token",
-										},
-										"user": map[string]interface{}{
-											"type": "object",
-											"properties": map[string]interface{}{
-												"id": map[string]interface{}{
-													"type": "string",
-												},
-												"email": map[string]interface{}{
-													"type": "string",
-												},
-												"firstname": map[string]interface{}{
-													"type": "string",
-												},
-												"lastname": map[string]interface{}{
-													"type": "string",
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					"400": map[string]interface{}{
-						"description": "Bad request - missing email or password",
-						"content": map[string]interface{}{
-							"application/json": map[string]interface{}{
-								"schema": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"error": map[string]interface{}{
-											"type": "string",
-										},
-									},
-								},
-							},
-						},
-					},
-					"401": map[string]interface{}{
-						"description": "Unauthorized - invalid credentials",
-						"content": map[string]interface{}{
-							"application/json": map[string]interface{}{
-								"schema": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"error": map[string]interface{}{
-											"type": "string",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-
-		paths["/health"] = map[string]interface{}{
-			"get": map[string]interface{}{
-				"summary":     "Health check",
-				"description": "Check API and database health status",
-				"tags":        []string{"System"},
-				"responses": map[string]interface{}{
-					"200": map[string]interface{}{
-						"description": "Service is healthy",
-						"content": map[string]interface{}{
-							"application/json": map[string]interface{}{
-								"schema": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"status": map[string]interface{}{
-											"type":        "string",
-											"enum":        []string{"healthy"},
-											"description": "Overall health status",
-										},
-										"database": map[string]interface{}{
-											"type": "object",
-											"properties": map[string]interface{}{
-												"status": map[string]interface{}{
-													"type": "string",
-													"enum": []string{"up"},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					"503": map[string]interface{}{
-						"description": "Service is unhealthy",
-						"content": map[string]interface{}{
-							"application/json": map[string]interface{}{
-								"schema": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"status": map[string]interface{}{
-											"type": "string",
-											"enum": []string{"unhealthy"},
-										},
-										"database": map[string]interface{}{
-											"type": "object",
-											"properties": map[string]interface{}{
-												"status": map[string]interface{}{
-													"type": "string",
-													"enum": []string{"down"},
-												},
-												"error": map[string]interface{}{
-													"type": "string",
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+		// Discover and add non-resource routes (e.g., /auth/login, /health, etc.)
+		discoveredRoutes := discoverNonResourceRoutes(app, resourcePaths)
+		for path, methods := range discoveredRoutes {
+			paths[path] = methods
 		}
 
 		components["securitySchemes"] = map[string]interface{}{
@@ -444,7 +522,7 @@ func SetupOpenAPI(app *fiber.App, tables map[string]TableSchema, paginationLimit
 				"type":         "http",
 				"scheme":       "bearer",
 				"bearerFormat": "JWT",
-				"description":  "JWT token from /login endpoint",
+				"description":  "JWT authentication token",
 			},
 		}
 
