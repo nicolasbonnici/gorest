@@ -33,3 +33,6 @@ pentest.sh
 
 # Parallel plugin runner script
 run-all-plugins.sh
+
+# Version sync script (includes version bumping)
+sync-versions.sh
