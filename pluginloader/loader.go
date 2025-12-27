@@ -2,6 +2,8 @@ package pluginloader
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/config"
@@ -84,6 +86,14 @@ func InjectSharedConfig(configs []config.PluginConfig, db database.Database, app
 		enrichedCfg["pagination_limit"] = appConfig.Pagination.DefaultLimit
 		enrichedCfg["pagination_max_limit"] = appConfig.Pagination.MaxLimit
 
+		if cfg.Name == "openapi" {
+			projectRoot, err := findProjectRoot()
+			if err == nil {
+				dtosDir := filepath.Join(projectRoot, appConfig.Codegen.Output.DTOs)
+				enrichedCfg["dtos_directory"] = dtosDir
+			}
+		}
+
 		enriched[i] = config.PluginConfig{
 			Name:    cfg.Name,
 			Enabled: cfg.Enabled,
@@ -114,4 +124,23 @@ func LoadAllCommandPlugins(db database.Database, cfg *config.Config) ([]plugin.P
 	}
 
 	return commandPlugins, nil
+}
+
+func findProjectRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("go.mod not found")
+		}
+		dir = parent
+	}
 }
