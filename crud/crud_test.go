@@ -1368,7 +1368,7 @@ func TestGetByIDs_SingleID(t *testing.T) {
 
 func TestGetByIDs_MultipleDialects(t *testing.T) {
 	tests := []struct {
-		name       string
+		name        string
 		dialectName string
 	}{
 		{"postgres", "postgres"},
