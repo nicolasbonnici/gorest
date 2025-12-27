@@ -113,7 +113,6 @@ func Start(cfg Config) {
 	go func() {
 		port := fmt.Sprintf("%d", appConfig.Server.Port)
 		logger.Log.Info("REST API running", "port", port, "url", "http://localhost:"+port, "version", Version)
-		logger.Log.Info("Health check available", "url", "http://localhost:"+port+"/health")
 		logger.Log.Info("Environment", "env", appConfig.Server.Environment)
 		if err := app.Listen(":" + port); err != nil {
 			logger.Log.Error("Server failed", "error", err)
