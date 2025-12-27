@@ -1,5 +1,9 @@
 # GoREST
 
+[![CI](https://github.com/nicolasbonnici/gorest/actions/workflows/ci.yml/badge.svg)](https://github.com/nicolasbonnici/gorest/actions/)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nicolasbonnici/gorest)](https://goreportcard.com/report/github.com/nicolasbonnici/gorest)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 🚀 **GoREST** is a Go library for building type-safe REST APIs in Go from your database schema.
 
 **Use GoREST as:**
