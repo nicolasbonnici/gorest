@@ -15,7 +15,6 @@ type Builder struct {
 	err    error
 }
 
-// NewBuilder creates a new Builder with the given database
 func NewBuilder(db database.Database) *Builder {
 	return &Builder{
 		loader: New(db),
@@ -32,7 +31,6 @@ func NewBuilderWithT(t *testing.T, db database.Database) *Builder {
 	}
 }
 
-// WithContext sets the context for database operations
 func (b *Builder) WithContext(ctx context.Context) *Builder {
 	b.loader.WithContext(ctx)
 	return b
@@ -85,7 +83,6 @@ func (b *Builder) loadTyped(name string, fixtures interface{}) error {
 	}
 }
 
-// LoadFromYAML loads fixtures from a YAML file
 func (b *Builder) LoadFromYAML(name string, filePath string, target interface{}) *Builder {
 	if b.err != nil {
 		return b
@@ -101,7 +98,6 @@ func (b *Builder) LoadFromYAML(name string, filePath string, target interface{})
 	return b
 }
 
-// LoadFromJSON loads fixtures from a JSON file
 func (b *Builder) LoadFromJSON(name string, filePath string, target interface{}) *Builder {
 	if b.err != nil {
 		return b
@@ -117,7 +113,6 @@ func (b *Builder) LoadFromJSON(name string, filePath string, target interface{})
 	return b
 }
 
-// Commit commits the current transaction if one exists
 func (b *Builder) Commit() *Builder {
 	if b.err != nil {
 		return b
@@ -133,7 +128,6 @@ func (b *Builder) Commit() *Builder {
 	return b
 }
 
-// Rollback rolls back the current transaction if one exists
 func (b *Builder) Rollback() *Builder {
 	if b.err != nil {
 		return b
@@ -149,7 +143,6 @@ func (b *Builder) Rollback() *Builder {
 	return b
 }
 
-// Cleanup enables automatic cleanup of loaded fixtures
 func (b *Builder) Cleanup() *Builder {
 	if b.err != nil {
 		return b
@@ -173,7 +166,6 @@ func (b *Builder) EnableCleanup() *Builder {
 	return b.Cleanup()
 }
 
-// Get retrieves loaded fixtures by name
 func (b *Builder) Get(name string) ([]interface{}, bool) {
 	return b.loader.Get(name)
 }
@@ -204,12 +196,10 @@ func (b *Builder) GetTyped(name string, target interface{}) error {
 	}
 }
 
-// Error returns any error that occurred during fixture operations
 func (b *Builder) Error() error {
 	return b.err
 }
 
-// Loader returns the underlying Loader instance
 func (b *Builder) Loader() *Loader {
 	return b.loader
 }

@@ -21,7 +21,6 @@ type Loader struct {
 	ctx     context.Context
 }
 
-// New creates a new Loader with the given database
 func New(db database.Database) *Loader {
 	return &Loader{
 		db:      db,
@@ -31,7 +30,6 @@ func New(db database.Database) *Loader {
 	}
 }
 
-// WithContext sets the context for database operations
 func (l *Loader) WithContext(ctx context.Context) *Loader {
 	l.ctx = ctx
 	return l
@@ -52,7 +50,6 @@ func (l *Loader) WithTransaction() (*Loader, error) {
 	return l, nil
 }
 
-// Commit commits the current transaction if one exists
 func (l *Loader) Commit() error {
 	if l.tx == nil {
 		return fmt.Errorf("no transaction to commit")
@@ -66,7 +63,6 @@ func (l *Loader) Commit() error {
 	return nil
 }
 
-// Rollback rolls back the current transaction if one exists
 func (l *Loader) Rollback() error {
 	if l.tx == nil {
 		return fmt.Errorf("no transaction to rollback")
@@ -138,7 +134,6 @@ func (l *Loader) insertFixture(m crud.Model) error {
 	return err
 }
 
-// LoadFromYAML loads fixtures from a YAML file
 func (l *Loader) LoadFromYAML(name string, filePath string, target interface{}) (*Loader, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -156,7 +151,6 @@ func (l *Loader) LoadFromYAML(name string, filePath string, target interface{}) 
 	return l, nil
 }
 
-// LoadFromJSON loads fixtures from a JSON file
 func (l *Loader) LoadFromJSON(name string, filePath string, target interface{}) (*Loader, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -174,7 +168,6 @@ func (l *Loader) LoadFromJSON(name string, filePath string, target interface{}) 
 	return l, nil
 }
 
-// insertRawData inserts raw data loaded from files
 func (l *Loader) insertRawData(name string, data interface{}) error {
 	val := reflect.ValueOf(data)
 	if val.Kind() == reflect.Ptr {
@@ -194,7 +187,6 @@ func (l *Loader) insertRawData(name string, data interface{}) error {
 	return nil
 }
 
-// Get retrieves loaded fixtures by name
 func (l *Loader) Get(name string) ([]interface{}, bool) {
 	fixtures, ok := l.loaded[name]
 	return fixtures, ok
@@ -219,18 +211,15 @@ func GetTyped[T any](l *Loader, name string) ([]T, error) {
 	return result, nil
 }
 
-// EnableCleanup marks the loader to cleanup fixtures after use
 func (l *Loader) EnableCleanup() *Loader {
 	l.cleanup = true
 	return l
 }
 
-// ShouldCleanup returns whether cleanup is enabled
 func (l *Loader) ShouldCleanup() bool {
 	return l.cleanup
 }
 
-// GetLoadedFixtures returns all loaded fixture names
 func (l *Loader) GetLoadedFixtures() []string {
 	names := make([]string, 0, len(l.loaded))
 	for name := range l.loaded {
@@ -244,7 +233,6 @@ type TxCRUD[T crud.Model] struct {
 	tx database.Tx
 }
 
-// NewTxCRUD creates a new TxCRUD instance
 func NewTxCRUD[T crud.Model](tx database.Tx) *TxCRUD[T] {
 	return &TxCRUD[T]{tx: tx}
 }
@@ -304,7 +292,6 @@ func (t *TxCRUD[T]) Delete(ctx context.Context, id any) error {
 	return fmt.Errorf("Delete not implemented for TxCRUD")
 }
 
-// joinStrings is a helper to join strings
 func joinStrings(strs []string, sep string) string {
 	if len(strs) == 0 {
 		return ""
