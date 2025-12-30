@@ -7,11 +7,9 @@ import (
 	"github.com/nicolasbonnici/gorest/crud"
 )
 
-// CleanupStrategy defines how fixtures should be cleaned up
 type CleanupStrategy int
 
 const (
-	// CleanupDelete deletes all loaded fixtures
 	CleanupDelete CleanupStrategy = iota
 	// CleanupTruncate truncates all tables (faster but requires permissions)
 	CleanupTruncate
@@ -19,13 +17,12 @@ const (
 	CleanupRollback
 )
 
-// Cleanup removes all loaded fixtures from the database
-// This should be called in a defer or t.Cleanup() to ensure fixtures are removed after tests
+// Cleanup removes all loaded fixtures from the database.
+// This should be called in a defer or t.Cleanup() to ensure fixtures are removed after tests.
 func Cleanup(loader *Loader) error {
 	return CleanupWithStrategy(loader, CleanupDelete)
 }
 
-// CleanupWithStrategy removes all loaded fixtures using the specified strategy
 func CleanupWithStrategy(loader *Loader, strategy CleanupStrategy) error {
 	if !loader.ShouldCleanup() {
 		return nil
@@ -43,7 +40,6 @@ func CleanupWithStrategy(loader *Loader, strategy CleanupStrategy) error {
 	}
 }
 
-// cleanupWithRollback rolls back the transaction to cleanup fixtures
 func cleanupWithRollback(loader *Loader) error {
 	if loader.tx == nil {
 		return fmt.Errorf("rollback strategy requires a transaction")
@@ -57,7 +53,6 @@ func cleanupWithRollback(loader *Loader) error {
 	return nil
 }
 
-// cleanupWithTruncate truncates all tables that had fixtures loaded
 func cleanupWithTruncate(loader *Loader) error {
 	tables := make(map[string]bool)
 
@@ -97,7 +92,6 @@ func cleanupWithTruncate(loader *Loader) error {
 	return nil
 }
 
-// cleanupWithDelete deletes all loaded fixtures
 func cleanupWithDelete(loader *Loader) error {
 	names := loader.GetLoadedFixtures()
 
@@ -117,7 +111,6 @@ func cleanupWithDelete(loader *Loader) error {
 	return nil
 }
 
-// deleteFixtures deletes a slice of fixtures
 func deleteFixtures(loader *Loader, fixtures []interface{}) error {
 	if len(fixtures) == 0 {
 		return nil
@@ -165,7 +158,6 @@ func deleteFixtures(loader *Loader, fixtures []interface{}) error {
 	return nil
 }
 
-// getTableName extracts the table name from a model
 func getTableName(model interface{}) string {
 	if m, ok := model.(crud.Model); ok {
 		return m.TableName()
@@ -189,7 +181,6 @@ func getTableName(model interface{}) string {
 	return ""
 }
 
-// getIDValue extracts the ID value from a model
 func getIDValue(model interface{}) interface{} {
 	val := reflect.ValueOf(model)
 	if val.Kind() == reflect.Ptr {
@@ -215,8 +206,8 @@ func getIDValue(model interface{}) interface{} {
 	return nil
 }
 
-// CleanupOrdered performs cleanup in a specific order to respect foreign key constraints
-// The order should be from child tables to parent tables (reverse dependency order)
+// CleanupOrdered performs cleanup in a specific order to respect foreign key constraints.
+// The order should be from child tables to parent tables (reverse dependency order).
 func CleanupOrdered(loader *Loader, order []string) error {
 	if !loader.ShouldCleanup() {
 		return nil
