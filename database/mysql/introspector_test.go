@@ -5,15 +5,14 @@ package mysql_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 func TestMySQLIntrospector_GetColumns(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	introspector := db.Introspector()
 	ctx := context.Background()
@@ -60,7 +59,6 @@ func TestMySQLIntrospector_GetColumns(t *testing.T) {
 
 func TestMySQLIntrospector_GetRelations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	introspector := db.Introspector()
 	ctx := context.Background()
@@ -97,20 +95,5 @@ func TestMySQLIntrospector_GetRelations(t *testing.T) {
 
 func setupTestDB(t *testing.T) database.Database {
 	t.Helper()
-
-	dsn := "testuser:testpass@tcp(localhost:3307)/mydb_test"
-	db, err := database.Open("mysql", dsn)
-	if err != nil {
-		t.Skipf("MySQL not available: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.Ping(ctx); err != nil {
-		db.Close()
-		t.Skipf("MySQL ping failed: %v", err)
-	}
-
-	return db
+	return testhelpers.SetupMySQLWithDSN(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
 }

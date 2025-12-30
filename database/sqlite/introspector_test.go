@@ -4,13 +4,11 @@ package sqlite_test
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 func TestSQLiteIntrospector_GetRelations(t *testing.T) {
@@ -122,27 +120,6 @@ func TestSQLiteIntrospector_GetColumns(t *testing.T) {
 func setupTestDB(t *testing.T) database.Database {
 	t.Helper()
 
-	// Use file-based database with a unique name
-	dbPath := fmt.Sprintf("/tmp/gorest_introspector_test_%s.db", t.Name())
-
-	// Clean up any existing database
-	_ = os.Remove(dbPath)
-
-	db, err := database.Open("sqlite", dbPath)
-	if err != nil {
-		t.Fatalf("Failed to open SQLite: %v", err)
-	}
-
-	// Clean up database file when test completes
-	t.Cleanup(func() {
-		db.Close()
-		_ = os.Remove(dbPath)
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Create schema with foreign key
 	schema := `
 CREATE TABLE users (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -164,14 +141,5 @@ CREATE TABLE todo (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );`
 
-	_, err = db.Exec(ctx, schema)
-	if err != nil {
-		db.Close()
-		t.Fatalf("Failed to create schema: %v", err)
-	}
-
-	// Enable foreign keys for SQLite
-	_, _ = db.Exec(ctx, "PRAGMA foreign_keys = ON")
-
-	return db
+	return testhelpers.SetupSQLiteFileWithSchema(t, schema)
 }

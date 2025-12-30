@@ -4,38 +4,35 @@ package database_test
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 func TestTransaction_CommitPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	testhelpers.CleanupDB(t, db)
 	testTransactionCommit(t, db)
 }
 
 func TestTransaction_CommitMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQLWithDSN(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
+	testhelpers.CleanupDB(t, db)
 	testTransactionCommit(t, db)
 }
 
 func TestTransaction_CommitSQLite(t *testing.T) {
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteTestDBWithSchema(t)
 	testTransactionCommit(t, db)
 }
 
 func testTransactionCommit(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -70,26 +67,25 @@ func testTransactionCommit(t *testing.T, db database.Database) {
 }
 
 func TestTransaction_RollbackPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	testhelpers.CleanupDB(t, db)
 	testTransactionRollback(t, db)
 }
 
 func TestTransaction_RollbackMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQLWithDSN(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
+	testhelpers.CleanupDB(t, db)
 	testTransactionRollback(t, db)
 }
 
 func TestTransaction_RollbackSQLite(t *testing.T) {
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteTestDBWithSchema(t)
 	testTransactionRollback(t, db)
 }
 
 func testTransactionRollback(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -124,26 +120,25 @@ func testTransactionRollback(t *testing.T, db database.Database) {
 }
 
 func TestTransaction_RollbackOnErrorPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	testhelpers.CleanupDB(t, db)
 	testTransactionRollbackOnError(t, db)
 }
 
 func TestTransaction_RollbackOnErrorMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQLWithDSN(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
+	testhelpers.CleanupDB(t, db)
 	testTransactionRollbackOnError(t, db)
 }
 
 func TestTransaction_RollbackOnErrorSQLite(t *testing.T) {
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteTestDBWithSchema(t)
 	testTransactionRollbackOnError(t, db)
 }
 
 func testTransactionRollbackOnError(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	query := "INSERT INTO users (firstname, lastname, email) VALUES (" +
 		db.Dialect().Placeholder(1) + ", " +
@@ -183,26 +178,25 @@ func testTransactionRollbackOnError(t *testing.T, db database.Database) {
 }
 
 func TestTransaction_MultipleOperationsPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	testhelpers.CleanupDB(t, db)
 	testTransactionMultipleOperations(t, db)
 }
 
 func TestTransaction_MultipleOperationsMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQLWithDSN(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
+	testhelpers.CleanupDB(t, db)
 	testTransactionMultipleOperations(t, db)
 }
 
 func TestTransaction_MultipleOperationsSQLite(t *testing.T) {
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteTestDBWithSchema(t)
 	testTransactionMultipleOperations(t, db)
 }
 
 func testTransactionMultipleOperations(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -255,48 +249,9 @@ func testTransactionMultipleOperations(t *testing.T, db database.Database) {
 	}
 }
 
-func setupTestDB(t *testing.T, dsn string) database.Database {
+func setupSQLiteTestDBWithSchema(t *testing.T) database.Database {
 	t.Helper()
 
-	db, err := database.Open("", dsn)
-	if err != nil {
-		t.Skipf("Database not available: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.Ping(ctx); err != nil {
-		db.Close()
-		t.Skipf("Database ping failed: %v", err)
-	}
-
-	cleanupDB(t, db)
-	return db
-}
-
-func setupSQLiteTestDB(t *testing.T) database.Database {
-	t.Helper()
-
-	// Use file-based database with a unique name for this test to avoid concurrent access issues
-	// SQLite :memory: databases are connection-specific, causing failures in concurrent tests
-	dbPath := fmt.Sprintf("/tmp/gorest_test_%s.db", t.Name())
-
-	// Clean up any existing database
-	_ = os.Remove(dbPath)
-
-	db, err := database.Open("sqlite", dbPath)
-	if err != nil {
-		t.Fatalf("Failed to open SQLite: %v", err)
-	}
-
-	// Clean up database file when test completes
-	t.Cleanup(func() {
-		db.Close()
-		_ = os.Remove(dbPath)
-	})
-
-	ctx := context.Background()
 	schema := `
 CREATE TABLE users (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -318,58 +273,29 @@ CREATE TABLE todo (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );`
 
-	_, err = db.Exec(ctx, schema)
-	if err != nil {
-		db.Close()
-		t.Fatalf("Failed to create schema: %v", err)
-	}
-
-	// Enable WAL mode for better concurrency and set busy timeout
-	_, _ = db.Exec(ctx, "PRAGMA journal_mode=WAL")
-	_, _ = db.Exec(ctx, "PRAGMA busy_timeout=5000")
-
-	return db
-}
-
-func cleanupDB(t *testing.T, db database.Database) {
-	t.Helper()
-	ctx := context.Background()
-
-	switch db.DriverName() {
-	case "postgres":
-		_, _ = db.Exec(ctx, "TRUNCATE users, todo CASCADE")
-	case "mysql":
-		_, _ = db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec(ctx, "TRUNCATE users")
-		_, _ = db.Exec(ctx, "TRUNCATE todo")
-		_, _ = db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 1")
-	case "sqlite":
-		_, _ = db.Exec(ctx, "DELETE FROM todo")
-		_, _ = db.Exec(ctx, "DELETE FROM users")
-	}
+	return testhelpers.SetupSQLiteFileWithSchema(t, schema)
 }
 
 func TestTransaction_QueryPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	testhelpers.CleanupDB(t, db)
 	testTransactionQuery(t, db)
 }
 
 func TestTransaction_QueryMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQLWithDSN(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
+	testhelpers.CleanupDB(t, db)
 	testTransactionQuery(t, db)
 }
 
 func TestTransaction_QuerySQLite(t *testing.T) {
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteTestDBWithSchema(t)
 	testTransactionQuery(t, db)
 }
 
 func testTransactionQuery(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	// Insert test data
 	insertQuery := "INSERT INTO users (firstname, lastname, email) VALUES (" +
@@ -422,26 +348,25 @@ func testTransactionQuery(t *testing.T, db database.Database) {
 }
 
 func TestTransaction_QueryRowPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	testhelpers.CleanupDB(t, db)
 	testTransactionQueryRow(t, db)
 }
 
 func TestTransaction_QueryRowMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQLWithDSN(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
+	testhelpers.CleanupDB(t, db)
 	testTransactionQueryRow(t, db)
 }
 
 func TestTransaction_QueryRowSQLite(t *testing.T) {
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteTestDBWithSchema(t)
 	testTransactionQueryRow(t, db)
 }
 
 func testTransactionQueryRow(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	// Insert test data
 	insertQuery := "INSERT INTO users (firstname, lastname, email) VALUES (" +

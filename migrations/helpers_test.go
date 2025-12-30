@@ -6,6 +6,7 @@ import (
 
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 func TestGoMigration_Build(t *testing.T) {
@@ -35,8 +36,8 @@ func TestGoMigration_Build(t *testing.T) {
 		t.Fatal("Executor should not be nil")
 	}
 
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	// Test Up
@@ -59,8 +60,8 @@ func TestGoMigration_Build(t *testing.T) {
 }
 
 func TestMigrationBuilder(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	builder := NewMigrationBuilder("test")
@@ -126,8 +127,8 @@ func TestMigrationBuilder(t *testing.T) {
 }
 
 func TestMigrationBuilder_AddSQL(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	builder := NewMigrationBuilder("test")
@@ -163,8 +164,8 @@ func TestMigrationBuilder_AddSQL(t *testing.T) {
 }
 
 func TestCreateTableIfNotExists(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	err := CreateTableIfNotExists(ctx, db, "helper_test", "id TEXT PRIMARY KEY, value TEXT")
@@ -186,8 +187,8 @@ func TestCreateTableIfNotExists(t *testing.T) {
 }
 
 func TestDropTableIfExists(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	// Create table first
@@ -210,8 +211,8 @@ func TestDropTableIfExists(t *testing.T) {
 }
 
 func TestAddColumn(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	// Create table first
@@ -234,8 +235,8 @@ func TestAddColumn(t *testing.T) {
 }
 
 func TestDropColumn(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	// Create table with two columns
@@ -254,8 +255,8 @@ func TestDropColumn(t *testing.T) {
 }
 
 func TestCreateIndex(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	// Create table first
@@ -280,8 +281,8 @@ func TestCreateIndex(t *testing.T) {
 }
 
 func TestDropIndex(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	// Create table and index first
@@ -311,8 +312,8 @@ func TestDropIndex(t *testing.T) {
 }
 
 func TestDialectSQL(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	err := SQL(ctx, db, DialectSQL{
@@ -341,8 +342,8 @@ func TestDialectSQL(t *testing.T) {
 }
 
 func TestDialectSQL_OptionalFields(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	err := SQL(ctx, db, DialectSQL{
@@ -360,8 +361,8 @@ func TestDialectSQL_OptionalFields(t *testing.T) {
 }
 
 func TestDialectSQL_MissingDialect(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	err := SQL(ctx, db, DialectSQL{
@@ -423,8 +424,8 @@ func TestGoMigrationExecutor_Checksum(t *testing.T) {
 }
 
 func TestGoMigrationExecutor_NoFunctions(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	executor := &GoMigrationExecutor{}
@@ -443,8 +444,8 @@ func TestGoMigrationExecutor_NoFunctions(t *testing.T) {
 }
 
 func TestIntegration_GoBasedMigrations(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 	ctx := context.Background()
 
 	// Build complete migration set

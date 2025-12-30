@@ -9,36 +9,19 @@ import (
 	"testing"
 
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 func setupSQLiteTest(t *testing.T) database.Database {
 	t.Helper()
 
-	db, err := database.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open SQLite: %v", err)
-	}
-
-	ctx := context.Background()
-	if err := db.Ping(ctx); err != nil {
-		db.Close()
-		t.Fatalf("SQLite ping failed: %v", err)
-	}
-
 	schemaPath := findSchemaFile(t)
 	schema, err := os.ReadFile(schemaPath)
 	if err != nil {
-		db.Close()
 		t.Fatalf("Failed to read schema: %v", err)
 	}
 
-	_, err = db.Exec(ctx, string(schema))
-	if err != nil {
-		db.Close()
-		t.Fatalf("Failed to create schema: %v", err)
-	}
-
-	return db
+	return testhelpers.SetupSQLiteWithSchema(t, string(schema))
 }
 
 func findSchemaFile(t *testing.T) string {
@@ -63,15 +46,11 @@ func findSchemaFile(t *testing.T) string {
 
 func cleanupSQLite(t *testing.T, db database.Database) {
 	t.Helper()
-	ctx := context.Background()
-
-	_, _ = db.Exec(ctx, "DELETE FROM todo")
-	_, _ = db.Exec(ctx, "DELETE FROM users")
+	testhelpers.CleanupDB(t, db)
 }
 
 func TestSQLite_Connection(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	if db.DriverName() != "sqlite" {
 		t.Errorf("Expected driver name 'sqlite', got %q", db.DriverName())
@@ -80,7 +59,6 @@ func TestSQLite_Connection(t *testing.T) {
 
 func TestSQLite_Dialect(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	dialect := db.Dialect()
 
@@ -99,7 +77,6 @@ func TestSQLite_Dialect(t *testing.T) {
 
 func TestSQLite_Insert(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -130,7 +107,6 @@ func TestSQLite_Insert(t *testing.T) {
 
 func TestSQLite_InsertWithReturning(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -148,7 +124,6 @@ func TestSQLite_InsertWithReturning(t *testing.T) {
 
 func TestSQLite_Query(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -179,7 +154,6 @@ func TestSQLite_Query(t *testing.T) {
 
 func TestSQLite_QueryRow(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -201,7 +175,6 @@ func TestSQLite_QueryRow(t *testing.T) {
 
 func TestSQLite_Update(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -237,7 +210,6 @@ func TestSQLite_Update(t *testing.T) {
 
 func TestSQLite_Delete(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -263,7 +235,6 @@ func TestSQLite_Delete(t *testing.T) {
 
 func TestSQLite_SchemaIntrospection(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -302,7 +273,6 @@ func TestSQLite_SchemaIntrospection(t *testing.T) {
 
 func TestSQLite_ForeignKey(t *testing.T) {
 	db := setupSQLiteTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 

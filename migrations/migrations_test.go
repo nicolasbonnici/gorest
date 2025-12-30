@@ -4,49 +4,15 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 //go:embed testdata/*.sql
 var testMigrations embed.FS
-
-// setupTestDB creates a test database connection
-func setupTestDB(t *testing.T) database.Database {
-	t.Helper()
-
-	// Use SQLite for tests by default
-	dbURL := os.Getenv("TEST_DATABASE_URL")
-	if dbURL == "" {
-		// Use unique in-memory database for each test to avoid transaction conflicts
-		// The mode=memory parameter with a unique name ensures complete isolation
-		dbURL = fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
-	}
-
-	db, err := database.Open("", dbURL)
-	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
-	}
-
-	return db
-}
-
-// cleanupTestDB cleans up test database
-func cleanupTestDB(t *testing.T, db database.Database) {
-	t.Helper()
-
-	if db != nil {
-		// Close the database connection to release any locks
-		// SQLite in-memory databases are automatically destroyed when the connection closes
-		if err := db.Close(); err != nil {
-			t.Logf("Warning: failed to close database: %v", err)
-		}
-	}
-}
 
 func TestMigrationCalculateChecksum(t *testing.T) {
 	migration := Migration{
@@ -134,8 +100,7 @@ func TestValidateTimestamp(t *testing.T) {
 }
 
 func TestMigrationTracker_CreateTrackingTable(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	tracker := NewMigrationTracker(db)
 	ctx := context.Background()
@@ -159,8 +124,7 @@ func TestMigrationTracker_CreateTrackingTable(t *testing.T) {
 }
 
 func TestMigrationTracker_RecordAndGetMigrations(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	tracker := NewMigrationTracker(db)
 	ctx := context.Background()
@@ -210,8 +174,7 @@ func TestMigrationTracker_RecordAndGetMigrations(t *testing.T) {
 }
 
 func TestMigrationTracker_CheckForDirtyDatabase(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	tracker := NewMigrationTracker(db)
 	ctx := context.Background()
@@ -257,8 +220,7 @@ func TestMigrationTracker_CheckForDirtyDatabase(t *testing.T) {
 }
 
 func TestMigrationTracker_VerifyChecksums(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	tracker := NewMigrationTracker(db)
 	ctx := context.Background()
@@ -435,8 +397,7 @@ func TestDependencyResolver_CircularDependency(t *testing.T) {
 }
 
 func TestMigrationLock_AcquireRelease(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	lock := NewMigrationLock(db)
 	ctx := context.Background()
@@ -467,8 +428,7 @@ func TestMigrationLock_AcquireRelease(t *testing.T) {
 }
 
 func TestMigrator_Integration(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	// Create test migration source
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
@@ -549,8 +509,7 @@ func TestMigrator_Integration(t *testing.T) {
 }
 
 func TestMigrator_UpOne(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -632,8 +591,7 @@ func TestMigrator_UpOne(t *testing.T) {
 }
 
 func TestMigrator_UpTo(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -692,8 +650,7 @@ func TestMigrator_UpTo(t *testing.T) {
 }
 
 func TestMigrator_DownTo(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -758,8 +715,7 @@ func TestMigrator_DownTo(t *testing.T) {
 }
 
 func TestMigrator_UpSource(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source1 := NewEmbeddedSource("test1", testMigrations, "testdata", db)
 	source2 := &testMigrationSource{
@@ -816,8 +772,7 @@ func TestMigrator_UpSource(t *testing.T) {
 }
 
 func TestMigrator_DownSource(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source1 := NewEmbeddedSource("test1", testMigrations, "testdata", db)
 	source2 := &testMigrationSource{
@@ -875,8 +830,7 @@ func TestMigrator_DownSource(t *testing.T) {
 }
 
 func TestMigrator_Force(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -936,8 +890,7 @@ func TestMigrator_Force(t *testing.T) {
 }
 
 func TestMigrator_DryRun(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -973,8 +926,7 @@ func TestMigrator_DryRun(t *testing.T) {
 }
 
 func TestMigrator_Transactional(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -1025,8 +977,7 @@ func TestMigrator_Transactional(t *testing.T) {
 }
 
 func TestMigrator_SetSourceDependencies(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source1 := NewEmbeddedSource("app", testMigrations, "testdata", db)
 	source2 := &testMigrationSource{
@@ -1086,8 +1037,7 @@ func TestMigrator_SetSourceDependencies(t *testing.T) {
 }
 
 func TestEmbeddedSource_SetDialect(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	// Create source without database
 	source := NewEmbeddedSource("test", testMigrations, "testdata", nil)
@@ -1214,8 +1164,7 @@ func (s *testMigrationSource) Migrations() ([]Migration, error) {
 }
 
 func TestMigrator_Validate(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -1271,8 +1220,7 @@ func TestMigrationError_Unwrap(t *testing.T) {
 }
 
 func TestMigrator_DryRunMode(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -1309,8 +1257,7 @@ func TestMigrator_DryRunMode(t *testing.T) {
 }
 
 func TestMigrator_TransactionalRollback(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	// Create source with one valid and one invalid migration
 	invalidSource := &testMigrationSource{
@@ -1369,8 +1316,7 @@ func TestMigrator_TransactionalRollback(t *testing.T) {
 }
 
 func TestMigrator_ErrorScenarios(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -1394,9 +1340,8 @@ func TestMigrator_ErrorScenarios(t *testing.T) {
 	}
 
 	// Test Down when no migrations to revert
-	cleanupTestDB(t, db)
-	db = setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	testhelpers.Cleanup(t, db)
+	db = testhelpers.SetupTestDB(t)
 
 	migrator = NewMigrator(db, source)
 	_, err = migrator.Status(ctx)
@@ -1411,8 +1356,8 @@ func TestMigrator_ErrorScenarios(t *testing.T) {
 }
 
 func TestEmbeddedSource_DialectFiltering(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 
@@ -1436,8 +1381,8 @@ func TestEmbeddedSource_DialectFiltering(t *testing.T) {
 }
 
 func TestMigrator_ExecutionTimeout(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	source := &testMigrationSource{
 		name: "test",
@@ -1469,8 +1414,8 @@ func TestMigrator_ExecutionTimeout(t *testing.T) {
 }
 
 func TestMigrator_ContinueOnError(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	source := &testMigrationSource{
 		name: "test",
@@ -1541,8 +1486,8 @@ func TestMigrator_ContinueOnError(t *testing.T) {
 }
 
 func TestMigrator_DownErrors(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	source := &testMigrationSource{
 		name: "test",
@@ -1580,8 +1525,8 @@ func TestMigrator_DownErrors(t *testing.T) {
 }
 
 func TestMigrator_FindMigrationError(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -1605,8 +1550,8 @@ func TestMigrator_FindMigrationError(t *testing.T) {
 }
 
 func TestMigrator_LoadError(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	// Create source that returns error on load
 	errorSource := &errorMigrationSource{
@@ -1657,8 +1602,8 @@ func TestEmbeddedSource_NoDialect(t *testing.T) {
 }
 
 func TestMigrator_UpWithOptionsErrors(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
