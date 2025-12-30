@@ -9,6 +9,7 @@ import (
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 type TestModel struct {
@@ -344,36 +345,23 @@ type Post struct {
 func (Post) TableName() string { return "posts" }
 
 func setupTestDB(t *testing.T) (database.Database, func()) {
-	db, err := database.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("failed to open test db: %v", err)
-	}
-
-	ctx := context.Background()
-
-	_, err = db.Exec(ctx, `
+	schema := `
 		CREATE TABLE users (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL
-		)
-	`)
-	if err != nil {
-		t.Fatalf("failed to create users table: %v", err)
-	}
-
-	_, err = db.Exec(ctx, `
+		);
 		CREATE TABLE posts (
 			id TEXT PRIMARY KEY,
 			user_id TEXT,
 			title TEXT NOT NULL,
 			content TEXT NOT NULL
-		)
-	`)
-	if err != nil {
-		t.Fatalf("failed to create posts table: %v", err)
-	}
+		);
+	`
 
-	_, err = db.Exec(ctx, `INSERT INTO users (id, name) VALUES ('user-1', 'Alice')`)
+	db := testhelpers.SetupSQLiteWithSchema(t, schema)
+	ctx := context.Background()
+
+	_, err := db.Exec(ctx, `INSERT INTO users (id, name) VALUES ('user-1', 'Alice')`)
 	if err != nil {
 		t.Fatalf("failed to insert test user: %v", err)
 	}
@@ -385,7 +373,7 @@ func setupTestDB(t *testing.T) (database.Database, func()) {
 	}
 
 	cleanup := func() {
-		db.Close()
+		testhelpers.Cleanup(t, db)
 	}
 
 	return db, cleanup
