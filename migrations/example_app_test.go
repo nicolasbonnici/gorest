@@ -6,13 +6,14 @@ import (
 
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 // This example demonstrates a complete migration workflow for a blog application
 func TestExampleBlogApplication(t *testing.T) {
 	// Setup database
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	ctx := context.Background()
 
@@ -198,8 +199,8 @@ func TestExampleBlogApplication(t *testing.T) {
 
 // This example shows how to use the migration system with custom logic
 func TestExampleCustomMigration(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(t, db)
+	db := testhelpers.SetupTestDB(t)
+	
 
 	ctx := context.Background()
 

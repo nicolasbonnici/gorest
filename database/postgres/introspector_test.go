@@ -5,15 +5,14 @@ package postgres_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 func TestPostgresIntrospector_LoadSchema(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
 
 	introspector := db.Introspector()
 	ctx := context.Background()
@@ -87,8 +86,7 @@ func TestPostgresIntrospector_LoadSchema(t *testing.T) {
 }
 
 func TestPostgresIntrospector_GetColumns(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
 
 	introspector := db.Introspector()
 	ctx := context.Background()
@@ -134,8 +132,7 @@ func TestPostgresIntrospector_GetColumns(t *testing.T) {
 }
 
 func TestPostgresIntrospector_GetRelations(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
 
 	introspector := db.Introspector()
 	ctx := context.Background()
@@ -170,22 +167,3 @@ func TestPostgresIntrospector_GetRelations(t *testing.T) {
 	}
 }
 
-func setupTestDB(t *testing.T) database.Database {
-	t.Helper()
-
-	dsn := "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
-	db, err := database.Open("postgres", dsn)
-	if err != nil {
-		t.Skipf("PostgreSQL not available: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.Ping(ctx); err != nil {
-		db.Close()
-		t.Skipf("PostgreSQL ping failed: %v", err)
-	}
-
-	return db
-}

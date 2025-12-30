@@ -4,53 +4,27 @@ package mysql
 
 import (
 	"context"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
-
-const defaultMySQLTestURL = "testuser:testpass@tcp(localhost:3307)/mydb_test"
 
 func setupMySQLTest(t *testing.T) database.Database {
 	t.Helper()
 
-	testURL := os.Getenv("MYSQL_TEST_URL")
-	if testURL == "" {
-		testURL = defaultMySQLTestURL
-	}
-
-	db, err := database.Open("mysql", testURL)
-	if err != nil {
-		t.Skipf("MySQL not available: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.Ping(ctx); err != nil {
-		db.Close()
-		t.Skipf("MySQL ping failed: %v", err)
-	}
-
-	cleanupMySQL(t, db)
+	db := testhelpers.SetupMySQL(t)
+	testhelpers.CleanupDB(t, db)
 	return db
 }
 
 func cleanupMySQL(t *testing.T, db database.Database) {
 	t.Helper()
-	ctx := context.Background()
-
-	_, _ = db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 0")
-	_, _ = db.Exec(ctx, "TRUNCATE TABLE todo")
-	_, _ = db.Exec(ctx, "TRUNCATE TABLE users")
-	_, _ = db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 1")
+	testhelpers.CleanupDB(t, db)
 }
 
 func TestMySQL_Connection(t *testing.T) {
 	db := setupMySQLTest(t)
-	defer db.Close()
 
 	if db.DriverName() != "mysql" {
 		t.Errorf("Expected driver name 'mysql', got %q", db.DriverName())
@@ -59,7 +33,6 @@ func TestMySQL_Connection(t *testing.T) {
 
 func TestMySQL_Dialect(t *testing.T) {
 	db := setupMySQLTest(t)
-	defer db.Close()
 
 	dialect := db.Dialect()
 
@@ -78,7 +51,6 @@ func TestMySQL_Dialect(t *testing.T) {
 
 func TestMySQL_Insert(t *testing.T) {
 	db := setupMySQLTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -113,7 +85,6 @@ func TestMySQL_Insert(t *testing.T) {
 
 func TestMySQL_Query(t *testing.T) {
 	db := setupMySQLTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -144,7 +115,6 @@ func TestMySQL_Query(t *testing.T) {
 
 func TestMySQL_QueryRow(t *testing.T) {
 	db := setupMySQLTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -166,7 +136,6 @@ func TestMySQL_QueryRow(t *testing.T) {
 
 func TestMySQL_Update(t *testing.T) {
 	db := setupMySQLTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -223,7 +192,6 @@ func TestMySQL_Update(t *testing.T) {
 
 func TestMySQL_Delete(t *testing.T) {
 	db := setupMySQLTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
@@ -249,7 +217,6 @@ func TestMySQL_Delete(t *testing.T) {
 
 func TestMySQL_SchemaIntrospection(t *testing.T) {
 	db := setupMySQLTest(t)
-	defer db.Close()
 
 	ctx := context.Background()
 
