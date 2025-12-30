@@ -13,7 +13,6 @@ import (
 func TestExampleBlogApplication(t *testing.T) {
 	// Setup database
 	db := testhelpers.SetupTestDB(t)
-	
 
 	ctx := context.Background()
 
@@ -200,7 +199,6 @@ func TestExampleBlogApplication(t *testing.T) {
 // This example shows how to use the migration system with custom logic
 func TestExampleCustomMigration(t *testing.T) {
 	db := testhelpers.SetupTestDB(t)
-	
 
 	ctx := context.Background()
 

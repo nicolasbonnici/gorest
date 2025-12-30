@@ -1357,7 +1357,6 @@ func TestMigrator_ErrorScenarios(t *testing.T) {
 
 func TestEmbeddedSource_DialectFiltering(t *testing.T) {
 	db := testhelpers.SetupTestDB(t)
-	
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 
@@ -1382,7 +1381,6 @@ func TestEmbeddedSource_DialectFiltering(t *testing.T) {
 
 func TestMigrator_ExecutionTimeout(t *testing.T) {
 	db := testhelpers.SetupTestDB(t)
-	
 
 	source := &testMigrationSource{
 		name: "test",
@@ -1415,7 +1413,6 @@ func TestMigrator_ExecutionTimeout(t *testing.T) {
 
 func TestMigrator_ContinueOnError(t *testing.T) {
 	db := testhelpers.SetupTestDB(t)
-	
 
 	source := &testMigrationSource{
 		name: "test",
@@ -1487,7 +1484,6 @@ func TestMigrator_ContinueOnError(t *testing.T) {
 
 func TestMigrator_DownErrors(t *testing.T) {
 	db := testhelpers.SetupTestDB(t)
-	
 
 	source := &testMigrationSource{
 		name: "test",
@@ -1526,7 +1522,6 @@ func TestMigrator_DownErrors(t *testing.T) {
 
 func TestMigrator_FindMigrationError(t *testing.T) {
 	db := testhelpers.SetupTestDB(t)
-	
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
@@ -1551,7 +1546,6 @@ func TestMigrator_FindMigrationError(t *testing.T) {
 
 func TestMigrator_LoadError(t *testing.T) {
 	db := testhelpers.SetupTestDB(t)
-	
 
 	// Create source that returns error on load
 	errorSource := &errorMigrationSource{
@@ -1603,7 +1597,6 @@ func TestEmbeddedSource_NoDialect(t *testing.T) {
 
 func TestMigrator_UpWithOptionsErrors(t *testing.T) {
 	db := testhelpers.SetupTestDB(t)
-	
 
 	source := NewEmbeddedSource("test", testMigrations, "testdata", db)
 	migrator := NewMigrator(db, source)
