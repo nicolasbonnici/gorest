@@ -166,4 +166,3 @@ func TestPostgresIntrospector_GetRelations(t *testing.T) {
 		}
 	}
 }
-
