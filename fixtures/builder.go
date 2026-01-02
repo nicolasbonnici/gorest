@@ -2,9 +2,9 @@ package fixtures
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
+	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 )
 
@@ -53,13 +53,22 @@ func (b *Builder) WithTransaction() *Builder {
 	return b
 }
 
-// Load loads fixtures from Go structs using CRUD operations
-func (b *Builder) Load(name string, fixtures interface{}) *Builder {
+// LoadBuilder is a generic function for loading fixtures from Go structs using CRUD operations.
+// It provides a type-safe way to load fixtures and returns the builder for method chaining.
+//
+// IMPORTANT: For atomic loading (all-or-nothing), use WithTransaction():
+//
+//	LoadBuilder(builder.WithTransaction(), "users", users)
+//	LoadBuilder(builder, "todos", todos)
+//	builder.Commit()
+//
+// Without a transaction, partial failures will leave some fixtures in the database.
+func LoadBuilder[T crud.Model](b *Builder, name string, fixtures []T) *Builder {
 	if b.err != nil {
 		return b
 	}
 
-	err := b.loadTyped(name, fixtures)
+	_, err := Load(b.loader, name, fixtures)
 	if err != nil {
 		b.err = err
 		if b.t != nil {
@@ -67,20 +76,6 @@ func (b *Builder) Load(name string, fixtures interface{}) *Builder {
 		}
 	}
 	return b
-}
-
-// loadTyped handles type-safe loading with reflection
-func (b *Builder) loadTyped(name string, fixtures interface{}) error {
-	switch v := fixtures.(type) {
-	case []User:
-		_, err := Load(b.loader, name, v)
-		return err
-	case []Todo:
-		_, err := Load(b.loader, name, v)
-		return err
-	default:
-		return fmt.Errorf("unsupported fixture type: %T", fixtures)
-	}
 }
 
 func (b *Builder) LoadFromYAML(name string, filePath string, target interface{}) *Builder {
@@ -170,30 +165,15 @@ func (b *Builder) Get(name string) ([]interface{}, bool) {
 	return b.loader.Get(name)
 }
 
-// GetTyped retrieves loaded fixtures by name with type assertion
-func (b *Builder) GetTyped(name string, target interface{}) error {
+// GetTyped retrieves loaded fixtures by name with type assertion.
+// Returns the typed slice of fixtures and an error if the fixtures are not found
+// or cannot be cast to the requested type.
+func GetTypedFromBuilder[T any](b *Builder, name string) ([]T, error) {
 	if b.err != nil {
-		return b.err
+		return nil, b.err
 	}
 
-	switch t := target.(type) {
-	case *[]User:
-		users, err := GetTyped[User](b.loader, name)
-		if err != nil {
-			return err
-		}
-		*t = users
-		return nil
-	case *[]Todo:
-		todos, err := GetTyped[Todo](b.loader, name)
-		if err != nil {
-			return err
-		}
-		*t = todos
-		return nil
-	default:
-		return fmt.Errorf("unsupported target type: %T", target)
-	}
+	return GetTyped[T](b.loader, name)
 }
 
 func (b *Builder) Error() error {
@@ -202,33 +182,4 @@ func (b *Builder) Error() error {
 
 func (b *Builder) Loader() *Loader {
 	return b.loader
-}
-
-// User is a test model for fixtures
-type User struct {
-	ID        string `db:"id"`
-	Firstname string `db:"firstname"`
-	Lastname  string `db:"lastname"`
-	Email     string `db:"email"`
-	Password  string `db:"password"`
-	UpdatedAt string `db:"updated_at"`
-	CreatedAt string `db:"created_at"`
-}
-
-func (u User) TableName() string {
-	return "users"
-}
-
-// Todo is a test model for fixtures
-type Todo struct {
-	ID        string `db:"id"`
-	UserID    string `db:"user_id"`
-	Title     string `db:"title"`
-	Content   string `db:"content"`
-	UpdatedAt string `db:"updated_at"`
-	CreatedAt string `db:"created_at"`
-}
-
-func (t Todo) TableName() string {
-	return "todo"
 }
