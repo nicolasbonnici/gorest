@@ -12,6 +12,35 @@ import (
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 )
 
+// User is a test model for fixtures
+type User struct {
+	ID        string `db:"id"`
+	Firstname string `db:"firstname"`
+	Lastname  string `db:"lastname"`
+	Email     string `db:"email"`
+	Password  string `db:"password"`
+	UpdatedAt string `db:"updated_at"`
+	CreatedAt string `db:"created_at"`
+}
+
+func (u User) TableName() string {
+	return "users"
+}
+
+// Todo is a test model for fixtures
+type Todo struct {
+	ID        string `db:"id"`
+	UserID    string `db:"user_id"`
+	Title     string `db:"title"`
+	Content   string `db:"content"`
+	UpdatedAt string `db:"updated_at"`
+	CreatedAt string `db:"created_at"`
+}
+
+func (t Todo) TableName() string {
+	return "todo"
+}
+
 func setupTestDB(t *testing.T) database.Database {
 	t.Helper()
 
@@ -895,7 +924,7 @@ func TestBuilder_Load(t *testing.T) {
 		{ID: "builder-1", Firstname: "Builder", Lastname: "Test", Email: "builder@test.com"},
 	}
 
-	builder.Load("users", users)
+	LoadBuilder(builder, "users", users)
 
 	if builder.Error() != nil {
 		t.Fatalf("expected no error, got: %v", builder.Error())
@@ -923,10 +952,10 @@ func TestBuilder_Chaining(t *testing.T) {
 		{ID: "chain-todo-1", UserID: "chain-user-1", Title: "Task", Content: "Content"},
 	}
 
-	builder := NewBuilder(db).
-		Load("users", users).
-		Load("todos", todos).
-		EnableCleanup()
+	builder := NewBuilder(db)
+	LoadBuilder(builder, "users", users)
+	LoadBuilder(builder, "todos", todos)
+	builder.EnableCleanup()
 
 	if builder.Error() != nil {
 		t.Fatalf("expected no error, got: %v", builder.Error())
@@ -973,10 +1002,9 @@ func TestBuilder_GetTyped(t *testing.T) {
 		{ID: "typed-1", Firstname: "Typed", Lastname: "User", Email: "typed@test.com"},
 	}
 
-	builder.Load("users", users)
+	LoadBuilder(builder, "users", users)
 
-	var result []User
-	err := builder.GetTyped("users", &result)
+	result, err := GetTypedFromBuilder[User](builder, "users")
 	if err != nil {
 		t.Fatalf("failed to get typed users: %v", err)
 	}
@@ -997,7 +1025,7 @@ func TestBuilder_ErrorPropagation(t *testing.T) {
 	builder := NewBuilder(db)
 	builder.err = fmt.Errorf("simulated error")
 
-	builder.Load("users", []User{})
+	LoadBuilder(builder, "users", []User{})
 
 	if builder.Error() == nil {
 		t.Error("expected error to be propagated")
@@ -1025,7 +1053,7 @@ func TestBuilder_Commit(t *testing.T) {
 		{ID: "commit-1", Firstname: "Commit", Lastname: "User", Email: "commit@test.com"},
 	}
 
-	builder.Load("users", users).Commit()
+	LoadBuilder(builder, "users", users).Commit()
 
 	if builder.Error() != nil {
 		t.Fatalf("expected no error, got: %v", builder.Error())
@@ -1052,7 +1080,7 @@ func TestBuilder_Rollback_Success(t *testing.T) {
 		{ID: "rollback-1", Firstname: "Rollback", Lastname: "User", Email: "rollback@test.com"},
 	}
 
-	builder.Load("users", users).Rollback()
+	LoadBuilder(builder, "users", users).Rollback()
 
 	if builder.Error() != nil {
 		t.Fatalf("expected no error, got: %v", builder.Error())
@@ -1152,8 +1180,7 @@ func TestBuilder_GetTyped_Error(t *testing.T) {
 	builder := NewBuilder(db)
 	builder.err = fmt.Errorf("test error")
 
-	var users []User
-	err := builder.GetTyped("users", &users)
+	_, err := GetTypedFromBuilder[User](builder, "users")
 	if err == nil {
 		t.Error("expected error to be returned")
 	}
@@ -1165,10 +1192,12 @@ func TestBuilder_GetTyped_UnsupportedType(t *testing.T) {
 
 	builder := NewBuilder(db)
 
-	var unsupported []string
-	err := builder.GetTyped("test", &unsupported)
-	if err == nil {
-		t.Error("expected error for unsupported type")
+	// This test is no longer valid with generic API - type mismatches are compile-time errors now
+	// Testing that we can get a valid type successfully
+	LoadBuilder(builder, "users", []User{{ID: "test", Email: "test@example.com", Firstname: "Test", Lastname: "User"}})
+	_, err := GetTypedFromBuilder[User](builder, "users")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
@@ -1178,15 +1207,14 @@ func TestBuilder_Load_UnsupportedType(t *testing.T) {
 
 	builder := NewBuilder(db)
 
-	type UnsupportedType struct {
-		ID string
-	}
+	// This test is no longer valid with generic API - non-crud.Model types won't compile
+	// The type constraint crud.Model prevents this at compile time
+	// Testing valid loading instead
+	users := []User{{ID: "test", Email: "test@example.com", Firstname: "Test", Lastname: "User"}}
+	LoadBuilder(builder, "users", users)
 
-	fixtures := []UnsupportedType{{ID: "test"}}
-	builder.Load("unsupported", fixtures)
-
-	if builder.Error() == nil {
-		t.Error("expected error for unsupported fixture type")
+	if builder.Error() != nil {
+		t.Errorf("unexpected error: %v", builder.Error())
 	}
 }
 
@@ -1259,26 +1287,7 @@ func TestInsertFixture_WithoutID(t *testing.T) {
 	}
 }
 
-func TestJoinStrings_Empty(t *testing.T) {
-	result := joinStrings([]string{}, ", ")
-	if result != "" {
-		t.Errorf("expected empty string, got %s", result)
-	}
-}
-
-func TestJoinStrings_Single(t *testing.T) {
-	result := joinStrings([]string{"a"}, ", ")
-	if result != "a" {
-		t.Errorf("expected 'a', got %s", result)
-	}
-}
-
-func TestJoinStrings_Multiple(t *testing.T) {
-	result := joinStrings([]string{"a", "b", "c"}, ", ")
-	if result != "a, b, c" {
-		t.Errorf("expected 'a, b, c', got %s", result)
-	}
-}
+// joinStrings tests removed - now using strings.Join from standard library
 
 func BenchmarkLoad(b *testing.B) {
 	db, err := database.Open("sqlite", ":memory:")
@@ -1325,7 +1334,7 @@ func TestBuilder_Cleanup(t *testing.T) {
 			{ID: "cleanup-builder-1", Firstname: "Cleanup", Lastname: "Test", Email: "cleanup@test.com"},
 		}
 
-		builder.Load("users", users).Cleanup()
+		LoadBuilder(builder, "users", users).Cleanup()
 
 		if !builder.loader.ShouldCleanup() {
 			tt.Error("expected cleanup to be enabled")
@@ -1442,7 +1451,7 @@ func TestBuilder_Load_ErrorPropagation(t *testing.T) {
 	builder.err = fmt.Errorf("existing error")
 
 	users := []User{{ID: "test", Firstname: "Test", Lastname: "User", Email: "test@test.com"}}
-	builder.Load("users", users)
+	LoadBuilder(builder, "users", users)
 
 	if builder.Error().Error() != "existing error" {
 		t.Error("expected existing error to be preserved")
@@ -1710,8 +1719,7 @@ func TestBuilder_GetTyped_Todos(t *testing.T) {
 		t.Fatalf("failed to load todos: %v", err)
 	}
 
-	var result []Todo
-	err = builder.GetTyped("todos", &result)
+	result, err := GetTypedFromBuilder[Todo](builder, "todos")
 	if err != nil {
 		t.Fatalf("failed to get typed todos: %v", err)
 	}
@@ -1730,12 +1738,12 @@ func TestBuilder_LoadTyped_Todos(t *testing.T) {
 	users := []User{
 		{ID: "load-typed-user-1", Firstname: "LoadTyped", Lastname: "User", Email: "loadtypeduser@test.com"},
 	}
-	builder.Load("users", users)
+	LoadBuilder(builder, "users", users)
 
 	todos := []Todo{
 		{ID: "load-typed-todo-1", UserID: "load-typed-user-1", Title: "LoadTyped", Content: "Todo"},
 	}
-	builder.Load("todos", todos)
+	LoadBuilder(builder, "todos", todos)
 
 	if builder.Error() != nil {
 		t.Fatalf("expected no error, got: %v", builder.Error())
