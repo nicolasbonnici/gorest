@@ -3,6 +3,7 @@ package fixtures
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/nicolasbonnici/gorest/crud"
 )
@@ -49,13 +50,16 @@ func cleanupWithRollback(loader *Loader) error {
 		return fmt.Errorf("failed to rollback transaction: %w", err)
 	}
 
+	loader.mu.Lock()
 	loader.loaded = make(map[string][]interface{})
+	loader.mu.Unlock()
 	return nil
 }
 
 func cleanupWithTruncate(loader *Loader) error {
 	tables := make(map[string]bool)
 
+	loader.mu.RLock()
 	for _, fixtures := range loader.loaded {
 		if len(fixtures) == 0 {
 			continue
@@ -66,14 +70,17 @@ func cleanupWithTruncate(loader *Loader) error {
 			tables[tableName] = true
 		}
 	}
+	loader.mu.RUnlock()
 
+	dialect := loader.db.Dialect()
 	for table := range tables {
 		var query string
-		switch loader.db.Dialect().QuoteIdentifier("test") {
+		quotedTable := dialect.QuoteIdentifier(table)
+		switch dialect.QuoteIdentifier("test") {
 		case `"test"`:
-			query = fmt.Sprintf("DELETE FROM %s", table)
+			query = fmt.Sprintf("DELETE FROM %s", quotedTable)
 		default:
-			query = fmt.Sprintf("TRUNCATE TABLE %s", table)
+			query = fmt.Sprintf("TRUNCATE TABLE %s", quotedTable)
 		}
 
 		var err error
@@ -88,7 +95,9 @@ func cleanupWithTruncate(loader *Loader) error {
 		}
 	}
 
+	loader.mu.Lock()
 	loader.loaded = make(map[string][]interface{})
+	loader.mu.Unlock()
 	return nil
 }
 
@@ -107,7 +116,9 @@ func cleanupWithDelete(loader *Loader) error {
 		}
 	}
 
+	loader.mu.Lock()
 	loader.loaded = make(map[string][]interface{})
+	loader.mu.Unlock()
 	return nil
 }
 
@@ -133,15 +144,17 @@ func deleteFixtures(loader *Loader, fixtures []interface{}) error {
 		return nil
 	}
 
+	dialect := loader.db.Dialect()
 	placeholders := make([]string, len(ids))
 	for i := range ids {
-		placeholders[i] = "?"
+		placeholders[i] = dialect.Placeholder(i + 1)
 	}
 
 	query := fmt.Sprintf(
-		"DELETE FROM %s WHERE id IN (%s)",
-		tableName,
-		joinStrings(placeholders, ", "),
+		"DELETE FROM %s WHERE %s IN (%s)",
+		dialect.QuoteIdentifier(tableName),
+		dialect.QuoteIdentifier("id"),
+		strings.Join(placeholders, ", "),
 	)
 
 	var err error
@@ -225,6 +238,8 @@ func CleanupOrdered(loader *Loader, order []string) error {
 		}
 	}
 
+	loader.mu.Lock()
 	loader.loaded = make(map[string][]interface{})
+	loader.mu.Unlock()
 	return nil
 }

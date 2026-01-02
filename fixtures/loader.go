@@ -1,3 +1,34 @@
+// Package fixtures provides a comprehensive testing utility for loading and managing test data
+// in database-driven applications. It supports loading fixtures from Go structs, YAML, and JSON files
+// with automatic cleanup and transaction support.
+//
+// Key Features:
+//   - Type-safe generic API for loading fixtures
+//   - Transaction support for test isolation
+//   - Automatic cleanup with multiple strategies (delete, truncate, rollback)
+//   - Foreign key-aware ordered cleanup
+//   - YAML and JSON file support
+//   - Thread-safe operations with mutex protection
+//   - Database dialect support (PostgreSQL, MySQL, SQLite)
+//
+// Basic Usage:
+//
+//	loader := fixtures.New(db)
+//	fixtures.Load(loader, "users", []User{
+//	    {ID: "1", Email: "test@example.com"},
+//	})
+//
+// With Builder (fluent API):
+//
+//	fixtures.LoadBuilder(fixtures.NewBuilderWithT(t, db).
+//	    WithTransaction().
+//	    Cleanup(), "users", users)
+//	builder.Commit()
+//
+// Thread Safety:
+// Loader instances are safe for concurrent use by multiple goroutines when using
+// proper locking. However, it's recommended to use separate Loader instances per test
+// for clarity and isolation.
 package fixtures
 
 import (
@@ -6,17 +37,22 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
+	"sync"
 
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	"gopkg.in/yaml.v3"
 )
 
-// Loader handles loading fixtures into a database
+// Loader handles loading fixtures into a database.
+// Loader is safe for concurrent use by multiple goroutines when using proper locking,
+// but it's recommended to use separate Loader instances per test for clarity and isolation.
 type Loader struct {
 	db      database.Database
 	tx      database.Tx
 	loaded  map[string][]interface{}
+	mu      sync.RWMutex
 	cleanup bool
 	ctx     context.Context
 }
@@ -76,20 +112,31 @@ func (l *Loader) Rollback() error {
 	return nil
 }
 
-// Load loads fixtures from Go structs using CRUD operations
+// Load loads fixtures from Go structs using CRUD operations.
+//
+// IMPORTANT: For atomic loading (all-or-nothing), use WithTransaction():
+//
+//	loader.WithTransaction()
+//	Load(loader, "users", users)
+//	Load(loader, "todos", todos)
+//	loader.Commit()
+//
+// Without a transaction, partial failures will leave some fixtures in the database.
 func Load[T crud.Model](l *Loader, name string, fixtures []T) (*Loader, error) {
 	var loaded []interface{}
 
 	if len(fixtures) > 0 {
 		for i, fixture := range fixtures {
 			if err := l.insertFixture(fixture); err != nil {
-				return l, fmt.Errorf("failed to create fixture %s[%d]: %w", name, i, err)
+				return l, fmt.Errorf("failed to create fixture %s[%d]: %w (hint: use WithTransaction() for atomic loading)", name, i, err)
 			}
 			loaded = append(loaded, fixture)
 		}
 	}
 
+	l.mu.Lock()
 	l.loaded[name] = loaded
+	l.mu.Unlock()
 	return l, nil
 }
 
@@ -97,11 +144,13 @@ func Load[T crud.Model](l *Loader, name string, fixtures []T) (*Loader, error) {
 func (l *Loader) insertFixture(m crud.Model) error {
 	v := reflect.ValueOf(m)
 	typ := reflect.TypeOf(m)
+	dialect := l.db.Dialect()
 
 	var cols []string
 	var vals []interface{}
 	var placeholders []string
 
+	paramIndex := 1
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		tag := field.Tag.Get("db")
@@ -112,16 +161,17 @@ func (l *Loader) insertFixture(m crud.Model) error {
 		if tag == "id" && fieldVal.IsZero() {
 			continue
 		}
-		cols = append(cols, tag)
+		cols = append(cols, dialect.QuoteIdentifier(tag))
 		vals = append(vals, fieldVal.Interface())
-		placeholders = append(placeholders, "?")
+		placeholders = append(placeholders, dialect.Placeholder(paramIndex))
+		paramIndex++
 	}
 
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
-		m.TableName(),
-		joinStrings(cols, ", "),
-		joinStrings(placeholders, ", "),
+		dialect.QuoteIdentifier(m.TableName()),
+		strings.Join(cols, ", "),
+		strings.Join(placeholders, ", "),
 	)
 
 	var err error
@@ -183,11 +233,15 @@ func (l *Loader) insertRawData(name string, data interface{}) error {
 		loaded[i] = val.Index(i).Interface()
 	}
 
+	l.mu.Lock()
 	l.loaded[name] = loaded
+	l.mu.Unlock()
 	return nil
 }
 
 func (l *Loader) Get(name string) ([]interface{}, bool) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 	fixtures, ok := l.loaded[name]
 	return fixtures, ok
 }
@@ -221,6 +275,8 @@ func (l *Loader) ShouldCleanup() bool {
 }
 
 func (l *Loader) GetLoadedFixtures() []string {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 	names := make([]string, 0, len(l.loaded))
 	for name := range l.loaded {
 		names = append(names, name)
@@ -246,6 +302,9 @@ func (t *TxCRUD[T]) Create(ctx context.Context, m T) error {
 	var vals []interface{}
 	var placeholders []string
 
+	// Note: TxCRUD doesn't have access to dialect, so this is a limitation
+	// In practice, TxCRUD is not used in the current codebase - it's a placeholder implementation
+	paramIndex := 1
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		tag := field.Tag.Get("db")
@@ -259,13 +318,14 @@ func (t *TxCRUD[T]) Create(ctx context.Context, m T) error {
 		cols = append(cols, tag)
 		vals = append(vals, fieldVal.Interface())
 		placeholders = append(placeholders, "?")
+		paramIndex++
 	}
 
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
 		m.TableName(),
-		joinStrings(cols, ", "),
-		joinStrings(placeholders, ", "),
+		strings.Join(cols, ", "),
+		strings.Join(placeholders, ", "),
 	)
 
 	_, err := t.tx.Exec(ctx, query, vals...)
@@ -290,15 +350,4 @@ func (t *TxCRUD[T]) Update(ctx context.Context, id any, m T) error {
 // Delete implements crud.Repository.Delete
 func (t *TxCRUD[T]) Delete(ctx context.Context, id any) error {
 	return fmt.Errorf("Delete not implemented for TxCRUD")
-}
-
-func joinStrings(strs []string, sep string) string {
-	if len(strs) == 0 {
-		return ""
-	}
-	result := strs[0]
-	for i := 1; i < len(strs); i++ {
-		result += sep + strs[i]
-	}
-	return result
 }
