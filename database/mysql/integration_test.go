@@ -5,6 +5,7 @@ package mysql
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/internal/testhelpers"
