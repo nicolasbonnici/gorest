@@ -1,6 +1,6 @@
 # GoREST
 
-[![CI](https://github.com/nicolasbonnici/gorest/actions/workflows/ci.yml/badge.svg)](https://github.com/nicolasbonnici/gorest/actions/)
+[![Test](https://github.com/nicolasbonnici/gorest/actions/workflows/test.yml/badge.svg?branch=trunk)](https://github.com/nicolasbonnici/gorest/actions/workflows/test.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nicolasbonnici/gorest)](https://goreportcard.com/report/github.com/nicolasbonnici/gorest)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -23,7 +23,7 @@
 - 🔗 IRI relations with optional expansion (`expand[]=relation`)
 - 🔍 Advanced filtering & ordering 
 - 📄 Page based pagination with Hydra collections
-- 👨🏻‍💻 DAL for PostgreSQL, MySQL and SQLite engines
+- 👨🏻‍💻 DAL, migration and fixture with PostgreSQL, MySQL and SQLite engines support
 - 🛡️ Production grade errors and processes management
 - 🐳 Docker support with multi-database testing
 - 🧪 Full test coverage with automated testing
@@ -765,6 +765,22 @@ See [migrations/README.md](migrations/README.md) for complete documentation incl
 - Best practices and troubleshooting
 
 ---
+
+## Fixtures
+
+A comprehensive fixture management system for GoREST that eliminates duplicate test setup code and provides centralized test data management.
+
+## Features
+
+- **Programmatic Fixtures**: Load fixtures from Go structs with type safety
+- **File-based Fixtures**: Load fixtures from YAML/JSON files for large datasets
+- **Fluent API**: Chainable methods for cleaner test code
+- **Auto-cleanup**: Automatic cleanup after tests with defer pattern
+- **Transaction Support**: Test isolation using database transactions
+- **Multi-database Support**: Works with PostgreSQL, MySQL, and SQLite
+- **Dependency Ordering**: Handle foreign key constraints with ordered cleanup
+
+See the [fixtures README](fixtures/README.md) for complete documentation.
 
 ## 🌐 JSON-LD Support
 
