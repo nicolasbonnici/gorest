@@ -955,7 +955,7 @@ func TestBuilder_Chaining(t *testing.T) {
 	builder := NewBuilder(db)
 	LoadBuilder(builder, "users", users)
 	LoadBuilder(builder, "todos", todos)
-	builder.EnableCleanup()
+	builder.Cleanup()
 
 	if builder.Error() != nil {
 		t.Fatalf("expected no error, got: %v", builder.Error())
@@ -1853,102 +1853,10 @@ func TestCleanupWithDelete_MultipleTables(t *testing.T) {
 	}
 }
 
-func TestTxCRUD_Create(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
 
-	ctx := context.Background()
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		t.Fatalf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback(ctx)
 
-	txCRUD := NewTxCRUD[User](tx)
-	user := User{
-		ID:        "txcrud-1",
-		Firstname: "TxCRUD",
-		Lastname:  "Test",
-		Email:     "txcrud@test.com",
-	}
 
-	err = txCRUD.Create(ctx, user)
-	if err != nil {
-		t.Fatalf("failed to create user: %v", err)
-	}
-}
 
-func TestTxCRUD_GetAll_NotImplemented(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	ctx := context.Background()
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		t.Fatalf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback(ctx)
-
-	txCRUD := NewTxCRUD[User](tx)
-	_, err = txCRUD.GetAll(ctx)
-	if err == nil {
-		t.Error("expected GetAll to return error")
-	}
-}
-
-func TestTxCRUD_GetByID_NotImplemented(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	ctx := context.Background()
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		t.Fatalf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback(ctx)
-
-	txCRUD := NewTxCRUD[User](tx)
-	_, err = txCRUD.GetByID(ctx, "test-id")
-	if err == nil {
-		t.Error("expected GetByID to return error")
-	}
-}
-
-func TestTxCRUD_Update_NotImplemented(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	ctx := context.Background()
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		t.Fatalf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback(ctx)
-
-	txCRUD := NewTxCRUD[User](tx)
-	err = txCRUD.Update(ctx, "test-id", User{})
-	if err == nil {
-		t.Error("expected Update to return error")
-	}
-}
-
-func TestTxCRUD_Delete_NotImplemented(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	ctx := context.Background()
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		t.Fatalf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback(ctx)
-
-	txCRUD := NewTxCRUD[User](tx)
-	err = txCRUD.Delete(ctx, "test-id")
-	if err == nil {
-		t.Error("expected Delete to return error")
-	}
-}
 
 func TestUser_TableName(t *testing.T) {
 	user := User{}

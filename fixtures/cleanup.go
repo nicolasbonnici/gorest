@@ -12,14 +12,11 @@ type CleanupStrategy int
 
 const (
 	CleanupDelete CleanupStrategy = iota
-	// CleanupTruncate truncates all tables (faster but requires permissions)
 	CleanupTruncate
-	// CleanupRollback rolls back the transaction (only works with transactions)
 	CleanupRollback
 )
 
-// Cleanup removes all loaded fixtures from the database.
-// This should be called in a defer or t.Cleanup() to ensure fixtures are removed after tests.
+// Cleanup removes all loaded fixtures if cleanup is enabled.
 func Cleanup(loader *Loader) error {
 	return CleanupWithStrategy(loader, CleanupDelete)
 }
@@ -37,17 +34,17 @@ func CleanupWithStrategy(loader *Loader, strategy CleanupStrategy) error {
 	case CleanupDelete:
 		return cleanupWithDelete(loader)
 	default:
-		return fmt.Errorf("unknown cleanup strategy: %d", strategy)
+		return fmt.Errorf("unknown cleanup strategy: %d (use CleanupDelete, CleanupTruncate, or CleanupRollback)", strategy)
 	}
 }
 
 func cleanupWithRollback(loader *Loader) error {
 	if loader.tx == nil {
-		return fmt.Errorf("rollback strategy requires a transaction")
+		return fmt.Errorf("rollback strategy requires a transaction (call WithTransaction() before loading fixtures)")
 	}
 
 	if err := loader.Rollback(); err != nil {
-		return fmt.Errorf("failed to rollback transaction: %w", err)
+		return fmt.Errorf("rollback cleanup failed: %w", err)
 	}
 
 	loader.mu.Lock()
@@ -73,13 +70,14 @@ func cleanupWithTruncate(loader *Loader) error {
 	loader.mu.RUnlock()
 
 	dialect := loader.db.Dialect()
+	driverName := loader.db.DriverName()
+
 	for table := range tables {
 		var query string
 		quotedTable := dialect.QuoteIdentifier(table)
-		switch dialect.QuoteIdentifier("test") {
-		case `"test"`:
+		if driverName == "sqlite" {
 			query = fmt.Sprintf("DELETE FROM %s", quotedTable)
-		default:
+		} else {
 			query = fmt.Sprintf("TRUNCATE TABLE %s", quotedTable)
 		}
 
@@ -91,7 +89,7 @@ func cleanupWithTruncate(loader *Loader) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("failed to truncate table %s: %w", table, err)
+			return fmt.Errorf("failed to truncate table %s: %w (check foreign key constraints and table permissions)", table, err)
 		}
 	}
 
@@ -104,15 +102,14 @@ func cleanupWithTruncate(loader *Loader) error {
 func cleanupWithDelete(loader *Loader) error {
 	names := loader.GetLoadedFixtures()
 
-	for i := len(names) - 1; i >= 0; i-- {
-		name := names[i]
+	for _, name := range names {
 		fixtures, ok := loader.Get(name)
 		if !ok || len(fixtures) == 0 {
 			continue
 		}
 
 		if err := deleteFixtures(loader, fixtures); err != nil {
-			return fmt.Errorf("failed to delete fixtures %s: %w", name, err)
+			return fmt.Errorf("failed to delete fixtures %s: %w (use CleanupOrdered() for foreign key constraints)", name, err)
 		}
 	}
 
@@ -129,7 +126,7 @@ func deleteFixtures(loader *Loader, fixtures []interface{}) error {
 
 	tableName := getTableName(fixtures[0])
 	if tableName == "" {
-		return fmt.Errorf("unable to determine table name for fixture type %T", fixtures[0])
+		return fmt.Errorf("unable to determine table name for fixture type %T (model must implement TableName())", fixtures[0])
 	}
 
 	ids := make([]interface{}, 0, len(fixtures))
@@ -165,7 +162,7 @@ func deleteFixtures(loader *Loader, fixtures []interface{}) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to delete from %s: %w", tableName, err)
+		return fmt.Errorf("failed to delete from %s: %w (check foreign key constraints)", tableName, err)
 	}
 
 	return nil
@@ -219,8 +216,7 @@ func getIDValue(model interface{}) interface{} {
 	return nil
 }
 
-// CleanupOrdered performs cleanup in a specific order to respect foreign key constraints.
-// The order should be from child tables to parent tables (reverse dependency order).
+// CleanupOrdered cleans up fixtures in specified order (child to parent tables for foreign keys).
 func CleanupOrdered(loader *Loader, order []string) error {
 	if !loader.ShouldCleanup() {
 		return nil
@@ -234,7 +230,7 @@ func CleanupOrdered(loader *Loader, order []string) error {
 		}
 
 		if err := deleteFixtures(loader, fixtures); err != nil {
-			return fmt.Errorf("failed to delete fixtures %s: %w", name, err)
+			return fmt.Errorf("failed to delete fixtures %s: %w (delete child tables before parent tables)", name, err)
 		}
 	}
 
