@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 )
 
@@ -58,7 +59,7 @@ func TestErrors_ConnectionRefused(t *testing.T) {
 }
 
 func TestErrors_InvalidSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
@@ -70,7 +71,7 @@ func TestErrors_InvalidSQL(t *testing.T) {
 }
 
 func TestErrors_TableNotFound(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
@@ -82,11 +83,11 @@ func TestErrors_TableNotFound(t *testing.T) {
 }
 
 func TestErrors_UniqueConstraintViolation(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	query := "INSERT INTO users (firstname, lastname, email) VALUES (" +
 		db.Dialect().Placeholder(1) + ", " +
@@ -105,7 +106,7 @@ func TestErrors_UniqueConstraintViolation(t *testing.T) {
 }
 
 func TestErrors_ForeignKeyViolation(t *testing.T) {
-	db := setupSQLiteTestDB(t)
+	db := testhelpers.SetupSQLite(t)
 	defer db.Close()
 
 	ctx := context.Background()
@@ -123,11 +124,11 @@ func TestErrors_ForeignKeyViolation(t *testing.T) {
 }
 
 func TestErrors_NullConstraintViolation(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	_, err := db.Exec(ctx, "INSERT INTO users (email) VALUES ($1)", "null-test@example.com")
 	if err == nil {
@@ -136,11 +137,11 @@ func TestErrors_NullConstraintViolation(t *testing.T) {
 }
 
 func TestErrors_TypeMismatch(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	query := "INSERT INTO users (firstname, lastname, email) VALUES ($1, $2, $3)"
 	_, err := db.Exec(ctx, query, "Test", "User", "test@example.com")
@@ -157,11 +158,11 @@ func TestErrors_TypeMismatch(t *testing.T) {
 }
 
 func TestErrors_TooManyColumns(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	query := "INSERT INTO users (firstname, lastname, email) VALUES ($1, $2, $3)"
 	_, err := db.Exec(ctx, query, "Test", "User", "test@example.com")
@@ -178,7 +179,7 @@ func TestErrors_TooManyColumns(t *testing.T) {
 }
 
 func TestErrors_ClosedConnection(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 
 	db.Close()
 
@@ -190,7 +191,7 @@ func TestErrors_ClosedConnection(t *testing.T) {
 }
 
 func TestErrors_ContextCanceled(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -207,7 +208,7 @@ func TestErrors_ContextCanceled(t *testing.T) {
 }
 
 func TestErrors_InvalidPlaceholderCount(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
@@ -219,11 +220,11 @@ func TestErrors_InvalidPlaceholderCount(t *testing.T) {
 }
 
 func TestErrors_QueryRowNoRows(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	var email string
 	row := db.QueryRow(ctx, "SELECT email FROM users WHERE email = $1", "nonexistent@example.com")
@@ -234,7 +235,7 @@ func TestErrors_QueryRowNoRows(t *testing.T) {
 }
 
 func TestErrors_TransactionAfterCommit(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
@@ -255,7 +256,7 @@ func TestErrors_TransactionAfterCommit(t *testing.T) {
 }
 
 func TestErrors_DoubleCommit(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()
@@ -276,7 +277,7 @@ func TestErrors_DoubleCommit(t *testing.T) {
 }
 
 func TestErrors_RollbackAfterCommit(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
+	db := testhelpers.SetupPostgres(t)
 	defer db.Close()
 
 	ctx := context.Background()

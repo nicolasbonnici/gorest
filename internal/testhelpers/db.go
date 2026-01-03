@@ -289,12 +289,18 @@ func CleanupDB(t *testing.T, db database.Database) {
 
 	switch db.DriverName() {
 	case "postgres":
-		_, _ = db.Exec(ctx, "TRUNCATE users, todo CASCADE")
+		if _, err := db.Exec(ctx, "TRUNCATE todo, users CASCADE"); err != nil {
+			t.Logf("Warning: failed to truncate tables: %v", err)
+		}
 	case "mysql":
-		_, _ = db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec(ctx, "TRUNCATE users")
+		if _, err := db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 0"); err != nil {
+			t.Logf("Warning: failed to disable FK checks: %v", err)
+		}
 		_, _ = db.Exec(ctx, "TRUNCATE todo")
-		_, _ = db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 1")
+		_, _ = db.Exec(ctx, "TRUNCATE users")
+		if _, err := db.Exec(ctx, "SET FOREIGN_KEY_CHECKS = 1"); err != nil {
+			t.Logf("Warning: failed to enable FK checks: %v", err)
+		}
 	case "sqlite":
 		_, _ = db.Exec(ctx, "DELETE FROM todo")
 		_, _ = db.Exec(ctx, "DELETE FROM users")
