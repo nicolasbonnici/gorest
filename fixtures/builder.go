@@ -47,22 +47,14 @@ func (b *Builder) WithTransaction() *Builder {
 	if err != nil {
 		b.err = err
 		if b.t != nil {
-			b.t.Fatalf("failed to start transaction: %v", err)
+			b.t.Fatalf("transaction start failed: %v (check database connection)", err)
 		}
 	}
 	return b
 }
 
-// LoadBuilder is a generic function for loading fixtures from Go structs using CRUD operations.
-// It provides a type-safe way to load fixtures and returns the builder for method chaining.
-//
-// IMPORTANT: For atomic loading (all-or-nothing), use WithTransaction():
-//
-//	LoadBuilder(builder.WithTransaction(), "users", users)
-//	LoadBuilder(builder, "todos", todos)
-//	builder.Commit()
-//
-// Without a transaction, partial failures will leave some fixtures in the database.
+// LoadBuilder loads fixtures from Go structs using the builder pattern.
+// Use WithTransaction() for atomic all-or-nothing loading.
 func LoadBuilder[T crud.Model](b *Builder, name string, fixtures []T) *Builder {
 	if b.err != nil {
 		return b
@@ -72,7 +64,7 @@ func LoadBuilder[T crud.Model](b *Builder, name string, fixtures []T) *Builder {
 	if err != nil {
 		b.err = err
 		if b.t != nil {
-			b.t.Fatalf("failed to load fixtures %s: %v", name, err)
+			b.t.Fatalf("fixture load failed for %s: %v (check table exists and model implements TableName())", name, err)
 		}
 	}
 	return b
@@ -87,7 +79,7 @@ func (b *Builder) LoadFromYAML(name string, filePath string, target interface{})
 	if err != nil {
 		b.err = err
 		if b.t != nil {
-			b.t.Fatalf("failed to load fixtures from YAML %s: %v", filePath, err)
+			b.t.Fatalf("YAML fixture load failed for %s: %v", filePath, err)
 		}
 	}
 	return b
@@ -102,7 +94,7 @@ func (b *Builder) LoadFromJSON(name string, filePath string, target interface{})
 	if err != nil {
 		b.err = err
 		if b.t != nil {
-			b.t.Fatalf("failed to load fixtures from JSON %s: %v", filePath, err)
+			b.t.Fatalf("JSON fixture load failed for %s: %v", filePath, err)
 		}
 	}
 	return b
@@ -117,7 +109,7 @@ func (b *Builder) Commit() *Builder {
 	if err != nil {
 		b.err = err
 		if b.t != nil {
-			b.t.Fatalf("failed to commit transaction: %v", err)
+			b.t.Fatalf("transaction commit failed: %v (did you call WithTransaction()?)", err)
 		}
 	}
 	return b
@@ -132,7 +124,7 @@ func (b *Builder) Rollback() *Builder {
 	if err != nil {
 		b.err = err
 		if b.t != nil {
-			b.t.Fatalf("failed to rollback transaction: %v", err)
+			b.t.Fatalf("transaction rollback failed: %v (did you call WithTransaction()?)", err)
 		}
 	}
 	return b
@@ -148,7 +140,7 @@ func (b *Builder) Cleanup() *Builder {
 	if b.t != nil {
 		b.t.Cleanup(func() {
 			if err := Cleanup(b.loader); err != nil {
-				b.t.Errorf("failed to cleanup fixtures: %v", err)
+				b.t.Errorf("fixture cleanup failed: %v (check database state and foreign key constraints)", err)
 			}
 		})
 	}
@@ -156,18 +148,11 @@ func (b *Builder) Cleanup() *Builder {
 	return b
 }
 
-// EnableCleanup enables automatic cleanup of loaded fixtures (alias for Cleanup)
-func (b *Builder) EnableCleanup() *Builder {
-	return b.Cleanup()
-}
 
 func (b *Builder) Get(name string) ([]interface{}, bool) {
 	return b.loader.Get(name)
 }
 
-// GetTyped retrieves loaded fixtures by name with type assertion.
-// Returns the typed slice of fixtures and an error if the fixtures are not found
-// or cannot be cast to the requested type.
 func GetTypedFromBuilder[T any](b *Builder, name string) ([]T, error) {
 	if b.err != nil {
 		return nil, b.err
