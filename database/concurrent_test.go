@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/nicolasbonnici/gorest/database"
-	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 func setupSQLiteWithSchema(t *testing.T) database.Database {
@@ -104,20 +104,20 @@ func testConcurrentParallelReads(t *testing.T, db database.Database) {
 
 func TestConcurrent_ParallelInsertsPostgreSQL(t *testing.T) {
 	db := testhelpers.SetupPostgres(t)
-	
+
 	testConcurrentParallelInserts(t, db)
 }
 
 func TestConcurrent_ParallelInsertsMySQL(t *testing.T) {
 	db := testhelpers.SetupMySQL(t)
-	
+
 	testConcurrentParallelInserts(t, db)
 }
 
 func TestConcurrent_ParallelInsertsSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
 	db := setupSQLiteWithSchema(t)
-	
+
 	testConcurrentParallelInserts(t, db)
 }
 
@@ -174,20 +174,20 @@ func testConcurrentParallelInserts(t *testing.T, db database.Database) {
 
 func TestConcurrent_ParallelUpdatesPostgreSQL(t *testing.T) {
 	db := testhelpers.SetupPostgres(t)
-	
+
 	testConcurrentParallelUpdates(t, db)
 }
 
 func TestConcurrent_ParallelUpdatesMySQL(t *testing.T) {
 	db := testhelpers.SetupMySQL(t)
-	
+
 	testConcurrentParallelUpdates(t, db)
 }
 
 func TestConcurrent_ParallelUpdatesSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
 	db := setupSQLiteWithSchema(t)
-	
+
 	testConcurrentParallelUpdates(t, db)
 }
 
@@ -261,20 +261,20 @@ func testConcurrentParallelUpdates(t *testing.T, db database.Database) {
 
 func TestConcurrent_MixedOperationsPostgreSQL(t *testing.T) {
 	db := testhelpers.SetupPostgres(t)
-	
+
 	testConcurrentMixedOperations(t, db)
 }
 
 func TestConcurrent_MixedOperationsMySQL(t *testing.T) {
 	db := testhelpers.SetupMySQL(t)
-	
+
 	testConcurrentMixedOperations(t, db)
 }
 
 func TestConcurrent_MixedOperationsSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
 	db := setupSQLiteWithSchema(t)
-	
+
 	testConcurrentMixedOperations(t, db)
 }
 
@@ -332,20 +332,20 @@ func testConcurrentMixedOperations(t *testing.T, db database.Database) {
 
 func TestConcurrent_TransactionsPostgreSQL(t *testing.T) {
 	db := testhelpers.SetupPostgres(t)
-	
+
 	testConcurrentTransactions(t, db)
 }
 
 func TestConcurrent_TransactionsMySQL(t *testing.T) {
 	db := testhelpers.SetupMySQL(t)
-	
+
 	testConcurrentTransactions(t, db)
 }
 
 func TestConcurrent_TransactionsSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
 	db := setupSQLiteWithSchema(t)
-	
+
 	testConcurrentTransactions(t, db)
 }
 
@@ -415,20 +415,20 @@ func testConcurrentTransactions(t *testing.T, db database.Database) {
 
 func TestConcurrent_ReadWriteConflictPostgreSQL(t *testing.T) {
 	db := testhelpers.SetupPostgres(t)
-	
+
 	testConcurrentReadWriteConflict(t, db)
 }
 
 func TestConcurrent_ReadWriteConflictMySQL(t *testing.T) {
 	db := testhelpers.SetupMySQL(t)
-	
+
 	testConcurrentReadWriteConflict(t, db)
 }
 
 func TestConcurrent_ReadWriteConflictSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
 	db := setupSQLiteWithSchema(t)
-	
+
 	testConcurrentReadWriteConflict(t, db)
 }
 
@@ -493,7 +493,7 @@ func TestConcurrent_StressTestPostgreSQL(t *testing.T) {
 	}
 
 	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable&pool_max_conns=10")
-	
+
 	testConcurrentStressTest(t, db)
 }
 
@@ -503,7 +503,7 @@ func TestConcurrent_StressTestMySQL(t *testing.T) {
 	}
 
 	db := testhelpers.SetupMySQL(t)
-	
+
 	testConcurrentStressTest(t, db)
 }
 
@@ -514,7 +514,7 @@ func TestConcurrent_StressTestSQLite(t *testing.T) {
 	}
 
 	db := setupSQLiteWithSchema(t)
-	
+
 	testConcurrentStressTest(t, db)
 }
 
