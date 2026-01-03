@@ -1,34 +1,5 @@
-// Package fixtures provides a comprehensive testing utility for loading and managing test data
-// in database-driven applications. It supports loading fixtures from Go structs, YAML, and JSON files
-// with automatic cleanup and transaction support.
-//
-// Key Features:
-//   - Type-safe generic API for loading fixtures
-//   - Transaction support for test isolation
-//   - Automatic cleanup with multiple strategies (delete, truncate, rollback)
-//   - Foreign key-aware ordered cleanup
-//   - YAML and JSON file support
-//   - Thread-safe operations with mutex protection
-//   - Database dialect support (PostgreSQL, MySQL, SQLite)
-//
-// Basic Usage:
-//
-//	loader := fixtures.New(db)
-//	fixtures.Load(loader, "users", []User{
-//	    {ID: "1", Email: "test@example.com"},
-//	})
-//
-// With Builder (fluent API):
-//
-//	fixtures.LoadBuilder(fixtures.NewBuilderWithT(t, db).
-//	    WithTransaction().
-//	    Cleanup(), "users", users)
-//	builder.Commit()
-//
-// Thread Safety:
-// Loader instances are safe for concurrent use by multiple goroutines when using
-// proper locking. However, it's recommended to use separate Loader instances per test
-// for clarity and isolation.
+// Package fixtures provides test data management for database-driven applications.
+// Supports programmatic and file-based fixtures with automatic cleanup and transaction support.
 package fixtures
 
 import (
@@ -46,8 +17,7 @@ import (
 )
 
 // Loader handles loading fixtures into a database.
-// Loader is safe for concurrent use by multiple goroutines when using proper locking,
-// but it's recommended to use separate Loader instances per test for clarity and isolation.
+// Thread-safe for concurrent goroutine access. For tests, use separate instances per test for isolation.
 type Loader struct {
 	db      database.Database
 	tx      database.Tx
@@ -74,12 +44,12 @@ func (l *Loader) WithContext(ctx context.Context) *Loader {
 // WithTransaction enables transaction support for test isolation
 func (l *Loader) WithTransaction() (*Loader, error) {
 	if l.tx != nil {
-		return l, fmt.Errorf("transaction already started")
+		return l, fmt.Errorf("transaction already active (commit or rollback before starting a new one)")
 	}
 
 	tx, err := l.db.Begin(l.ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, fmt.Errorf("failed to begin transaction: %w (check database connection and permissions)", err)
 	}
 
 	l.tx = tx
@@ -88,11 +58,11 @@ func (l *Loader) WithTransaction() (*Loader, error) {
 
 func (l *Loader) Commit() error {
 	if l.tx == nil {
-		return fmt.Errorf("no transaction to commit")
+		return fmt.Errorf("no transaction to commit (call WithTransaction() first)")
 	}
 
 	if err := l.tx.Commit(l.ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return fmt.Errorf("failed to commit transaction: %w (data may be partially committed)", err)
 	}
 
 	l.tx = nil
@@ -101,27 +71,19 @@ func (l *Loader) Commit() error {
 
 func (l *Loader) Rollback() error {
 	if l.tx == nil {
-		return fmt.Errorf("no transaction to rollback")
+		return fmt.Errorf("no transaction to rollback (call WithTransaction() first)")
 	}
 
 	if err := l.tx.Rollback(l.ctx); err != nil {
-		return fmt.Errorf("failed to rollback transaction: %w", err)
+		return fmt.Errorf("failed to rollback transaction: %w (transaction may be in inconsistent state)", err)
 	}
 
 	l.tx = nil
 	return nil
 }
 
-// Load loads fixtures from Go structs using CRUD operations.
-//
-// IMPORTANT: For atomic loading (all-or-nothing), use WithTransaction():
-//
-//	loader.WithTransaction()
-//	Load(loader, "users", users)
-//	Load(loader, "todos", todos)
-//	loader.Commit()
-//
-// Without a transaction, partial failures will leave some fixtures in the database.
+// Load loads fixtures from Go structs. Use WithTransaction() for atomic all-or-nothing loading.
+// Without a transaction, partial failures leave some fixtures in the database.
 func Load[T crud.Model](l *Loader, name string, fixtures []T) (*Loader, error) {
 	var loaded []interface{}
 
@@ -140,7 +102,6 @@ func Load[T crud.Model](l *Loader, name string, fixtures []T) (*Loader, error) {
 	return l, nil
 }
 
-// insertFixture inserts a single fixture, preserving IDs if present
 func (l *Loader) insertFixture(m crud.Model) error {
 	v := reflect.ValueOf(m)
 	typ := reflect.TypeOf(m)
@@ -187,11 +148,11 @@ func (l *Loader) insertFixture(m crud.Model) error {
 func (l *Loader) LoadFromYAML(name string, filePath string, target interface{}) (*Loader, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return l, fmt.Errorf("failed to read YAML file %s: %w", filePath, err)
+		return l, fmt.Errorf("failed to read YAML file %s: %w (check file path and permissions)", filePath, err)
 	}
 
 	if err := yaml.Unmarshal(data, target); err != nil {
-		return l, fmt.Errorf("failed to unmarshal YAML: %w", err)
+		return l, fmt.Errorf("failed to unmarshal YAML from %s: %w (check YAML syntax and target type)", filePath, err)
 	}
 
 	if err := l.insertRawData(name, target); err != nil {
@@ -204,11 +165,11 @@ func (l *Loader) LoadFromYAML(name string, filePath string, target interface{}) 
 func (l *Loader) LoadFromJSON(name string, filePath string, target interface{}) (*Loader, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return l, fmt.Errorf("failed to read JSON file %s: %w", filePath, err)
+		return l, fmt.Errorf("failed to read JSON file %s: %w (check file path and permissions)", filePath, err)
 	}
 
 	if err := json.Unmarshal(data, target); err != nil {
-		return l, fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return l, fmt.Errorf("failed to unmarshal JSON from %s: %w (check JSON syntax and target type)", filePath, err)
 	}
 
 	if err := l.insertRawData(name, target); err != nil {
@@ -225,7 +186,7 @@ func (l *Loader) insertRawData(name string, data interface{}) error {
 	}
 
 	if val.Kind() != reflect.Slice {
-		return fmt.Errorf("target must be a slice, got %s", val.Kind())
+		return fmt.Errorf("target must be a slice, got %s (pass &[]YourModel{} as target)", val.Kind())
 	}
 
 	loaded := make([]interface{}, val.Len())
@@ -246,18 +207,17 @@ func (l *Loader) Get(name string) ([]interface{}, bool) {
 	return fixtures, ok
 }
 
-// GetTyped retrieves loaded fixtures by name with type assertion
 func GetTyped[T any](l *Loader, name string) ([]T, error) {
 	fixtures, ok := l.Get(name)
 	if !ok {
-		return nil, fmt.Errorf("fixtures not found: %s", name)
+		return nil, fmt.Errorf("fixtures not found: %s (load fixtures with this name first)", name)
 	}
 
 	result := make([]T, 0, len(fixtures))
 	for i, f := range fixtures {
 		typed, ok := f.(T)
 		if !ok {
-			return nil, fmt.Errorf("fixture %s[%d] is not of type %T", name, i, *new(T))
+			return nil, fmt.Errorf("fixture %s[%d] is not of type %T (got %T, check fixture type matches expected type)", name, i, *new(T), f)
 		}
 		result = append(result, typed)
 	}
@@ -277,77 +237,12 @@ func (l *Loader) ShouldCleanup() bool {
 func (l *Loader) GetLoadedFixtures() []string {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	names := make([]string, 0, len(l.loaded))
+	names := make([]string, len(l.loaded))
+	i := 0
 	for name := range l.loaded {
-		names = append(names, name)
+		names[i] = name
+		i++
 	}
 	return names
 }
 
-// TxCRUD wraps a transaction to implement the crud.Repository interface
-type TxCRUD[T crud.Model] struct {
-	tx database.Tx
-}
-
-func NewTxCRUD[T crud.Model](tx database.Tx) *TxCRUD[T] {
-	return &TxCRUD[T]{tx: tx}
-}
-
-// Create implements crud.Repository.Create using the transaction
-func (t *TxCRUD[T]) Create(ctx context.Context, m T) error {
-	v := reflect.ValueOf(m)
-	typ := reflect.TypeOf(m)
-
-	var cols []string
-	var vals []interface{}
-	var placeholders []string
-
-	// Note: TxCRUD doesn't have access to dialect, so this is a limitation
-	// In practice, TxCRUD is not used in the current codebase - it's a placeholder implementation
-	paramIndex := 1
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		tag := field.Tag.Get("db")
-		if tag == "" || tag == "created_at" || tag == "updated_at" {
-			continue
-		}
-		fieldVal := v.Field(i)
-		if tag == "id" && fieldVal.IsZero() {
-			continue
-		}
-		cols = append(cols, tag)
-		vals = append(vals, fieldVal.Interface())
-		placeholders = append(placeholders, "?")
-		paramIndex++
-	}
-
-	query := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES (%s)",
-		m.TableName(),
-		strings.Join(cols, ", "),
-		strings.Join(placeholders, ", "),
-	)
-
-	_, err := t.tx.Exec(ctx, query, vals...)
-	return err
-}
-
-// GetAll implements crud.Repository.GetAll
-func (t *TxCRUD[T]) GetAll(ctx context.Context) ([]T, error) {
-	return nil, fmt.Errorf("GetAll not implemented for TxCRUD")
-}
-
-// GetByID implements crud.Repository.GetByID
-func (t *TxCRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
-	return nil, fmt.Errorf("GetByID not implemented for TxCRUD")
-}
-
-// Update implements crud.Repository.Update
-func (t *TxCRUD[T]) Update(ctx context.Context, id any, m T) error {
-	return fmt.Errorf("Update not implemented for TxCRUD")
-}
-
-// Delete implements crud.Repository.Delete
-func (t *TxCRUD[T]) Delete(ctx context.Context, id any) error {
-	return fmt.Errorf("Delete not implemented for TxCRUD")
-}
