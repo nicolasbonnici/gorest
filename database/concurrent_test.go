@@ -5,38 +5,46 @@ package database_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 )
 
+func setupSQLiteWithSchema(t *testing.T) database.Database {
+	t.Helper()
+	schema, err := os.ReadFile("../test/sql/schema_sqlite.sql")
+	if err != nil {
+		t.Fatalf("Failed to read SQLite schema: %v", err)
+	}
+	return testhelpers.SetupSQLiteWithSchema(t, string(schema))
+}
+
 func TestConcurrent_ParallelReadsPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgres(t)
 	testConcurrentParallelReads(t, db)
 }
 
 func TestConcurrent_ParallelReadsMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQL(t)
 	testConcurrentParallelReads(t, db)
 }
 
 func TestConcurrent_ParallelReadsSQLite(t *testing.T) {
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteWithSchema(t)
 	testConcurrentParallelReads(t, db)
 }
 
 func testConcurrentParallelReads(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	query := "INSERT INTO users (firstname, lastname, email) VALUES (" +
 		db.Dialect().Placeholder(1) + ", " +
@@ -95,27 +103,27 @@ func testConcurrentParallelReads(t *testing.T, db database.Database) {
 }
 
 func TestConcurrent_ParallelInsertsPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgres(t)
+	
 	testConcurrentParallelInserts(t, db)
 }
 
 func TestConcurrent_ParallelInsertsMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQL(t)
+	
 	testConcurrentParallelInserts(t, db)
 }
 
 func TestConcurrent_ParallelInsertsSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteWithSchema(t)
+	
 	testConcurrentParallelInserts(t, db)
 }
 
 func testConcurrentParallelInserts(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	var wg sync.WaitGroup
 	numWriters := 20
@@ -165,27 +173,27 @@ func testConcurrentParallelInserts(t *testing.T, db database.Database) {
 }
 
 func TestConcurrent_ParallelUpdatesPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgres(t)
+	
 	testConcurrentParallelUpdates(t, db)
 }
 
 func TestConcurrent_ParallelUpdatesMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQL(t)
+	
 	testConcurrentParallelUpdates(t, db)
 }
 
 func TestConcurrent_ParallelUpdatesSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteWithSchema(t)
+	
 	testConcurrentParallelUpdates(t, db)
 }
 
 func testConcurrentParallelUpdates(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	insertQuery := "INSERT INTO users (firstname, lastname, email) VALUES (" +
 		db.Dialect().Placeholder(1) + ", " +
@@ -252,27 +260,27 @@ func testConcurrentParallelUpdates(t *testing.T, db database.Database) {
 }
 
 func TestConcurrent_MixedOperationsPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgres(t)
+	
 	testConcurrentMixedOperations(t, db)
 }
 
 func TestConcurrent_MixedOperationsMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQL(t)
+	
 	testConcurrentMixedOperations(t, db)
 }
 
 func TestConcurrent_MixedOperationsSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteWithSchema(t)
+	
 	testConcurrentMixedOperations(t, db)
 }
 
 func testConcurrentMixedOperations(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	var wg sync.WaitGroup
 	numOperations := 30
@@ -323,27 +331,27 @@ func testConcurrentMixedOperations(t *testing.T, db database.Database) {
 }
 
 func TestConcurrent_TransactionsPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgres(t)
+	
 	testConcurrentTransactions(t, db)
 }
 
 func TestConcurrent_TransactionsMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQL(t)
+	
 	testConcurrentTransactions(t, db)
 }
 
 func TestConcurrent_TransactionsSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteWithSchema(t)
+	
 	testConcurrentTransactions(t, db)
 }
 
 func testConcurrentTransactions(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	var wg sync.WaitGroup
 	numTx := 15
@@ -406,27 +414,27 @@ func testConcurrentTransactions(t *testing.T, db database.Database) {
 }
 
 func TestConcurrent_ReadWriteConflictPostgreSQL(t *testing.T) {
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable")
-	defer db.Close()
+	db := testhelpers.SetupPostgres(t)
+	
 	testConcurrentReadWriteConflict(t, db)
 }
 
 func TestConcurrent_ReadWriteConflictMySQL(t *testing.T) {
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQL(t)
+	
 	testConcurrentReadWriteConflict(t, db)
 }
 
 func TestConcurrent_ReadWriteConflictSQLite(t *testing.T) {
 	t.Skip("SQLite has limited concurrency support - designed for embedded/single-user scenarios")
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteWithSchema(t)
+	
 	testConcurrentReadWriteConflict(t, db)
 }
 
 func testConcurrentReadWriteConflict(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	insertQuery := "INSERT INTO users (firstname, lastname, email) VALUES (" +
 		db.Dialect().Placeholder(1) + ", " +
@@ -484,8 +492,8 @@ func TestConcurrent_StressTestPostgreSQL(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	db := setupTestDB(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable&pool_max_conns=10")
-	defer db.Close()
+	db := testhelpers.SetupPostgresWithDSN(t, "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable&pool_max_conns=10")
+	
 	testConcurrentStressTest(t, db)
 }
 
@@ -494,8 +502,8 @@ func TestConcurrent_StressTestMySQL(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	db := setupTestDB(t, "testuser:testpass@tcp(localhost:3307)/mydb_test")
-	defer db.Close()
+	db := testhelpers.SetupMySQL(t)
+	
 	testConcurrentStressTest(t, db)
 }
 
@@ -505,14 +513,14 @@ func TestConcurrent_StressTestSQLite(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	db := setupSQLiteTestDB(t)
-	defer db.Close()
+	db := setupSQLiteWithSchema(t)
+	
 	testConcurrentStressTest(t, db)
 }
 
 func testConcurrentStressTest(t *testing.T, db database.Database) {
 	ctx := context.Background()
-	cleanupDB(t, db)
+	testhelpers.CleanupDB(t, db)
 
 	var wg sync.WaitGroup
 	numGoroutines := 100
