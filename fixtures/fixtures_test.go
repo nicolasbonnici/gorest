@@ -1853,11 +1853,6 @@ func TestCleanupWithDelete_MultipleTables(t *testing.T) {
 	}
 }
 
-
-
-
-
-
 func TestUser_TableName(t *testing.T) {
 	user := User{}
 	if user.TableName() != "users" {

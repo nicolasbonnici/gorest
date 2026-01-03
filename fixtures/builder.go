@@ -148,7 +148,6 @@ func (b *Builder) Cleanup() *Builder {
 	return b
 }
 
-
 func (b *Builder) Get(name string) ([]interface{}, bool) {
 	return b.loader.Get(name)
 }
