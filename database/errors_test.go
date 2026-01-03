@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/nicolasbonnici/gorest/database"
-	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
+	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 )
 
 func TestErrors_InvalidDSN(t *testing.T) {
