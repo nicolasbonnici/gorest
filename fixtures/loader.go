@@ -245,4 +245,3 @@ func (l *Loader) GetLoadedFixtures() []string {
 	}
 	return names
 }
-
