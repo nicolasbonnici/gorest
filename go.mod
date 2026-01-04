@@ -7,7 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/jackc/pgx/v5 v5.8.0
-	github.com/nicolasbonnici/gorest-auth v0.1.4
+	github.com/nicolasbonnici/gorest-auth v0.1.5
 	golang.org/x/text v0.32.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.42.2
