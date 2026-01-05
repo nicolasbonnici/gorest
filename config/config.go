@@ -50,6 +50,8 @@ type EndpointAuthConfig struct {
 }
 
 type ServerConfig struct {
+	Scheme           string `yaml:"scheme"`
+	Host             string `yaml:"host"`
 	Port             int    `yaml:"port"`
 	Environment      string `yaml:"environment"`
 	CORSOrigins      string `yaml:"cors_origins"`
@@ -154,6 +156,12 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) SetDefaults() {
+	if c.Server.Scheme == "" {
+		c.Server.Scheme = "http"
+	}
+	if c.Server.Host == "" {
+		c.Server.Host = "localhost"
+	}
 	if c.Server.Port == 0 {
 		c.Server.Port = 3000
 	}

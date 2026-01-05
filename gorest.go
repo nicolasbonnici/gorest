@@ -112,7 +112,14 @@ func Start(cfg Config) {
 
 	go func() {
 		port := fmt.Sprintf("%d", appConfig.Server.Port)
-		logger.Log.Info("REST API running", "port", port, "url", "http://localhost:"+port, "version", Version)
+
+		url := appConfig.Server.Scheme + "://" + appConfig.Server.Host
+		if (appConfig.Server.Scheme == "http" && appConfig.Server.Port != 80) ||
+			(appConfig.Server.Scheme == "https" && appConfig.Server.Port != 443) {
+			url += ":" + port
+		}
+
+		logger.Log.Info("REST API running", "port", port, "url", url, "version", Version)
 		logger.Log.Info("Environment", "env", appConfig.Server.Environment)
 		if err := app.Listen(":" + port); err != nil {
 			logger.Log.Error("Server failed", "error", err)
