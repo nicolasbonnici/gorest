@@ -1,6 +1,26 @@
 # GoREST Configuration Example
 # Complete configuration template with all available options
 
+server:
+  scheme: "${SERVER_SCHEME:-http}"
+  host: "${SERVER_HOST:-localhost}"
+  port: "${SERVER_PORT:-8000}"
+  environment: "${ENV:-development}"
+
+database:
+  url: "${DATABASE_URL}"
+
+pagination:
+  default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
+  max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
+
+plugins:
+  - name: auth
+    enabled: true
+    config:
+      jwt_secret: "${JWT_SECRET}"
+      jwt_ttl: 900
+
 codegen:
   output:
     models: "generated/models"
@@ -9,65 +29,16 @@ codegen:
     openapi: "generated/openapi"
     config: "generated/config"
 
-  auth:
+  enums:
     enabled: true
 
-    # Auth defaults - applied to all endpoints unless overridden
-    # Secure by default: all methods require auth
+  auth:
+    enabled: true
     defaults:
       GET: true
       POST: true
       PUT: true
       DELETE: true
-
-    # Per-resource, per-HTTP-method authentication configuration
     endpoints:
-      - name: users
-        GET: true       # Require auth for GET /users and /users/:id
-        POST: true      # Require auth for POST /users
-        PUT: true       # Require auth for PUT /users/:id
-        DELETE: true    # Require auth for DELETE /users/:id
-
       - name: posts
-        GET: false      # Public read - anyone can view posts
-        POST: true      # Auth required to create posts
-        PUT: true       # Auth required to update posts
-        DELETE: true    # Auth required to delete posts
-
-server:
-  port: 3000
-  environment: "development"
-
-database:
-  url: "${DATABASE_URL}"
-
-pagination:
-  default_limit: 10
-  max_limit: 1000
-
-# Plugin system configuration (unified)
-plugins:
-  - name: requestid
-    enabled: true
-  - name: logger
-    enabled: true
-  - name: ratelimit
-    enabled: true
-    config:
-      requests_per_second: 100
-      burst: 200
-  - name: cors
-    enabled: true
-    config:
-      origins: "*"
-  - name: contenttype
-    enabled: true
-  - name: health
-    enabled: true
-  - name: openapi
-    enabled: true
-  - name: auth
-    enabled: true
-    config:
-      jwt_secret: "${JWT_SECRET}"
-      jwt_ttl: 900
+        GET: false
