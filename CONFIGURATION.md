@@ -7,29 +7,47 @@ GoREST uses `gorest.yaml` for all configuration. The file has four main sections
 Controls how code is generated from your database:
 
 ```yaml
+server:
+  scheme: "${SERVER_SCHEME:-http}"
+  host: "${SERVER_HOST:-localhost}"
+  port: "${SERVER_PORT:-8000}"
+  environment: "${ENV:-development}"
+
+database:
+  url: "${DATABASE_URL}"
+
+pagination:
+  default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
+  max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
+
+plugins:
+  - name: auth
+    enabled: true
+    config:
+      jwt_secret: "${JWT_SECRET}"
+      jwt_ttl: 900
+
 codegen:
   output:
-    models: "generated/models"       # Where to generate models
-    resources: "generated/resources" # Where to generate API handlers
-    dtos: "generated/dtos"          # Where to generate DTOs
-    openapi: "generated/openapi"    # Where to generate OpenAPI
-    config: "generated/config"      # Where to generate config files
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+    openapi: "generated/openapi"
+    config: "generated/config"
 
   enums:
     enabled: true
 
   auth:
     enabled: true
-    # Default: all methods require authentication
     defaults:
       GET: true
       POST: true
       PUT: true
       DELETE: true
-    # Per-resource overrides
     endpoints:
       - name: posts
-        GET: false  # Public read - GET /posts and GET /posts/:id
+        GET: false
 ```
 
 ## Runtime Configuration (`server`, `database`, `pagination`)
