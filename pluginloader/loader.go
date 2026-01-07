@@ -85,6 +85,9 @@ func InjectSharedConfig(configs []config.PluginConfig, db database.Database, app
 		enrichedCfg["config"] = appConfig
 		enrichedCfg["pagination_limit"] = appConfig.Pagination.DefaultLimit
 		enrichedCfg["pagination_max_limit"] = appConfig.Pagination.MaxLimit
+		enrichedCfg["server_scheme"] = appConfig.Server.Scheme
+		enrichedCfg["server_host"] = appConfig.Server.Host
+		enrichedCfg["server_port"] = appConfig.Server.Port
 
 		if cfg.Name == "openapi" {
 			projectRoot, err := findProjectRoot()
