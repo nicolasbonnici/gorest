@@ -12,7 +12,7 @@ func TestLoad_ValidBaseConfig(t *testing.T) {
 
 	configYAML := `
 server:
-  port: 3000
+  port: 8000
   environment: development
 database:
   url: postgres://localhost/testdb
@@ -34,8 +34,8 @@ plugins: []
 		t.Fatalf("Load() failed: %v", err)
 	}
 
-	if cfg.Server.Port != 3000 {
-		t.Errorf("Expected port 3000, got %d", cfg.Server.Port)
+	if cfg.Server.Port != 8000 {
+		t.Errorf("Expected port 8000, got %d", cfg.Server.Port)
 	}
 
 	if cfg.Database.URL != "postgres://localhost/testdb" {
@@ -86,7 +86,7 @@ func TestLoad_EnvironmentOverride(t *testing.T) {
 
 	baseConfig := `
 server:
-  port: 3000
+  port: 8000
   environment: production
 database:
   url: postgres://localhost/db
@@ -136,7 +136,7 @@ func TestLoad_EnvironmentFromEnvVar(t *testing.T) {
 
 	baseConfig := `
 server:
-  port: 3000
+  port: 8000
 database:
   url: postgres://localhost/db
 pagination:
@@ -350,10 +350,150 @@ func TestInterpolateString(t *testing.T) {
 	}
 }
 
+func TestInterpolateString_WithDefaults(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		envVars  map[string]string
+		expected string
+	}{
+		{
+			name:     "default value when var not set",
+			input:    "${MISSING:-default}",
+			envVars:  map[string]string{},
+			expected: "default",
+		},
+		{
+			name:     "env var overrides default",
+			input:    "${VAR:-default}",
+			envVars:  map[string]string{"VAR": "actual"},
+			expected: "actual",
+		},
+		{
+			name:     "empty default value",
+			input:    "${MISSING:-}",
+			envVars:  map[string]string{},
+			expected: "",
+		},
+		{
+			name:     "default with special characters",
+			input:    "${DB_URL:-postgres://localhost:5432/db}",
+			envVars:  map[string]string{},
+			expected: "postgres://localhost:5432/db",
+		},
+		{
+			name:     "multiple vars with defaults",
+			input:    "${HOST:-localhost}:${PORT:-8000}",
+			envVars:  map[string]string{},
+			expected: "localhost:8000",
+		},
+		{
+			name:     "mixed vars with and without defaults",
+			input:    "${HOST:-localhost}:${PORT}",
+			envVars:  map[string]string{"PORT": "8080"},
+			expected: "localhost:8080",
+		},
+		{
+			name:     "default value with colon",
+			input:    "${URL:-http://example.com:8080}",
+			envVars:  map[string]string{},
+			expected: "http://example.com:8080",
+		},
+		{
+			name:     "default value with equals",
+			input:    "${PARAM:-key=value}",
+			envVars:  map[string]string{},
+			expected: "key=value",
+		},
+		{
+			name:     "default value with spaces",
+			input:    "${TEXT:-hello world}",
+			envVars:  map[string]string{},
+			expected: "hello world",
+		},
+		{
+			name:     "complex default value",
+			input:    "${CONFIG:-user:pass@host:5432/db?sslmode=require}",
+			envVars:  map[string]string{},
+			expected: "user:pass@host:5432/db?sslmode=require",
+		},
+		{
+			name:     "env var set to empty string uses empty",
+			input:    "${VAR:-default}",
+			envVars:  map[string]string{"VAR": ""},
+			expected: "",
+		},
+		{
+			name:     "partial interpolation with defaults",
+			input:    "prefix-${VAR1:-value1}-middle-${VAR2:-value2}-suffix",
+			envVars:  map[string]string{},
+			expected: "prefix-value1-middle-value2-suffix",
+		},
+		{
+			name:     "database URL with default",
+			input:    "${DATABASE_URL:-postgres://user:pass@localhost:5432/mydb?sslmode=disable}",
+			envVars:  map[string]string{},
+			expected: "postgres://user:pass@localhost:5432/mydb?sslmode=disable",
+		},
+		{
+			name:     "numeric default value",
+			input:    "${PORT:-8000}",
+			envVars:  map[string]string{},
+			expected: "8000",
+		},
+		{
+			name:     "boolean-like default value",
+			input:    "${DEBUG:-true}",
+			envVars:  map[string]string{},
+			expected: "true",
+		},
+		{
+			name:     "one var set one with default",
+			input:    "${SCHEME:-http}://${HOST}:${PORT:-8000}",
+			envVars:  map[string]string{"HOST": "example.com"},
+			expected: "http://example.com:8000",
+		},
+		{
+			name:     "default value with hyphens",
+			input:    "${ENV:-development}",
+			envVars:  map[string]string{},
+			expected: "development",
+		},
+		{
+			name:     "default value with underscores",
+			input:    "${SECRET:-super_secret_key_123}",
+			envVars:  map[string]string{},
+			expected: "super_secret_key_123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear all potentially set env vars first
+			os.Clearenv()
+
+			// Set the test env vars
+			for k, v := range tt.envVars {
+				os.Setenv(k, v)
+			}
+
+			result := interpolateString(tt.input)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+
+			// Clean up
+			for k := range tt.envVars {
+				os.Unsetenv(k)
+			}
+		})
+	}
+}
+
 func TestMergeConfigs(t *testing.T) {
 	base := &Config{
 		Server: ServerConfig{
-			Port:        3000,
+			Port:        8000,
 			Environment: "development",
 		},
 		Database: DatabaseConfig{
@@ -423,7 +563,7 @@ func TestMergeConfigs(t *testing.T) {
 func TestMergeConfigs_EmptyOverride(t *testing.T) {
 	base := &Config{
 		Server: ServerConfig{
-			Port:        3000,
+			Port:        8000,
 			Environment: "development",
 		},
 		Database: DatabaseConfig{
@@ -435,7 +575,7 @@ func TestMergeConfigs_EmptyOverride(t *testing.T) {
 
 	result := mergeConfigs(base, override)
 
-	if result.Server.Port != 3000 {
+	if result.Server.Port != 8000 {
 		t.Errorf("Port should remain from base, got %d", result.Server.Port)
 	}
 
@@ -521,8 +661,8 @@ plugins: []
 		t.Fatalf("Load() failed: %v", err)
 	}
 
-	if cfg.Server.Port != 3000 {
-		t.Errorf("Expected default port 3000, got %d", cfg.Server.Port)
+	if cfg.Server.Port != 8000 {
+		t.Errorf("Expected default port 8000, got %d", cfg.Server.Port)
 	}
 
 	if cfg.Server.Environment != "development" {
@@ -566,5 +706,132 @@ plugins: []
 
 	if !strings.Contains(err.Error(), "invalid configuration") {
 		t.Errorf("Expected validation error, got: %v", err)
+	}
+}
+
+func TestLoad_WithDefaultInterpolation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  scheme: "${SERVER_SCHEME:-http}"
+  host: "${SERVER_HOST:-localhost}"
+  port: 8000
+  environment: "${ENV:-development}"
+database:
+  url: "${DATABASE_URL:-postgres://localhost:5432/testdb}"
+pagination:
+  default_limit: 10
+  max_limit: 1000
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if cfg.Server.Scheme != "http" {
+		t.Errorf("Expected scheme 'http' from default, got %s", cfg.Server.Scheme)
+	}
+
+	if cfg.Server.Host != "localhost" {
+		t.Errorf("Expected host 'localhost' from default, got %s", cfg.Server.Host)
+	}
+
+	if cfg.Server.Port != 8000 {
+		t.Errorf("Expected port 8000, got %d", cfg.Server.Port)
+	}
+
+	if cfg.Server.Environment != "development" {
+		t.Errorf("Expected environment 'development' from default, got %s", cfg.Server.Environment)
+	}
+
+	if cfg.Database.URL != "postgres://localhost:5432/testdb" {
+		t.Errorf("Expected database URL from default, got %s", cfg.Database.URL)
+	}
+
+	if cfg.Pagination.DefaultLimit != 10 {
+		t.Errorf("Expected default limit 10, got %d", cfg.Pagination.DefaultLimit)
+	}
+
+	if cfg.Pagination.MaxLimit != 1000 {
+		t.Errorf("Expected max limit 1000, got %d", cfg.Pagination.MaxLimit)
+	}
+}
+
+func TestLoad_WithDefaultInterpolation_EnvVarsOverride(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  scheme: "${SERVER_SCHEME:-http}"
+  host: "${SERVER_HOST:-localhost}"
+  port: 8080
+  environment: "${ENV:-development}"
+database:
+  url: "${DATABASE_URL:-postgres://localhost:5432/testdb}"
+pagination:
+  default_limit: 20
+  max_limit: 5000
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	os.Setenv("SERVER_SCHEME", "https")
+	os.Setenv("SERVER_HOST", "api.example.com")
+	os.Setenv("ENV", "production")
+	os.Setenv("DATABASE_URL", "postgres://prod-server:5432/proddb")
+	defer func() {
+		os.Unsetenv("SERVER_SCHEME")
+		os.Unsetenv("SERVER_HOST")
+		os.Unsetenv("ENV")
+		os.Unsetenv("DATABASE_URL")
+	}()
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if cfg.Server.Scheme != "https" {
+		t.Errorf("Expected scheme 'https' from env var, got %s", cfg.Server.Scheme)
+	}
+
+	if cfg.Server.Host != "api.example.com" {
+		t.Errorf("Expected host 'api.example.com' from env var, got %s", cfg.Server.Host)
+	}
+
+	if cfg.Server.Port != 8080 {
+		t.Errorf("Expected port 8080, got %d", cfg.Server.Port)
+	}
+
+	if cfg.Server.Environment != "production" {
+		t.Errorf("Expected environment 'production' from env var, got %s", cfg.Server.Environment)
+	}
+
+	if cfg.Database.URL != "postgres://prod-server:5432/proddb" {
+		t.Errorf("Expected database URL from env var, got %s", cfg.Database.URL)
+	}
+
+	if cfg.Pagination.DefaultLimit != 20 {
+		t.Errorf("Expected default limit 20, got %d", cfg.Pagination.DefaultLimit)
+	}
+
+	if cfg.Pagination.MaxLimit != 5000 {
+		t.Errorf("Expected max limit 5000, got %d", cfg.Pagination.MaxLimit)
 	}
 }
