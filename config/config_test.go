@@ -7,7 +7,7 @@ import (
 
 func TestValidate_MissingDatabaseURL(t *testing.T) {
 	cfg := &Config{
-		Server:     ServerConfig{Port: 3000},
+		Server:     ServerConfig{Port: 8000},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
 		Codegen: CodegenConfig{
 			Output: OutputConfig{
@@ -66,7 +66,7 @@ func TestValidate_InvalidPort(t *testing.T) {
 }
 
 func TestValidate_ValidPort(t *testing.T) {
-	tests := []int{1, 80, 3000, 8080, 65535}
+	tests := []int{1, 80, 8000, 8080, 65535}
 
 	for _, port := range tests {
 		t.Run("port "+string(rune(port)), func(t *testing.T) {
@@ -125,7 +125,7 @@ func TestValidate_AuthPluginJWTSecret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &Config{
-				Server:     ServerConfig{Port: 3000},
+				Server:     ServerConfig{Port: 8000},
 				Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 				Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
 				Codegen: CodegenConfig{
@@ -165,7 +165,7 @@ func TestValidate_AuthPluginJWTSecret(t *testing.T) {
 
 func TestValidate_AuthPluginDisabled(t *testing.T) {
 	cfg := &Config{
-		Server:     ServerConfig{Port: 3000},
+		Server:     ServerConfig{Port: 8000},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
 		Codegen: CodegenConfig{
@@ -194,7 +194,7 @@ func TestValidate_AuthPluginDisabled(t *testing.T) {
 
 func TestValidate_AuthPluginMissingSecret(t *testing.T) {
 	cfg := &Config{
-		Server:     ServerConfig{Port: 3000},
+		Server:     ServerConfig{Port: 8000},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
 		Codegen: CodegenConfig{
@@ -243,7 +243,7 @@ func TestValidate_PaginationLimits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &Config{
-				Server:   ServerConfig{Port: 3000},
+				Server:   ServerConfig{Port: 8000},
 				Database: DatabaseConfig{URL: "postgres://localhost/db"},
 				Pagination: PaginationConfig{
 					DefaultLimit: tt.defaultLimit,
@@ -291,7 +291,7 @@ func TestValidate_MissingGenerateOutputPaths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &Config{
-				Server:     ServerConfig{Port: 3000},
+				Server:     ServerConfig{Port: 8000},
 				Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 				Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
 				Codegen: CodegenConfig{
@@ -348,8 +348,8 @@ func TestSetDefaults(t *testing.T) {
 
 	cfg.SetDefaults()
 
-	if cfg.Server.Port != 3000 {
-		t.Errorf("Expected default port 3000, got %d", cfg.Server.Port)
+	if cfg.Server.Port != 8000 {
+		t.Errorf("Expected default port 8000, got %d", cfg.Server.Port)
 	}
 
 	if cfg.Server.Environment != "development" {
@@ -458,7 +458,7 @@ func TestSetDefaults_PartialConfig(t *testing.T) {
 
 func TestValidate_MultipleAuthPlugins(t *testing.T) {
 	cfg := &Config{
-		Server:     ServerConfig{Port: 3000},
+		Server:     ServerConfig{Port: 8000},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
 		Codegen: CodegenConfig{
@@ -492,7 +492,7 @@ func TestValidate_MultipleAuthPlugins(t *testing.T) {
 
 func TestValidate_AuthPluginWrongType(t *testing.T) {
 	cfg := &Config{
-		Server:     ServerConfig{Port: 3000},
+		Server:     ServerConfig{Port: 8000},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
 		Codegen: CodegenConfig{
