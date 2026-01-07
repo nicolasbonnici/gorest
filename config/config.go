@@ -163,7 +163,7 @@ func (c *Config) SetDefaults() {
 		c.Server.Host = "localhost"
 	}
 	if c.Server.Port == 0 {
-		c.Server.Port = 3000
+		c.Server.Port = 8000
 	}
 	if c.Server.Environment == "" {
 		c.Server.Environment = "development"
