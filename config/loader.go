@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -116,15 +117,8 @@ func interpolateYAML(yamlText string) string {
 }
 
 func isNumeric(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, c := range s {
-		if (c < '0' || c > '9') && c != '.' && c != '-' {
-			return false
-		}
-	}
-	return true
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
 }
 
 func interpolateString(s string) string {

@@ -102,18 +102,35 @@ pagination:
 
 ### Environment Variable Interpolation
 
-GoREST supports bash-style environment variable interpolation with default fallback values in any string configuration value.
+GoREST supports bash-style environment variable interpolation with default fallback values. This works for **any field type** including strings, numbers, and booleans.
 
 **Syntax:**
 - `${VAR}` - Replace with environment variable VAR value (keeps `${VAR}` if not set)
 - `${VAR:-default}` - Replace with VAR value, or use "default" if VAR is not set
 
+**Type Handling:**
+When using quoted environment variable syntax in YAML (`"${VAR:-default}"`), the interpolated value is automatically converted to the appropriate type:
+- Numeric values (e.g., `8000`) → parsed as integers/floats
+- Boolean values (`true`, `false`) → parsed as booleans
+- Other values → kept as strings
+
 **Examples:**
 ```yaml
-# Simple defaults
+# String fields
 server:
-  port: "${PORT:-3000}"
-  host: "${HOST:-localhost}"
+  scheme: "${SERVER_SCHEME:-http}"
+  host: "${SERVER_HOST:-localhost}"
+
+# Numeric fields
+server:
+  port: "${SERVER_PORT:-8000}"
+pagination:
+  default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
+  max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
+
+# Boolean fields
+server:
+  ratelimit_enabled: "${RATELIMIT_ENABLED:-true}"
 
 # Complex URL with default
 database:
@@ -123,7 +140,7 @@ database:
 server:
   scheme: "${SCHEME:-http}"     # Optional with default
   host: "${HOST}"               # Required (error if not set)
-  port: "${PORT:-3000}"         # Optional with default
+  port: "${PORT:-8000}"         # Optional with default
 
 # Plugin configuration
 plugins:
@@ -135,14 +152,15 @@ plugins:
 
   - name: cors
     config:
-      origins: "${CORS_ORIGINS:-http://localhost:3000}"
+      origins: "${CORS_ORIGINS:-http://localhost:8000}"
 ```
 
 **Important Notes:**
+- Works for all field types: strings, integers, floats, booleans
 - If a variable is set to an empty string (`VAR=""`), the empty string is used (not the default)
-- Only use `os.LookupEnv()` to check existence, not just `os.Getenv()`
 - Defaults can contain any characters including `:`, `=`, `/`, `?`, etc.
-- Multiple variables can be used in the same value: `"${SCHEME:-http}://${HOST:-localhost}:${PORT:-3000}"`
+- Multiple variables can be used in the same value: `"${SCHEME:-http}://${HOST:-localhost}:${PORT:-8000}"`
+- Invalid numeric/boolean values will cause YAML parsing errors
 
 ## Plugin Configuration
 

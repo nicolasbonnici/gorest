@@ -968,3 +968,115 @@ plugins: []
 		t.Errorf("Expected max limit 500 from plain value, got %d", cfg.Pagination.MaxLimit)
 	}
 }
+
+func TestLoad_BooleanFieldsWithEnvVars(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  port: 8000
+  ratelimit_enabled: "${RATELIMIT_ENABLED:-true}"
+database:
+  url: postgres://localhost:5432/testdb
+pagination:
+  default_limit: 10
+  max_limit: 1000
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if !cfg.Server.RateLimitEnabled {
+		t.Errorf("Expected ratelimit_enabled true from default, got %v", cfg.Server.RateLimitEnabled)
+	}
+
+	os.Setenv("RATELIMIT_ENABLED", "false")
+	defer os.Unsetenv("RATELIMIT_ENABLED")
+
+	cfg, err = Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if cfg.Server.RateLimitEnabled {
+		t.Errorf("Expected ratelimit_enabled false from env var, got %v", cfg.Server.RateLimitEnabled)
+	}
+}
+
+func TestLoad_InvalidNumericValue(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  port: "${SERVER_PORT:-8000}"
+database:
+  url: postgres://localhost:5432/testdb
+pagination:
+  default_limit: 10
+  max_limit: 1000
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	os.Setenv("SERVER_PORT", "not-a-number")
+	defer os.Unsetenv("SERVER_PORT")
+
+	_, err := Load(tmpDir)
+	if err == nil {
+		t.Fatal("Expected error for invalid numeric value, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "failed to parse YAML") {
+		t.Errorf("Expected YAML parse error, got: %v", err)
+	}
+}
+
+func TestLoad_NumericValueWithWhitespace(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  port: "${SERVER_PORT:-8000}"
+database:
+  url: postgres://localhost:5432/testdb
+pagination:
+  default_limit: 10
+  max_limit: 1000
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	os.Setenv("SERVER_PORT", " 9000 ")
+	defer os.Unsetenv("SERVER_PORT")
+
+	_, err := Load(tmpDir)
+	if err == nil {
+		t.Fatal("Expected error for numeric value with whitespace, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "failed to parse YAML") {
+		t.Errorf("Expected YAML parse error, got: %v", err)
+	}
+}
