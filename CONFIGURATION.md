@@ -5,6 +5,8 @@ GoREST uses `gorest.yaml` for all configuration. The file has four main sections
 ## Code Generation (`codegen`)
 
 Controls how code is generated from your database:
+Create `gorest.yaml` in your project root:
+
 
 ```yaml
 server:
@@ -12,6 +14,8 @@ server:
   host: "${SERVER_HOST:-localhost}"
   port: "${SERVER_PORT:-8000}"
   environment: "${ENV:-development}"
+  cors_origins: "${CORS_ORIGINS:-*}"
+
 
 database:
   url: "${DATABASE_URL}"
@@ -49,6 +53,33 @@ codegen:
       - name: posts
         GET: false
 ```
+
+Set required environment variables:
+```bash
+export ENV="production"              # default: development
+export DATABASE_URL="postgres://user:pass@localhost:5432/mydb?sslmode=require"
+export SERVER_SCHEME="https"         # default: http
+export SERVER_HOST="api.example.com" # default: localhost
+export SERVER_PORT="8080"            # default: 8000
+export JWT_SECRET=$(openssl rand -base64 32)
+export CORS_ORIGIN="localhost:3000"  # default: *
+export PAGINATION_DEFAULT_LIMIT="20" # default: 10
+export PAGINATION_MAX_LIMIT="5000"   # default: 1000
+```
+
+Or use a `.env` file (dotenv support):
+```bash
+ENV=production
+DATABASE_URL=postgres://user:pass@localhost:5432/mydb?sslmode=require
+SERVER_SCHEME=https
+SERVER_HOST=api.example.com
+SERVER_PORT=8080
+JWT_SECRET=your-secret-key-minimum-32-characters-long
+CORS_ORIGIN="example.com"
+PAGINATION_DEFAULT_LIMIT=20
+PAGINATION_MAX_LIMIT=5000
+```
+
 
 ## Runtime Configuration (`server`, `database`, `pagination`)
 
