@@ -5,6 +5,8 @@ GoREST uses `gorest.yaml` for all configuration. The file has four main sections
 ## Code Generation (`codegen`)
 
 Controls how code is generated from your database:
+Create `gorest.yaml` in your project root:
+
 
 ```yaml
 server:
@@ -12,6 +14,8 @@ server:
   host: "${SERVER_HOST:-localhost}"
   port: "${SERVER_PORT:-8000}"
   environment: "${ENV:-development}"
+  cors_origins: "${CORS_ORIGINS:-*}"
+
 
 database:
   url: "${DATABASE_URL}"
@@ -50,6 +54,33 @@ codegen:
         GET: false
 ```
 
+Set required environment variables:
+```bash
+export ENV="production"              # default: development
+export DATABASE_URL="postgres://user:pass@localhost:5432/mydb?sslmode=require"
+export SERVER_SCHEME="https"         # default: http
+export SERVER_HOST="api.example.com" # default: localhost
+export SERVER_PORT="8080"            # default: 8000
+export JWT_SECRET=$(openssl rand -base64 32)
+export CORS_ORIGIN="localhost:3000"  # default: *
+export PAGINATION_DEFAULT_LIMIT="20" # default: 10
+export PAGINATION_MAX_LIMIT="5000"   # default: 1000
+```
+
+Or use a `.env` file (dotenv support):
+```bash
+ENV=production
+DATABASE_URL=postgres://user:pass@localhost:5432/mydb?sslmode=require
+SERVER_SCHEME=https
+SERVER_HOST=api.example.com
+SERVER_PORT=8080
+JWT_SECRET=your-secret-key-minimum-32-characters-long
+CORS_ORIGIN="example.com"
+PAGINATION_DEFAULT_LIMIT=20
+PAGINATION_MAX_LIMIT=5000
+```
+
+
 ## Runtime Configuration (`server`, `database`, `pagination`)
 
 Basic server settings:
@@ -71,18 +102,35 @@ pagination:
 
 ### Environment Variable Interpolation
 
-GoREST supports bash-style environment variable interpolation with default fallback values in any string configuration value.
+GoREST supports bash-style environment variable interpolation with default fallback values. This works for **any field type** including strings, numbers, and booleans.
 
 **Syntax:**
 - `${VAR}` - Replace with environment variable VAR value (keeps `${VAR}` if not set)
 - `${VAR:-default}` - Replace with VAR value, or use "default" if VAR is not set
 
+**Type Handling:**
+When using quoted environment variable syntax in YAML (`"${VAR:-default}"`), the interpolated value is automatically converted to the appropriate type:
+- Numeric values (e.g., `8000`) → parsed as integers/floats
+- Boolean values (`true`, `false`) → parsed as booleans
+- Other values → kept as strings
+
 **Examples:**
 ```yaml
-# Simple defaults
+# String fields
 server:
-  port: "${PORT:-3000}"
-  host: "${HOST:-localhost}"
+  scheme: "${SERVER_SCHEME:-http}"
+  host: "${SERVER_HOST:-localhost}"
+
+# Numeric fields
+server:
+  port: "${SERVER_PORT:-8000}"
+pagination:
+  default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
+  max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
+
+# Boolean fields
+server:
+  ratelimit_enabled: "${RATELIMIT_ENABLED:-true}"
 
 # Complex URL with default
 database:
@@ -92,7 +140,7 @@ database:
 server:
   scheme: "${SCHEME:-http}"     # Optional with default
   host: "${HOST}"               # Required (error if not set)
-  port: "${PORT:-3000}"         # Optional with default
+  port: "${PORT:-8000}"         # Optional with default
 
 # Plugin configuration
 plugins:
@@ -104,14 +152,15 @@ plugins:
 
   - name: cors
     config:
-      origins: "${CORS_ORIGINS:-http://localhost:3000}"
+      origins: "${CORS_ORIGINS:-http://localhost:8000}"
 ```
 
 **Important Notes:**
+- Works for all field types: strings, integers, floats, booleans
 - If a variable is set to an empty string (`VAR=""`), the empty string is used (not the default)
-- Only use `os.LookupEnv()` to check existence, not just `os.Getenv()`
 - Defaults can contain any characters including `:`, `=`, `/`, `?`, etc.
-- Multiple variables can be used in the same value: `"${SCHEME:-http}://${HOST:-localhost}:${PORT:-3000}"`
+- Multiple variables can be used in the same value: `"${SCHEME:-http}://${HOST:-localhost}:${PORT:-8000}"`
+- Invalid numeric/boolean values will cause YAML parsing errors
 
 ## Plugin Configuration
 

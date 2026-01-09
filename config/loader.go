@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -60,8 +61,10 @@ func loadConfigFile(filename string) (*Config, error) {
 		return nil, err
 	}
 
+	yamlText := interpolateYAML(string(data))
+
 	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	if err := yaml.Unmarshal([]byte(yamlText), &config); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
@@ -69,21 +72,17 @@ func loadConfigFile(filename string) (*Config, error) {
 }
 
 func interpolateEnvVars(config *Config) error {
-	// Interpolate server config
 	config.Server.Scheme = interpolateString(config.Server.Scheme)
 	config.Server.Host = interpolateString(config.Server.Host)
 	config.Server.Environment = interpolateString(config.Server.Environment)
 	config.Server.CORSOrigins = interpolateString(config.Server.CORSOrigins)
 
-	// Interpolate database config
 	config.Database.URL = interpolateString(config.Database.URL)
 
-	// Interpolate plugin configs
 	for i := range config.Plugins {
 		interpolatePluginConfig(config.Plugins[i].Config)
 	}
 
-	// Check for required database URL
 	if strings.HasPrefix(config.Database.URL, "${") && strings.HasSuffix(config.Database.URL, "}") {
 		varName := strings.TrimSuffix(strings.TrimPrefix(config.Database.URL, "${"), "}")
 		return fmt.Errorf("environment variable %s not found (required for database.url)", varName)
@@ -100,10 +99,30 @@ func interpolatePluginConfig(cfg map[string]interface{}) {
 	}
 }
 
+func interpolateYAML(yamlText string) string {
+	quotedEnvVarRegex := regexp.MustCompile(`"(\$\{[^}]+\})"`)
+
+	yamlText = quotedEnvVarRegex.ReplaceAllStringFunc(yamlText, func(match string) string {
+		innerMatch := match[1 : len(match)-1]
+		interpolated := interpolateString(innerMatch)
+
+		if isNumeric(interpolated) || interpolated == "true" || interpolated == "false" {
+			return interpolated
+		}
+		return `"` + interpolated + `"`
+	})
+
+	yamlText = interpolateString(yamlText)
+	return yamlText
+}
+
+func isNumeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
+}
+
 func interpolateString(s string) string {
 	return envVarRegex.ReplaceAllStringFunc(s, func(match string) string {
-		// Extract variable name and optional default value
-		// Match groups: [0]=full match, [1]=variable name, [2]=:-default (with :-), [3]=default value
 		matches := envVarRegex.FindStringSubmatch(match)
 		if len(matches) < 2 {
 			return match
@@ -112,20 +131,14 @@ func interpolateString(s string) string {
 		varName := matches[1]
 		value := os.Getenv(varName)
 
-		// If environment variable is set (even if empty string), use it
 		if _, exists := os.LookupEnv(varName); exists {
 			return value
 		}
 
-		// If environment variable is not set, check for default value
-		// matches[2] contains ":-default" or empty string
-		// matches[3] contains the default value (everything after :-)
 		if len(matches) > 2 && matches[2] != "" {
-			// Default value is present (matches[3] contains the default, which may be empty)
 			return matches[3]
 		}
 
-		// No value and no default - return original match
 		return match
 	})
 }

@@ -835,3 +835,248 @@ plugins: []
 		t.Errorf("Expected max limit 5000, got %d", cfg.Pagination.MaxLimit)
 	}
 }
+
+func TestLoad_NumericFieldsWithEnvVars(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  scheme: "${SERVER_SCHEME:-http}"
+  host: "${SERVER_HOST:-localhost}"
+  port: "${SERVER_PORT:-8000}"
+  environment: "${ENV:-development}"
+database:
+  url: "${DATABASE_URL:-postgres://localhost:5432/testdb}"
+pagination:
+  default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
+  max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	// Verify numeric fields with defaults work
+	if cfg.Server.Port != 8000 {
+		t.Errorf("Expected port 8000 from default, got %d", cfg.Server.Port)
+	}
+
+	if cfg.Pagination.DefaultLimit != 10 {
+		t.Errorf("Expected default limit 10 from default, got %d", cfg.Pagination.DefaultLimit)
+	}
+
+	if cfg.Pagination.MaxLimit != 1000 {
+		t.Errorf("Expected max limit 1000 from default, got %d", cfg.Pagination.MaxLimit)
+	}
+}
+
+func TestLoad_NumericFieldsWithEnvVarsSet(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  port: "${SERVER_PORT:-8000}"
+database:
+  url: "${DATABASE_URL:-postgres://localhost:5432/testdb}"
+pagination:
+  default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
+  max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	// Set environment variables
+	os.Setenv("SERVER_PORT", "9000")
+	os.Setenv("PAGINATION_DEFAULT_LIMIT", "25")
+	os.Setenv("PAGINATION_MAX_LIMIT", "2000")
+	defer func() {
+		os.Unsetenv("SERVER_PORT")
+		os.Unsetenv("PAGINATION_DEFAULT_LIMIT")
+		os.Unsetenv("PAGINATION_MAX_LIMIT")
+	}()
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	// Verify numeric fields use env var values
+	if cfg.Server.Port != 9000 {
+		t.Errorf("Expected port 9000 from env var, got %d", cfg.Server.Port)
+	}
+
+	if cfg.Pagination.DefaultLimit != 25 {
+		t.Errorf("Expected default limit 25 from env var, got %d", cfg.Pagination.DefaultLimit)
+	}
+
+	if cfg.Pagination.MaxLimit != 2000 {
+		t.Errorf("Expected max limit 2000 from env var, got %d", cfg.Pagination.MaxLimit)
+	}
+}
+
+func TestLoad_NumericFieldsPlainValues(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  port: 7000
+database:
+  url: postgres://localhost:5432/testdb
+pagination:
+  default_limit: 15
+  max_limit: 500
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	// Verify plain numeric values still work
+	if cfg.Server.Port != 7000 {
+		t.Errorf("Expected port 7000 from plain value, got %d", cfg.Server.Port)
+	}
+
+	if cfg.Pagination.DefaultLimit != 15 {
+		t.Errorf("Expected default limit 15 from plain value, got %d", cfg.Pagination.DefaultLimit)
+	}
+
+	if cfg.Pagination.MaxLimit != 500 {
+		t.Errorf("Expected max limit 500 from plain value, got %d", cfg.Pagination.MaxLimit)
+	}
+}
+
+func TestLoad_BooleanFieldsWithEnvVars(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  port: 8000
+  ratelimit_enabled: "${RATELIMIT_ENABLED:-true}"
+database:
+  url: postgres://localhost:5432/testdb
+pagination:
+  default_limit: 10
+  max_limit: 1000
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if !cfg.Server.RateLimitEnabled {
+		t.Errorf("Expected ratelimit_enabled true from default, got %v", cfg.Server.RateLimitEnabled)
+	}
+
+	os.Setenv("RATELIMIT_ENABLED", "false")
+	defer os.Unsetenv("RATELIMIT_ENABLED")
+
+	cfg, err = Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if cfg.Server.RateLimitEnabled {
+		t.Errorf("Expected ratelimit_enabled false from env var, got %v", cfg.Server.RateLimitEnabled)
+	}
+}
+
+func TestLoad_InvalidNumericValue(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  port: "${SERVER_PORT:-8000}"
+database:
+  url: postgres://localhost:5432/testdb
+pagination:
+  default_limit: 10
+  max_limit: 1000
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	os.Setenv("SERVER_PORT", "not-a-number")
+	defer os.Unsetenv("SERVER_PORT")
+
+	_, err := Load(tmpDir)
+	if err == nil {
+		t.Fatal("Expected error for invalid numeric value, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "failed to parse YAML") {
+		t.Errorf("Expected YAML parse error, got: %v", err)
+	}
+}
+
+func TestLoad_NumericValueWithWhitespace(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	configYAML := `
+server:
+  port: "${SERVER_PORT:-8000}"
+database:
+  url: postgres://localhost:5432/testdb
+pagination:
+  default_limit: 10
+  max_limit: 1000
+generate:
+  output:
+    models: "generated/models"
+    resources: "generated/resources"
+    dtos: "generated/dtos"
+plugins: []
+`
+
+	os.WriteFile(filepath.Join(tmpDir, "gorest.yaml"), []byte(configYAML), 0644)
+
+	os.Setenv("SERVER_PORT", " 9000 ")
+	defer os.Unsetenv("SERVER_PORT")
+
+	_, err := Load(tmpDir)
+	if err == nil {
+		t.Fatal("Expected error for numeric value with whitespace, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "failed to parse YAML") {
+		t.Errorf("Expected YAML parse error, got: %v", err)
+	}
+}
