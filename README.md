@@ -260,18 +260,18 @@ func main() {
 
 ### Configuration & Setup
 - **[Configuration →](CONFIGURATION.md)** - YAML configuration, environment overrides, and templates
-- **[Plugins →](PLUGINS.md)** - Plugin system, built-in plugins, and custom plugin creation
 
 ### Data Management
-- **[DTOs & Field Control →](DTOS.md)** - Control field visibility with `dto` tags
-- **[Filtering & Ordering →](FILTERING.md)** - Query filtering, comparison operators, and ordering
+- **[Filtering & Ordering →](FILTERING.md)** - Advanced query filtering, comparison operators, and ordering
 - **[Relation Expansion →](serializer/EXPAND_USAGE.md)** - Expand IRI references to full nested objects
-- **[JSON-LD Support →](serializer/README.md)** - Semantic web support and content negotiation
-
-### Business Logic
-- **[Hooks System →](HOOKS.md)** - Lifecycle hooks for custom business logic
+- **[Serializer →](serializer/README.md)** - Flexible resource serializer with JSON-LD support
 - **[Database Migrations →](migrations/README.md)** - Migration system with multi-database support
 - **[Fixtures →](fixtures/README.md)** - Test fixture management
+
+### Business Logic
+- **[DTOs & Field Control →](DTOS.md)** - Control resource attributes with `dto` tags
+- **[Hooks System →](HOOKS.md)** - Lifecycle hooks for custom business logic
+- **[Plugins →](PLUGINS.md)** - Plugin system, built-in plugins, and custom plugin creation
 
 ---
 
