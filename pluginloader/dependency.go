@@ -14,8 +14,6 @@ type pluginInfo struct {
 	dependencies []string
 }
 
-// collectPluginDependencies creates temporary plugin instances to inspect dependencies.
-// Plugin factories must return lightweight instances that are safe to discard without cleanup.
 func collectPluginDependencies(configs []config.PluginConfig) ([]pluginInfo, error) {
 	var pluginInfos []pluginInfo
 
