@@ -18,6 +18,14 @@ func SetCommonHeaders(c *fiber.Ctx) {
 	c.Set("X-Powered-By", "GoREST/"+version)
 }
 
+func SetContentTypeHeader(c *fiber.Ctx, format string) {
+	if format == "jsonld" {
+		c.Set("Content-Type", "application/ld+json")
+	} else {
+		c.Set("Content-Type", "application/json")
+	}
+}
+
 func SendFormatted(c *fiber.Ctx, statusCode int, data interface{}) error {
 	format := DetermineFormat(c)
 	s := serializer.GetSerializer(format)
@@ -105,4 +113,11 @@ func SendSuccess(c *fiber.Ctx, data interface{}) error {
 func SendCreated(c *fiber.Ctx, data interface{}) error {
 	c.Set("X-Powered-By", "GoREST/"+version)
 	return c.Status(fiber.StatusCreated).JSON(data)
+}
+
+func SendJSON(c *fiber.Ctx, statusCode int, data interface{}) error {
+	format := DetermineFormat(c)
+	SetContentTypeHeader(c, format)
+	SetCommonHeaders(c)
+	return c.Status(statusCode).JSON(data)
 }

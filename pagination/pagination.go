@@ -136,12 +136,7 @@ func SendHydraCollectionWithExpanded(c *fiber.Ctx, expandedItems []interface{}, 
 		View:       view,
 	}
 
-	if format == "jsonld" {
-		c.Set("Content-Type", "application/ld+json")
-	}
-
-	response.SetCommonHeaders(c)
-	return c.Status(fiber.StatusOK).JSON(collection)
+	return response.SendJSON(c, fiber.StatusOK, collection)
 }
 
 func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, page, defaultLimit int) error {
@@ -188,13 +183,7 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, pag
 		View:       view,
 	}
 
-	format := c.Query("format", "json")
-	if format == "jsonld" {
-		c.Set("Content-Type", "application/ld+json")
-	}
-
-	response.SetCommonHeaders(c)
-	return c.Status(fiber.StatusOK).JSON(collection)
+	return response.SendJSON(c, fiber.StatusOK, collection)
 }
 
 func formatItems(items interface{}, path string, format string, expand []string) interface{} {
