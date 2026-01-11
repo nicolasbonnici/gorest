@@ -17,13 +17,8 @@ type EndpointSetup interface {
 }
 
 type Command interface {
-	// Name returns the command name (e.g., "models", "resources")
 	Name() string
-
-	// Description returns a brief description of what the command does
 	Description() string
-
-	// Run executes the command and returns a result
 	Run(ctx *CommandContext) *CommandResult
 }
 
@@ -63,4 +58,8 @@ type MigrationProvider interface {
 	// Ensures migrations run in correct order
 	// Return nil or empty slice if no dependencies
 	MigrationDependencies() []string
+}
+
+type PluginDependencies interface {
+	Dependencies() []string
 }

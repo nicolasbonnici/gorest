@@ -22,27 +22,41 @@ func RegisterPluginFactory(name string, factory PluginFactory) {
 func LoadPlugins(configs []config.PluginConfig, version string) (*plugin.PluginRegistry, error) {
 	registry := plugin.NewPluginRegistry()
 
-	for _, cfg := range configs {
-		if !cfg.Enabled {
-			continue
-		}
+	pluginInfos, err := collectPluginDependencies(configs)
+	if err != nil {
+		return nil, err
+	}
 
-		factory, exists := pluginFactories[cfg.Name]
-		if !exists {
-			return nil, fmt.Errorf("unknown plugin '%s' - did you forget to register it?", cfg.Name)
-		}
+	if err := validateDependencies(pluginInfos); err != nil {
+		return nil, err
+	}
 
-		p := factory()
+	sortedPlugins, err := resolveInitializationOrder(pluginInfos)
+	if err != nil {
+		return nil, err
+	}
 
-		// Inject version into config for all plugins
+	for _, pInfo := range sortedPlugins {
+		p := pInfo.factory()
+
 		enrichedConfig := make(map[string]interface{})
-		for k, v := range cfg.Config {
+		for k, v := range pInfo.config.Config {
 			enrichedConfig[k] = v
 		}
 		enrichedConfig["__version"] = version
 
+		if len(pInfo.dependencies) > 0 {
+			deps := make(map[string]plugin.Plugin)
+			for _, depName := range pInfo.dependencies {
+				if depPlugin, ok := registry.Get(depName); ok {
+					deps[depName] = depPlugin
+				}
+			}
+			enrichedConfig["__dependencies"] = deps
+		}
+
 		if err := p.Initialize(enrichedConfig); err != nil {
-			return nil, fmt.Errorf("failed to initialize plugin '%s': %w", cfg.Name, err)
+			return nil, fmt.Errorf("failed to initialize plugin '%s': %w", pInfo.name, err)
 		}
 
 		registry.Register(p)
@@ -51,7 +65,6 @@ func LoadPlugins(configs []config.PluginConfig, version string) (*plugin.PluginR
 	return registry, nil
 }
 
-// ApplyGlobalMiddleware applies middleware plugins to the app in the correct order
 func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
 	middlewareOrder := []string{"requestid", "logger", "ratelimit", "cors", "contenttype"}
 	for _, pluginName := range middlewareOrder {
@@ -61,7 +74,6 @@ func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
 	}
 }
 
-// SetupPluginEndpoints calls SetupEndpoints on all plugins that implement the EndpointSetup interface
 func SetupPluginEndpoints(registry *plugin.PluginRegistry, app *fiber.App) error {
 	for _, p := range registry.GetAll() {
 		if setupPlugin, ok := p.(plugin.EndpointSetup); ok {
@@ -106,7 +118,6 @@ func InjectSharedConfig(configs []config.PluginConfig, db database.Database, app
 	return enriched
 }
 
-// LoadAllCommandPlugins loads all registered plugins and returns those that implement CommandProvider
 func LoadAllCommandPlugins(db database.Database, cfg *config.Config) ([]plugin.Plugin, error) {
 	var commandPlugins []plugin.Plugin
 
