@@ -34,13 +34,16 @@ func (m *mockPluginWithDeps) Dependencies() []string {
 
 // Basic dependency resolution (A depends on B)
 func TestBasicDependencyResolution(t *testing.T) {
-	// Register mock factories
 	RegisterPluginFactory("pluginA", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginA", deps: []string{"pluginB"}}
 	})
 	RegisterPluginFactory("pluginB", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginB", deps: []string{}}
 	})
+	defer func() {
+		delete(pluginFactories, "pluginA")
+		delete(pluginFactories, "pluginB")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "pluginA", Enabled: true, Config: map[string]interface{}{}},
@@ -52,7 +55,7 @@ func TestBasicDependencyResolution(t *testing.T) {
 		t.Fatalf("collectPluginDependencies failed: %v", err)
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		t.Fatalf("validateDependencies failed: %v", err)
 	}
 
@@ -70,9 +73,6 @@ func TestBasicDependencyResolution(t *testing.T) {
 	if sorted[1].name != "pluginA" {
 		t.Errorf("expected pluginA second, got %s", sorted[1].name)
 	}
-
-	delete(pluginFactories, "pluginA")
-	delete(pluginFactories, "pluginB")
 }
 
 // Transitive dependencies (A -> B -> C)
@@ -86,6 +86,11 @@ func TestTransitiveDependencies(t *testing.T) {
 	RegisterPluginFactory("pluginC", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginC", deps: []string{}}
 	})
+	defer func() {
+		delete(pluginFactories, "pluginA")
+		delete(pluginFactories, "pluginB")
+		delete(pluginFactories, "pluginC")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "pluginA", Enabled: true, Config: map[string]interface{}{}},
@@ -98,7 +103,7 @@ func TestTransitiveDependencies(t *testing.T) {
 		t.Fatalf("collectPluginDependencies failed: %v", err)
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		t.Fatalf("validateDependencies failed: %v", err)
 	}
 
@@ -119,10 +124,6 @@ func TestTransitiveDependencies(t *testing.T) {
 	if sorted[2].name != "pluginA" {
 		t.Errorf("expected pluginA third, got %s", sorted[2].name)
 	}
-
-	delete(pluginFactories, "pluginA")
-	delete(pluginFactories, "pluginB")
-	delete(pluginFactories, "pluginC")
 }
 
 // Circular dependency detection (A -> B -> A)
@@ -133,6 +134,10 @@ func TestCircularDependencyDetection(t *testing.T) {
 	RegisterPluginFactory("pluginB", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginB", deps: []string{"pluginA"}}
 	})
+	defer func() {
+		delete(pluginFactories, "pluginA")
+		delete(pluginFactories, "pluginB")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "pluginA", Enabled: true, Config: map[string]interface{}{}},
@@ -144,7 +149,7 @@ func TestCircularDependencyDetection(t *testing.T) {
 		t.Fatalf("collectPluginDependencies failed: %v", err)
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		t.Fatalf("validateDependencies failed: %v", err)
 	}
 
@@ -156,9 +161,6 @@ func TestCircularDependencyDetection(t *testing.T) {
 	if !strings.Contains(err.Error(), "circular dependency") {
 		t.Errorf("expected 'circular dependency' in error message, got: %v", err)
 	}
-
-	delete(pluginFactories, "pluginA")
-	delete(pluginFactories, "pluginB")
 }
 
 // Missing dependency validation
@@ -166,6 +168,9 @@ func TestMissingDependencyValidation(t *testing.T) {
 	RegisterPluginFactory("pluginA", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginA", deps: []string{"pluginB"}}
 	})
+	defer func() {
+		delete(pluginFactories, "pluginA")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "pluginA", Enabled: true, Config: map[string]interface{}{}},
@@ -176,7 +181,7 @@ func TestMissingDependencyValidation(t *testing.T) {
 		t.Fatalf("collectPluginDependencies failed: %v", err)
 	}
 
-	err = validateDependencies(pluginInfos)
+	err = validateDependencies(pluginInfos, configs)
 	if err == nil {
 		t.Fatal("expected missing dependency error, got nil")
 	}
@@ -184,8 +189,6 @@ func TestMissingDependencyValidation(t *testing.T) {
 	if !strings.Contains(err.Error(), "pluginA") || !strings.Contains(err.Error(), "pluginB") {
 		t.Errorf("expected error about pluginA requiring pluginB, got: %v", err)
 	}
-
-	delete(pluginFactories, "pluginA")
 }
 
 // Multiple dependencies
@@ -199,6 +202,11 @@ func TestMultipleDependencies(t *testing.T) {
 	RegisterPluginFactory("pluginC", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginC", deps: []string{}}
 	})
+	defer func() {
+		delete(pluginFactories, "pluginA")
+		delete(pluginFactories, "pluginB")
+		delete(pluginFactories, "pluginC")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "pluginA", Enabled: true, Config: map[string]interface{}{}},
@@ -211,7 +219,7 @@ func TestMultipleDependencies(t *testing.T) {
 		t.Fatalf("collectPluginDependencies failed: %v", err)
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		t.Fatalf("validateDependencies failed: %v", err)
 	}
 
@@ -242,10 +250,6 @@ func TestMultipleDependencies(t *testing.T) {
 	if aIndex < bIndex || aIndex < cIndex {
 		t.Errorf("pluginA should come after both pluginB and pluginC")
 	}
-
-	delete(pluginFactories, "pluginA")
-	delete(pluginFactories, "pluginB")
-	delete(pluginFactories, "pluginC")
 }
 
 // No dependencies case
@@ -256,6 +260,10 @@ func TestNoDependencies(t *testing.T) {
 	RegisterPluginFactory("pluginB", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginB", deps: []string{}}
 	})
+	defer func() {
+		delete(pluginFactories, "pluginA")
+		delete(pluginFactories, "pluginB")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "pluginA", Enabled: true, Config: map[string]interface{}{}},
@@ -267,7 +275,7 @@ func TestNoDependencies(t *testing.T) {
 		t.Fatalf("collectPluginDependencies failed: %v", err)
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		t.Fatalf("validateDependencies failed: %v", err)
 	}
 
@@ -279,9 +287,6 @@ func TestNoDependencies(t *testing.T) {
 	if len(sorted) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(sorted))
 	}
-
-	delete(pluginFactories, "pluginA")
-	delete(pluginFactories, "pluginB")
 }
 
 // Complex transitive circular dependency (A -> B -> C -> A)
@@ -295,6 +300,11 @@ func TestComplexCircularDependency(t *testing.T) {
 	RegisterPluginFactory("pluginC", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginC", deps: []string{"pluginA"}}
 	})
+	defer func() {
+		delete(pluginFactories, "pluginA")
+		delete(pluginFactories, "pluginB")
+		delete(pluginFactories, "pluginC")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "pluginA", Enabled: true, Config: map[string]interface{}{}},
@@ -307,7 +317,7 @@ func TestComplexCircularDependency(t *testing.T) {
 		t.Fatalf("collectPluginDependencies failed: %v", err)
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		t.Fatalf("validateDependencies failed: %v", err)
 	}
 
@@ -319,10 +329,6 @@ func TestComplexCircularDependency(t *testing.T) {
 	if !strings.Contains(err.Error(), "circular dependency") {
 		t.Errorf("expected 'circular dependency' in error message, got: %v", err)
 	}
-
-	delete(pluginFactories, "pluginA")
-	delete(pluginFactories, "pluginB")
-	delete(pluginFactories, "pluginC")
 }
 
 type simpleMockPlugin struct {
@@ -351,6 +357,10 @@ func TestPluginWithoutDependenciesInterface(t *testing.T) {
 	RegisterPluginFactory("pluginB", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginB", deps: []string{}}
 	})
+	defer func() {
+		delete(pluginFactories, "simplePlugin")
+		delete(pluginFactories, "pluginB")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "simplePlugin", Enabled: true, Config: map[string]interface{}{}},
@@ -368,7 +378,7 @@ func TestPluginWithoutDependenciesInterface(t *testing.T) {
 		}
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		t.Fatalf("validateDependencies failed: %v", err)
 	}
 
@@ -380,9 +390,6 @@ func TestPluginWithoutDependenciesInterface(t *testing.T) {
 	if len(sorted) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(sorted))
 	}
-
-	delete(pluginFactories, "simplePlugin")
-	delete(pluginFactories, "pluginB")
 }
 
 // Integration test with LoadPlugins
@@ -393,6 +400,10 @@ func TestLoadPluginsWithDependencies(t *testing.T) {
 	RegisterPluginFactory("dependent", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "dependent", deps: []string{"base"}}
 	})
+	defer func() {
+		delete(pluginFactories, "base")
+		delete(pluginFactories, "dependent")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "dependent", Enabled: true, Config: map[string]interface{}{}},
@@ -410,9 +421,6 @@ func TestLoadPluginsWithDependencies(t *testing.T) {
 	if _, ok := registry.Get("dependent"); !ok {
 		t.Error("dependent plugin not found in registry")
 	}
-
-	delete(pluginFactories, "base")
-	delete(pluginFactories, "dependent")
 }
 
 // Diamond dependency pattern (D -> B, D -> C, B -> A, C -> A)
@@ -429,6 +437,12 @@ func TestDiamondDependencyPattern(t *testing.T) {
 	RegisterPluginFactory("pluginD", func() plugin.Plugin {
 		return &mockPluginWithDeps{name: "pluginD", deps: []string{"pluginB", "pluginC"}}
 	})
+	defer func() {
+		delete(pluginFactories, "pluginA")
+		delete(pluginFactories, "pluginB")
+		delete(pluginFactories, "pluginC")
+		delete(pluginFactories, "pluginD")
+	}()
 
 	configs := []config.PluginConfig{
 		{Name: "pluginD", Enabled: true, Config: map[string]interface{}{}},
@@ -442,7 +456,7 @@ func TestDiamondDependencyPattern(t *testing.T) {
 		t.Fatalf("collectPluginDependencies failed: %v", err)
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		t.Fatalf("validateDependencies failed: %v", err)
 	}
 
@@ -462,9 +476,4 @@ func TestDiamondDependencyPattern(t *testing.T) {
 	if sorted[3].name != "pluginD" {
 		t.Errorf("expected pluginD last, got %s", sorted[3].name)
 	}
-
-	delete(pluginFactories, "pluginA")
-	delete(pluginFactories, "pluginB")
-	delete(pluginFactories, "pluginC")
-	delete(pluginFactories, "pluginD")
 }

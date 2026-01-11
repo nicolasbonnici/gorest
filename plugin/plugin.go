@@ -4,6 +4,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+const (
+	ConfigKeyDependencies = "__dependencies"
+	ConfigKeyVersion      = "__version"
+)
+
 type Plugin interface {
 	Name() string
 
@@ -60,6 +65,13 @@ type MigrationProvider interface {
 	MigrationDependencies() []string
 }
 
+// PluginDependencies is an optional interface for plugins that depend on other plugins.
+// Dependencies must be declared by their plugin name (matching Plugin.Name()).
+// The plugin loader ensures:
+//   - All dependencies are registered and enabled
+//   - Dependencies are initialized before dependent plugins
+//   - Circular dependencies are detected and rejected
+//   - Dependencies are injected via Initialize() config under ConfigKeyDependencies
 type PluginDependencies interface {
 	Dependencies() []string
 }

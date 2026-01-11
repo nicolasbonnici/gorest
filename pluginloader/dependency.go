@@ -14,6 +14,8 @@ type pluginInfo struct {
 	dependencies []string
 }
 
+// collectPluginDependencies creates temporary plugin instances to inspect dependencies.
+// Plugin factories must return lightweight instances that are safe to discard without cleanup.
 func collectPluginDependencies(configs []config.PluginConfig) ([]pluginInfo, error) {
 	var pluginInfos []pluginInfo
 
@@ -22,7 +24,9 @@ func collectPluginDependencies(configs []config.PluginConfig) ([]pluginInfo, err
 			continue
 		}
 
+		pluginMutex.RLock()
 		factory, exists := pluginFactories[cfg.Name]
+		pluginMutex.RUnlock()
 		if !exists {
 			return nil, fmt.Errorf("unknown plugin '%s' - did you forget to register it?", cfg.Name)
 		}
@@ -32,6 +36,9 @@ func collectPluginDependencies(configs []config.PluginConfig) ([]pluginInfo, err
 
 		if depPlugin, ok := tempPlugin.(plugin.PluginDependencies); ok {
 			deps = depPlugin.Dependencies()
+			if deps == nil {
+				deps = []string{}
+			}
 		}
 
 		pluginInfos = append(pluginInfos, pluginInfo{
@@ -45,19 +52,30 @@ func collectPluginDependencies(configs []config.PluginConfig) ([]pluginInfo, err
 	return pluginInfos, nil
 }
 
-func validateDependencies(pluginInfos []pluginInfo) error {
+func validateDependencies(pluginInfos []pluginInfo, allConfigs []config.PluginConfig) error {
 	available := make(map[string]bool)
-	for _, info := range pluginInfos {
-		available[info.name] = true
+	disabled := make(map[string]bool)
+
+	for _, cfg := range allConfigs {
+		if cfg.Enabled {
+			available[cfg.Name] = true
+		} else {
+			disabled[cfg.Name] = true
+		}
 	}
 
 	for _, info := range pluginInfos {
 		for _, dep := range info.dependencies {
 			if !available[dep] {
+				if disabled[dep] {
+					return fmt.Errorf(
+						"plugin '%s' requires dependency '%s', but it is disabled in configuration",
+						info.name, dep,
+					)
+				}
 				return fmt.Errorf(
-					"plugin '%s' requires dependency '%s', but it is not enabled or registered",
-					info.name,
-					dep,
+					"plugin '%s' requires dependency '%s', but it is not registered",
+					info.name, dep,
 				)
 			}
 		}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicolasbonnici/gorest/config"
@@ -13,9 +14,14 @@ import (
 
 type PluginFactory func() plugin.Plugin
 
-var pluginFactories = make(map[string]PluginFactory)
+var (
+	pluginFactories = make(map[string]PluginFactory)
+	pluginMutex     sync.RWMutex
+)
 
 func RegisterPluginFactory(name string, factory PluginFactory) {
+	pluginMutex.Lock()
+	defer pluginMutex.Unlock()
 	pluginFactories[name] = factory
 }
 
@@ -27,7 +33,7 @@ func LoadPlugins(configs []config.PluginConfig, version string) (*plugin.PluginR
 		return nil, err
 	}
 
-	if err := validateDependencies(pluginInfos); err != nil {
+	if err := validateDependencies(pluginInfos, configs); err != nil {
 		return nil, err
 	}
 
@@ -43,7 +49,7 @@ func LoadPlugins(configs []config.PluginConfig, version string) (*plugin.PluginR
 		for k, v := range pInfo.config.Config {
 			enrichedConfig[k] = v
 		}
-		enrichedConfig["__version"] = version
+		enrichedConfig[plugin.ConfigKeyVersion] = version
 
 		if len(pInfo.dependencies) > 0 {
 			deps := make(map[string]plugin.Plugin)
@@ -52,11 +58,12 @@ func LoadPlugins(configs []config.PluginConfig, version string) (*plugin.PluginR
 					deps[depName] = depPlugin
 				}
 			}
-			enrichedConfig["__dependencies"] = deps
+			enrichedConfig[plugin.ConfigKeyDependencies] = deps
 		}
 
 		if err := p.Initialize(enrichedConfig); err != nil {
-			return nil, fmt.Errorf("failed to initialize plugin '%s': %w", pInfo.name, err)
+			return nil, fmt.Errorf("failed to initialize plugin '%s' (depends on: %v): %w",
+				pInfo.name, pInfo.dependencies, err)
 		}
 
 		registry.Register(p)
@@ -125,6 +132,9 @@ func LoadAllCommandPlugins(db database.Database, cfg *config.Config) ([]plugin.P
 		"database": db,
 		"config":   cfg,
 	}
+
+	pluginMutex.RLock()
+	defer pluginMutex.RUnlock()
 
 	for name, factory := range pluginFactories {
 		p := factory()
