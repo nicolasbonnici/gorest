@@ -257,7 +257,10 @@ func (r *%sResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
 	item, err := r.CRUD.GetByID(%s, id)
 	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
+		if crud.IsInvalidIDError(err) {
+			return response.SendError(c, 400, err.Error())
+		}
+		return response.SendError(c, 404, "Not found")
 	}
 
 	dto := modelTo%sDTO(*item)
@@ -315,7 +318,13 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 	item := %sUpdateDTOToModel(updateDTO)
 %s
 	if err := r.CRUD.Update(%s, id, item); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		if crud.IsInvalidIDError(err) {
+			return response.SendError(c, 400, err.Error())
+		}
+		if crud.IsNotFoundError(err) {
+			return response.SendError(c, 404, "Not found")
+		}
+		return response.SendError(c, 500, err.Error())
 	}
 
 	dto := modelTo%sDTO(item)
@@ -331,7 +340,13 @@ func (r *%sResource) Update(c *fiber.Ctx) error {
 func (r *%sResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := r.CRUD.Delete(%s, id); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		if crud.IsInvalidIDError(err) {
+			return response.SendError(c, 400, err.Error())
+		}
+		if crud.IsNotFoundError(err) {
+			return response.SendError(c, 404, "Not found")
+		}
+		return response.SendError(c, 500, err.Error())
 	}
 	return c.SendStatus(204)
 }
