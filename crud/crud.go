@@ -2,6 +2,8 @@ package crud
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -28,6 +30,21 @@ type PaginationOptions struct {
 type PaginationResult[T any] struct {
 	Items []T
 	Total *int
+}
+
+func IsNotFoundError(err error) bool {
+	return errors.Is(err, sql.ErrNoRows)
+}
+
+func IsInvalidIDError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "invalid input syntax for") ||
+		strings.Contains(errMsg, "invalid UUID") ||
+		strings.Contains(errMsg, "uuid:") ||
+		strings.Contains(errMsg, "SQLSTATE 22P02")
 }
 
 func New[T Model](db database.Database) *CRUD[T] {
