@@ -3,8 +3,8 @@ package query_test
 import (
 	"fmt"
 
-	"github.com/nicolasbonnici/gorest/query"
 	"github.com/nicolasbonnici/gorest/database/postgres"
+	"github.com/nicolasbonnici/gorest/query"
 )
 
 func ExampleNew() {

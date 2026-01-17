@@ -9,11 +9,11 @@ import (
 
 // WindowBuilder builds a window specification (OVER clause).
 type WindowBuilder struct {
-	partitionBy      []Expression
-	orderBy          []orderByExpr
-	frameType        string // "ROWS" or "RANGE"
-	frameStart       string
-	frameEnd         string
+	partitionBy       []Expression
+	orderBy           []orderByExpr
+	frameType         string // "ROWS" or "RANGE"
+	frameStart        string
+	frameEnd          string
 	excludeCurrentRow bool
 }
 

@@ -97,5 +97,3 @@ type orderClause struct {
 	column    string
 	direction Order
 }
-
-
