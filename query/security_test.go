@@ -237,7 +237,6 @@ func TestTableNameEscaping(t *testing.T) {
 			From(`users" WHERE 1=1; --`).
 			Build()
 
-		// Should reject the malicious table name
 		if err == nil {
 			t.Error("Expected error for malicious table name, got nil")
 		}
@@ -253,7 +252,6 @@ func TestTableNameEscaping(t *testing.T) {
 			From("users` WHERE 1=1; --").
 			Build()
 
-		// Should reject the malicious table name
 		if err == nil {
 			t.Error("Expected error for malicious table name, got nil")
 		}
@@ -261,4 +259,479 @@ func TestTableNameEscaping(t *testing.T) {
 			t.Errorf("Expected 'invalid characters' error, got: %v", err)
 		}
 	})
+}
+
+// TestColumnNameInjection_PostgreSQL tests that reserved words and SQL injection attempts
+// in column names are rejected
+func TestColumnNameInjection_PostgreSQL(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name       string
+		columnName string
+		errorMsg   string
+	}{
+		{"reserved word SELECT", "SELECT", "reserved word"},
+		{"reserved word DROP", "DROP", "reserved word"},
+		{"reserved word DELETE", "DELETE", "reserved word"},
+		{"SQL injection attempt", `id"; DROP TABLE users--`, "invalid characters"},
+		{"special characters semicolon", "col;name", "invalid characters"},
+		{"special characters quotes", `col"name`, "invalid characters"},
+		{"SQL comment injection", "id--comment", "invalid characters"},
+		{"space in column", "col name", "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Select(tt.columnName).
+				From("users").
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious column name %q", tt.columnName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestColumnNameInjection_MySQL tests column name validation for MySQL
+func TestColumnNameInjection_MySQL(t *testing.T) {
+	dialect := &mysql.MySQLDialect{}
+
+	tests := []struct {
+		name       string
+		columnName string
+		errorMsg   string
+	}{
+		{"reserved word SELECT", "SELECT", "reserved word"},
+		{"reserved word DROP", "DROP", "reserved word"},
+		{"SQL injection with backtick", "id`; DROP TABLE users--", "invalid characters"},
+		{"special characters", "col$name", "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Select(tt.columnName).
+				From("users").
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious column name %q", tt.columnName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestColumnNameInjection_SQLite tests column name validation for SQLite
+func TestColumnNameInjection_SQLite(t *testing.T) {
+	dialect := &sqlite.SQLiteDialect{}
+
+	tests := []struct {
+		name       string
+		columnName string
+		errorMsg   string
+	}{
+		{"reserved word UPDATE", "UPDATE", "reserved word"},
+		{"reserved word WHERE", "WHERE", "reserved word"},
+		{"SQL injection", `id" OR 1=1--`, "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Select(tt.columnName).
+				From("users").
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious column name %q", tt.columnName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestJoinTableInjection tests that malicious table names in JOIN clauses are rejected
+func TestJoinTableInjection(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name      string
+		tableName string
+		errorMsg  string
+	}{
+		{"reserved word SELECT", "SELECT", "reserved word"},
+		{"SQL injection", `posts" WHERE 1=1--`, "invalid characters"},
+		{"special characters", "table$name", "invalid characters"},
+		{"semicolon injection", "posts; DROP TABLE users--", "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Select("id").
+				From("users").
+				InnerJoin(tt.tableName, Eq("id", 1)).
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious join table %q", tt.tableName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestAliasInjection tests that malicious aliases are rejected
+func TestAliasInjection(t *testing.T) {
+	t.Run("Table alias with reserved word", func(t *testing.T) {
+		dialect := &postgres.PostgresDialect{}
+		_, _, err := New(dialect).
+			Select("id").
+			From("users").
+			As("DROP").
+			Build()
+
+		if err == nil {
+			t.Error("Expected error for reserved word as alias")
+		}
+		if !strings.Contains(err.Error(), "reserved word") {
+			t.Errorf("Expected 'reserved word' error, got: %v", err)
+		}
+	})
+
+	t.Run("Table alias with special characters", func(t *testing.T) {
+		dialect := &postgres.PostgresDialect{}
+		_, _, err := New(dialect).
+			Select("id").
+			From("users").
+			As("u; DROP TABLE users--").
+			Build()
+
+		if err == nil {
+			t.Error("Expected error for malicious alias")
+		}
+		if !strings.Contains(err.Error(), "invalid characters") {
+			t.Errorf("Expected 'invalid characters' error, got: %v", err)
+		}
+	})
+
+	t.Run("Column alias with reserved word", func(t *testing.T) {
+		dialect := &postgres.PostgresDialect{}
+		_, _, err := New(dialect).
+			Select().
+			SelectExpr(As(Col("id"), "SELECT")).
+			From("users").
+			Build()
+
+		if err == nil {
+			t.Error("Expected error for reserved word as column alias")
+		}
+		if !strings.Contains(err.Error(), "reserved word") {
+			t.Errorf("Expected 'reserved word' error, got: %v", err)
+		}
+	})
+
+	t.Run("Column alias with SQL injection", func(t *testing.T) {
+		dialect := &mysql.MySQLDialect{}
+		_, _, err := New(dialect).
+			Select().
+			SelectExpr(As(Col("name"), "n` FROM users WHERE admin=1--")).
+			From("users").
+			Build()
+
+		if err == nil {
+			t.Error("Expected error for malicious column alias")
+		}
+		if !strings.Contains(err.Error(), "invalid characters") {
+			t.Errorf("Expected 'invalid characters' error, got: %v", err)
+		}
+	})
+}
+
+// TestWhereConditionInvalidColumn tests that condition functions validate column names
+func TestWhereConditionInvalidColumn(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name      string
+		condition func() Condition
+		errorMsg  string
+	}{
+		{
+			name:      "Eq with reserved word",
+			condition: func() Condition { return Eq("SELECT", "value") },
+			errorMsg:  "reserved word",
+		},
+		{
+			name:      "Ne with SQL injection",
+			condition: func() Condition { return Ne(`id"; DROP TABLE users--`, "value") },
+			errorMsg:  "invalid characters",
+		},
+		{
+			name:      "Gt with special characters",
+			condition: func() Condition { return Gt("col$name", 10) },
+			errorMsg:  "invalid characters",
+		},
+		{
+			name:      "Lt with spaces",
+			condition: func() Condition { return Lt("col name", 5) },
+			errorMsg:  "invalid characters",
+		},
+		{
+			name:      "Like with reserved word",
+			condition: func() Condition { return Like("WHERE", "%test%") },
+			errorMsg:  "reserved word",
+		},
+		{
+			name:      "IsNull with injection attempt",
+			condition: func() Condition { return IsNull("id; DROP TABLE users--") },
+			errorMsg:  "invalid characters",
+		},
+		{
+			name:      "In with reserved word",
+			condition: func() Condition { return In("DELETE", 1, 2, 3) },
+			errorMsg:  "reserved word",
+		},
+		{
+			name:      "Between with malicious column",
+			condition: func() Condition { return Between(`id" OR 1=1--`, 1, 10) },
+			errorMsg:  "invalid characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Select("id").
+				From("users").
+				Where(tt.condition()).
+				Build()
+
+			if err == nil {
+				t.Error("Expected error for invalid column name in condition")
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestColumnComparisonValidation tests that column comparison conditions validate both columns
+func TestColumnComparisonValidation(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name      string
+		condition func() Condition
+		errorMsg  string
+	}{
+		{
+			name:      "ColEq with reserved word in col1",
+			condition: func() Condition { return ColEq("SELECT", "other_col") },
+			errorMsg:  "reserved word",
+		},
+		{
+			name:      "ColEq with reserved word in col2",
+			condition: func() Condition { return ColEq("valid_col", "DROP") },
+			errorMsg:  "reserved word",
+		},
+		{
+			name:      "ColNe with SQL injection in col1",
+			condition: func() Condition { return ColNe(`id"; DROP TABLE users--`, "other") },
+			errorMsg:  "invalid characters",
+		},
+		{
+			name:      "ColGt with special characters",
+			condition: func() Condition { return ColGt("col1", "col$2") },
+			errorMsg:  "invalid characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Select("id").
+				From("users").
+				Where(tt.condition()).
+				Build()
+
+			if err == nil {
+				t.Error("Expected error for invalid column name in column comparison")
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestOrderByInjection tests that ORDER BY clauses validate column names
+func TestOrderByInjection(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name       string
+		columnName string
+		errorMsg   string
+	}{
+		{"reserved word", "SELECT", "reserved word"},
+		{"SQL injection", "id; DROP TABLE users--", "invalid characters"},
+		{"special characters", "col@name", "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Select("id").
+				From("users").
+				OrderBy(tt.columnName, ASC).
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious ORDER BY column %q", tt.columnName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestGroupByInjection tests that GROUP BY clauses validate column names
+func TestGroupByInjection(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name       string
+		columnName string
+		errorMsg   string
+	}{
+		{"reserved word", "UPDATE", "reserved word"},
+		{"SQL injection", `status" OR 1=1--`, "invalid characters"},
+		{"semicolon", "status; DROP TABLE users--", "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Select("id", "COUNT(*)").
+				From("users").
+				GroupBy(tt.columnName).
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious GROUP BY column %q", tt.columnName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestInsertColumnInjection tests that INSERT column names are validated
+func TestInsertColumnInjection(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name       string
+		columnName string
+		errorMsg   string
+	}{
+		{"reserved word", "FROM", "reserved word"},
+		{"SQL injection", `name", "admin"=true--`, "invalid characters"},
+		{"special characters", "col;name", "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Insert("users").
+				Columns(tt.columnName).
+				Values("test").
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious column name %q in INSERT", tt.columnName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestUpdateColumnInjection tests that UPDATE SET clauses validate column names
+func TestUpdateColumnInjection(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name       string
+		columnName string
+		errorMsg   string
+	}{
+		{"reserved word", "JOIN", "reserved word"},
+		{"SQL injection", `name" WHERE admin=true--`, "invalid characters"},
+		{"special characters", "col@name", "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Update("users").
+				Set(tt.columnName, "value").
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious column name %q in UPDATE", tt.columnName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// TestDeleteTableValidation tests that DELETE validates table names
+func TestDeleteTableValidation(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name      string
+		tableName string
+		errorMsg  string
+	}{
+		{"reserved word", "CREATE", "reserved word"},
+		{"SQL injection", "users; DROP TABLE sessions--", "invalid characters"},
+		{"special characters", "table@name", "invalid characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := New(dialect).
+				Delete(tt.tableName).
+				Build()
+
+			if err == nil {
+				t.Errorf("Expected error for malicious table name %q in DELETE", tt.tableName)
+			}
+			if !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+			}
+		})
+	}
 }

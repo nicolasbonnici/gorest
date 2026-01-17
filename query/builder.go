@@ -33,7 +33,7 @@ func New(dialect database.Dialect) *Builder {
 }
 
 func (b *Builder) Select(columns ...string) *SelectBuilder {
-	return &SelectBuilder{
+	sb := &SelectBuilder{
 		dialect:          b.dialect,
 		columns:          columns,
 		columnExprs:      make([]Expression, 0),
@@ -45,6 +45,14 @@ func (b *Builder) Select(columns ...string) *SelectBuilder {
 		orderBy:          make([]orderClause, 0),
 		orderByExprs:     make([]orderByExpr, 0),
 	}
+
+	for _, col := range columns {
+		if sb.err == nil {
+			sb.err = ValidateIdentifier(col)
+		}
+	}
+
+	return sb
 }
 
 func (b *Builder) Insert(table string) *InsertBuilder {

@@ -196,7 +196,6 @@ type mockHooks struct {
 	stateProcessorFunc func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error
 	beforeQueryFunc    func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error)
 	afterQueryFunc     func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error
-	overrideQueryFunc  func(ctx context.Context, operation hooks.Operation, id any, model *testModel) (query string, args []any, skip bool)
 	serializeOneFunc   func(ctx context.Context, operation hooks.Operation, model *testModel) error
 	serializeManyFunc  func(ctx context.Context, operation hooks.Operation, models *[]testModel) error
 }
@@ -220,13 +219,6 @@ func (m *mockHooks) AfterQuery(ctx context.Context, operation hooks.Operation, q
 		return m.afterQueryFunc(ctx, operation, query, args, result, err)
 	}
 	return nil
-}
-
-func (m *mockHooks) OverrideQuery(ctx context.Context, operation hooks.Operation, id any, model *testModel) (query string, args []any, skip bool) {
-	if m.overrideQueryFunc != nil {
-		return m.overrideQueryFunc(ctx, operation, id, model)
-	}
-	return "", nil, false
 }
 
 func (m *mockHooks) SerializeOne(ctx context.Context, operation hooks.Operation, model *testModel) error {
@@ -1064,46 +1056,6 @@ func TestCreate_HooksSerializeOneError(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-}
-
-func TestGetAll_HooksOverrideQuery(t *testing.T) {
-	callCount := 0
-	db := &mockDatabase{
-		dialect: &mockDialect{name: "postgres", supportsReturning: true},
-		queryFunc: func(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
-			return &mockRows{
-				nextFunc: func() bool {
-					callCount++
-					return callCount <= 1
-				},
-				scanFunc: func(dest ...interface{}) error {
-					*dest[0].(*int64) = 999
-					*dest[1].(*string) = "Override"
-					*dest[2].(*string) = "override@example.com"
-					*dest[3].(*string) = "2024-01-01"
-					*dest[4].(*string) = "2024-01-01"
-					return nil
-				},
-			}, nil
-		},
-	}
-
-	customHooks := &mockHooks{
-		overrideQueryFunc: func(ctx context.Context, operation hooks.Operation, id any, model *testModel) (query string, args []any, skip bool) {
-			return "SELECT * FROM custom_table", []any{}, true
-		},
-	}
-
-	crud := NewWithHooks[testModel](db, customHooks)
-	results, err := crud.GetAll(context.Background())
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if len(results) != 1 {
-		t.Errorf("expected 1 result, got %d", len(results))
 	}
 }
 

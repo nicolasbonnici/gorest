@@ -21,6 +21,9 @@ type UpdateBuilder struct {
 // Set adds or updates a column value in the SET clause.
 // Multiple calls to Set will add multiple columns to update.
 func (u *UpdateBuilder) Set(column string, value any) *UpdateBuilder {
+	if u.err == nil {
+		u.err = ValidateIdentifier(column)
+	}
 	if _, exists := u.sets[column]; !exists {
 		u.setOrder = append(u.setOrder, column)
 	}
@@ -97,6 +100,11 @@ func (u *UpdateBuilder) Build() (query string, args []any, err error) {
 	parts = append(parts, "SET", strings.Join(setClauses, ", "))
 
 	if len(u.conditions) > 0 {
+		for _, cond := range u.conditions {
+			if invCond, ok := cond.(*invalidCondition); ok {
+				return "", nil, invCond.err
+			}
+		}
 		whereSQL, whereArgs, _ := And(u.conditions...).ToSQL(u.dialect, paramIdx)
 		parts = append(parts, "WHERE", whereSQL)
 		allArgs = append(allArgs, whereArgs...)

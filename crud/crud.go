@@ -67,44 +67,33 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 		return err
 	}
 
-	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationCreate, nil, &m)
+	v := reflect.ValueOf(m)
+	t := reflect.TypeOf(m)
 
-	var queryStr string
-	var vals []interface{}
+	qb := query.New(c.DB.Dialect()).Insert(m.TableName())
 
-	if skip && customQuery != "" {
-		queryStr = customQuery
-		vals = customArgs
-	} else {
-		v := reflect.ValueOf(m)
-		t := reflect.TypeOf(m)
+	var cols []string
+	var values []any
 
-		var cols []string
-		var placeholders []string
-
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag == "" || tag == "id" || tag == "created_at" || tag == "updated_at" {
-				continue
-			}
-			cols = append(cols, tag)
-			vals = append(vals, v.Field(i).Interface())
-			placeholders = append(placeholders, c.DB.Dialect().Placeholder(len(vals)))
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("db")
+		if tag == "" || tag == "id" || tag == "created_at" || tag == "updated_at" {
+			continue
 		}
+		cols = append(cols, tag)
+		values = append(values, v.Field(i).Interface())
+	}
 
-		returning := ""
-		if c.DB.Dialect().SupportsReturning() {
-			returning = " " + c.DB.Dialect().ReturningClause()
-		}
+	qb = qb.Columns(cols...).Values(values...)
 
-		queryStr = fmt.Sprintf(
-			"INSERT INTO %s (%s) VALUES (%s)%s",
-			m.TableName(),
-			strings.Join(cols, ", "),
-			strings.Join(placeholders, ", "),
-			returning,
-		)
+	if c.DB.Dialect().SupportsReturning() {
+		qb = qb.Returning("id")
+	}
+
+	queryStr, vals, buildErr := qb.Build()
+	if buildErr != nil {
+		return fmt.Errorf("query build failed: %w", buildErr)
 	}
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationCreate, queryStr, vals)
@@ -189,51 +178,28 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 
 func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	var zero T
+	t := reflect.TypeOf(zero)
 
-	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationGetAll, nil, nil)
-
-	var queryStr string
-	var args []any
+	var cols []string
 	var fieldIndices []int
-
-	if skip && customQuery != "" {
-		queryStr = customQuery
-		args = customArgs
-	} else {
-		t := reflect.TypeOf(zero)
-
-		var cols []string
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag != "" {
-				cols = append(cols, tag)
-				fieldIndices = append(fieldIndices, i)
-			}
-		}
-
-		qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
-		modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
-		if modified {
-			qb = modifiedBuilder
-		}
-
-		var buildErr error
-		queryStr, args, buildErr = qb.Build()
-		if buildErr != nil {
-			return nil, fmt.Errorf("query build failed: %w", buildErr)
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("db")
+		if tag != "" {
+			cols = append(cols, tag)
+			fieldIndices = append(fieldIndices, i)
 		}
 	}
 
-	if skip && customQuery != "" {
-		t := reflect.TypeOf(zero)
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag != "" {
-				fieldIndices = append(fieldIndices, i)
-			}
-		}
+	qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
+	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
+	if modified {
+		qb = modifiedBuilder
+	}
+
+	queryStr, args, buildErr := qb.Build()
+	if buildErr != nil {
+		return nil, fmt.Errorf("query build failed: %w", buildErr)
 	}
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetAll, queryStr, args)
@@ -281,51 +247,28 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 
 func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (*PaginationResult[T], error) {
 	var zero T
+	t := reflect.TypeOf(zero)
 
-	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationGetAll, nil, nil)
-
-	var baseQuery string
-	var args []any
+	var cols []string
 	var fieldIndices []int
-
-	if skip && customQuery != "" {
-		baseQuery = customQuery
-		args = customArgs
-	} else {
-		t := reflect.TypeOf(zero)
-
-		var cols []string
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag != "" {
-				cols = append(cols, tag)
-				fieldIndices = append(fieldIndices, i)
-			}
-		}
-
-		qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
-		modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
-		if modified {
-			qb = modifiedBuilder
-		}
-
-		var buildErr error
-		baseQuery, args, buildErr = qb.Build()
-		if buildErr != nil {
-			return nil, fmt.Errorf("query build failed: %w", buildErr)
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("db")
+		if tag != "" {
+			cols = append(cols, tag)
+			fieldIndices = append(fieldIndices, i)
 		}
 	}
 
-	if skip && customQuery != "" {
-		t := reflect.TypeOf(zero)
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag != "" {
-				fieldIndices = append(fieldIndices, i)
-			}
-		}
+	qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
+	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
+	if modified {
+		qb = modifiedBuilder
+	}
+
+	baseQuery, args, buildErr := qb.Build()
+	if buildErr != nil {
+		return nil, fmt.Errorf("query build failed: %w", buildErr)
 	}
 
 	var total *int
@@ -401,51 +344,28 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 
 func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 	var item T
+	t := reflect.TypeOf(item)
 
-	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationGetByID, id, nil)
-
-	var queryStr string
-	var args []any
+	var cols []string
 	var fieldIndices []int
-
-	if skip && customQuery != "" {
-		queryStr = customQuery
-		args = customArgs
-	} else {
-		t := reflect.TypeOf(item)
-
-		var cols []string
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag != "" {
-				cols = append(cols, tag)
-				fieldIndices = append(fieldIndices, i)
-			}
-		}
-
-		qb := query.New(c.DB.Dialect()).Select(cols...).From(item.TableName()).Where(query.Eq("id", id))
-		modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetByID, qb)
-		if modified {
-			qb = modifiedBuilder
-		}
-
-		var buildErr error
-		queryStr, args, buildErr = qb.Build()
-		if buildErr != nil {
-			return nil, fmt.Errorf("query build failed: %w", buildErr)
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("db")
+		if tag != "" {
+			cols = append(cols, tag)
+			fieldIndices = append(fieldIndices, i)
 		}
 	}
 
-	if skip && customQuery != "" {
-		t := reflect.TypeOf(item)
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag != "" {
-				fieldIndices = append(fieldIndices, i)
-			}
-		}
+	qb := query.New(c.DB.Dialect()).Select(cols...).From(item.TableName()).Where(query.Eq("id", id))
+	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetByID, qb)
+	if modified {
+		qb = modifiedBuilder
+	}
+
+	queryStr, args, buildErr := qb.Build()
+	if buildErr != nil {
+		return nil, fmt.Errorf("query build failed: %w", buildErr)
 	}
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetByID, queryStr, args)
@@ -541,41 +461,30 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 		return err
 	}
 
-	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationUpdate, id, &m)
+	v := reflect.ValueOf(m)
+	t := reflect.TypeOf(m)
 
-	var queryStr string
-	var vals []interface{}
+	qb := query.New(c.DB.Dialect()).Update(m.TableName())
 
-	if skip && customQuery != "" {
-		queryStr = customQuery
-		vals = customArgs
-	} else {
-		v := reflect.ValueOf(m)
-		t := reflect.TypeOf(m)
-
-		qb := query.New(c.DB.Dialect()).Update(m.TableName())
-
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag == "" || tag == "id" || tag == "created_at" {
-				continue
-			}
-			qb = qb.Set(tag, v.Field(i).Interface())
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("db")
+		if tag == "" || tag == "id" || tag == "created_at" {
+			continue
 		}
+		qb = qb.Set(tag, v.Field(i).Interface())
+	}
 
-		qb = qb.Where(query.Eq("id", id))
+	qb = qb.Where(query.Eq("id", id))
 
-		modifiedBuilder, modified := c.Hooks.ModifyUpdateQuery(ctx, hooks.OperationUpdate, id, &m, qb)
-		if modified {
-			qb = modifiedBuilder
-		}
+	modifiedBuilder, modified := c.Hooks.ModifyUpdateQuery(ctx, hooks.OperationUpdate, id, &m, qb)
+	if modified {
+		qb = modifiedBuilder
+	}
 
-		var buildErr error
-		queryStr, vals, buildErr = qb.Build()
-		if buildErr != nil {
-			return fmt.Errorf("query build failed: %w", buildErr)
-		}
+	queryStr, vals, buildErr := qb.Build()
+	if buildErr != nil {
+		return fmt.Errorf("query build failed: %w", buildErr)
 	}
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationUpdate, queryStr, vals)
@@ -607,27 +516,16 @@ func (c *CRUD[T]) Delete(ctx context.Context, id any) error {
 		return err
 	}
 
-	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationDelete, id, nil)
+	qb := query.New(c.DB.Dialect()).Delete(zero.TableName()).Where(query.Eq("id", id))
 
-	var queryStr string
-	var args []any
+	modifiedBuilder, modified := c.Hooks.ModifyDeleteQuery(ctx, hooks.OperationDelete, id, qb)
+	if modified {
+		qb = modifiedBuilder
+	}
 
-	if skip && customQuery != "" {
-		queryStr = customQuery
-		args = customArgs
-	} else {
-		qb := query.New(c.DB.Dialect()).Delete(zero.TableName()).Where(query.Eq("id", id))
-
-		modifiedBuilder, modified := c.Hooks.ModifyDeleteQuery(ctx, hooks.OperationDelete, id, qb)
-		if modified {
-			qb = modifiedBuilder
-		}
-
-		var buildErr error
-		queryStr, args, buildErr = qb.Build()
-		if buildErr != nil {
-			return fmt.Errorf("query build failed: %w", buildErr)
-		}
+	queryStr, args, buildErr := qb.Build()
+	if buildErr != nil {
+		return fmt.Errorf("query build failed: %w", buildErr)
 	}
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationDelete, queryStr, args)

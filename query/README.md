@@ -687,6 +687,63 @@ query.Raw("age > ? AND status = ?", 18, "active")  // ✅ Values parameterized
 // query.Raw(fmt.Sprintf("age > %d", userInput))    // ❌ DANGEROUS
 ```
 
+### Special Warning: Raw SQL Functions
+
+The query builder provides `Raw()` and `RawExpr()` functions for cases where the builder doesn't support specific SQL syntax. **These functions bypass all security protections and must be used with extreme caution.**
+
+#### ⚠️ High Risk Functions
+
+- `query.Raw(sql, args...)` - Raw WHERE condition
+- `query.RawExpr(sql)` - Raw SELECT expression
+
+#### Rules for Safe Usage
+
+1. **NEVER use with user input**
+   ```go
+   // ❌ DANGEROUS - SQL INJECTION!
+   query.Where(query.Raw(fmt.Sprintf("name = '%s'", userName)))
+
+   // ✅ SAFE - Use type-safe builders
+   query.Where(query.Eq("name", userName))
+   ```
+
+2. **ALWAYS use placeholders for values**
+   ```go
+   // ❌ DANGEROUS - SQL INJECTION!
+   query.Raw(fmt.Sprintf("age > %d", minAge))
+
+   // ✅ SAFE - Use placeholders
+   query.Raw("age > ?", minAge)
+   ```
+
+3. **ONLY use for trusted, static SQL**
+   ```go
+   // ✅ SAFE - Static SQL function
+   query.Raw("created_at > NOW() - INTERVAL '1 day'")
+
+   // ✅ SAFE - Database function with parameters
+   query.Raw("ST_Distance(point, ?) < ?", userLocation, maxDistance)
+   ```
+
+#### When to Use Raw()
+
+Raw SQL should be a last resort. Use it only for:
+
+- Complex database-specific functions not supported by the builder
+- Performance-critical hand-optimized SQL
+- Temporary workarounds (create an issue to add proper builder support)
+
+#### Code Review Checklist
+
+During security audits, review ALL uses of `Raw()` and `RawExpr()`:
+
+- [ ] Is user input being passed to Raw()?
+- [ ] Are values properly parameterized with `?` placeholders?
+- [ ] Could this be replaced with type-safe builder methods?
+- [ ] Is there a comment explaining why Raw() is necessary?
+
+**Remember:** If you find yourself using Raw() frequently, consider contributing builder support for that SQL feature instead.
+
 ### 7. Security Testing
 
 Test your queries with malicious inputs:

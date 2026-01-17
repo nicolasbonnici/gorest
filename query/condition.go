@@ -11,6 +11,14 @@ type Condition interface {
 	ToSQL(dialect database.Dialect, paramStart int) (sql string, args []any, nextParam int)
 }
 
+type invalidCondition struct {
+	err error
+}
+
+func (c *invalidCondition) ToSQL(dialect database.Dialect, paramStart int) (string, []any, int) {
+	return "", nil, paramStart
+}
+
 type comparisonCondition struct {
 	column   string
 	operator string
@@ -23,26 +31,44 @@ func (c *comparisonCondition) ToSQL(dialect database.Dialect, paramStart int) (s
 }
 
 func Eq(column string, value any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("Eq: %w", err)}
+	}
 	return &comparisonCondition{column: column, operator: "=", value: value}
 }
 
 func Ne(column string, value any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("Ne: %w", err)}
+	}
 	return &comparisonCondition{column: column, operator: "!=", value: value}
 }
 
 func Gt(column string, value any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("Gt: %w", err)}
+	}
 	return &comparisonCondition{column: column, operator: ">", value: value}
 }
 
 func Gte(column string, value any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("Gte: %w", err)}
+	}
 	return &comparisonCondition{column: column, operator: ">=", value: value}
 }
 
 func Lt(column string, value any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("Lt: %w", err)}
+	}
 	return &comparisonCondition{column: column, operator: "<", value: value}
 }
 
 func Lte(column string, value any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("Lte: %w", err)}
+	}
 	return &comparisonCondition{column: column, operator: "<=", value: value}
 }
 
@@ -62,10 +88,16 @@ func (c *likeCondition) ToSQL(dialect database.Dialect, paramStart int) (string,
 }
 
 func Like(column string, pattern string) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("Like: %w", err)}
+	}
 	return &likeCondition{column: column, pattern: pattern, notLike: false}
 }
 
 func NotLike(column string, pattern string) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("NotLike: %w", err)}
+	}
 	return &likeCondition{column: column, pattern: pattern, notLike: true}
 }
 
@@ -87,6 +119,9 @@ func (c *ilikeCondition) ToSQL(dialect database.Dialect, paramStart int) (string
 }
 
 func ILike(column string, pattern string) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ILike: %w", err)}
+	}
 	return &ilikeCondition{column: column, pattern: pattern}
 }
 
@@ -105,10 +140,16 @@ func (c *nullCondition) ToSQL(dialect database.Dialect, paramStart int) (string,
 }
 
 func IsNull(column string) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("IsNull: %w", err)}
+	}
 	return &nullCondition{column: column, isNull: true}
 }
 
 func IsNotNull(column string) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("IsNotNull: %w", err)}
+	}
 	return &nullCondition{column: column, isNull: false}
 }
 
@@ -141,10 +182,16 @@ func (c *inCondition) ToSQL(dialect database.Dialect, paramStart int) (string, [
 }
 
 func In(column string, values ...any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("In: %w", err)}
+	}
 	return &inCondition{column: column, values: values, notIn: false}
 }
 
 func NotIn(column string, values ...any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("NotIn: %w", err)}
+	}
 	return &inCondition{column: column, values: values, notIn: true}
 }
 
@@ -163,6 +210,9 @@ func (c *betweenCondition) ToSQL(dialect database.Dialect, paramStart int) (stri
 }
 
 func Between(column string, start, end any) Condition {
+	if err := ValidateIdentifier(column); err != nil {
+		return &invalidCondition{err: fmt.Errorf("Between: %w", err)}
+	}
 	return &betweenCondition{column: column, start: start, end: end}
 }
 
@@ -233,6 +283,39 @@ func (c *rawCondition) ToSQL(dialect database.Dialect, paramStart int) (string, 
 	return sql, c.args, currentParam
 }
 
+// Raw creates a raw SQL condition with optional parameters.
+//
+// ⚠️  SECURITY WARNING: Use Raw() with EXTREME CAUTION!
+//
+// The sql parameter is inserted directly into the query WITHOUT validation or escaping.
+// This creates a HIGH RISK of SQL injection if misused.
+//
+// RULES FOR SAFE USAGE:
+//   1. NEVER pass user input directly in the sql parameter
+//   2. ALWAYS use placeholders (?) for any dynamic values
+//   3. Pass dynamic values as args parameters, not in the sql string
+//   4. Only use Raw() for trusted, static SQL fragments
+//
+// SAFE Examples:
+//   ✅ Raw("age BETWEEN ? AND ?", minAge, maxAge)
+//   ✅ Raw("status IN (?, ?, ?)", "active", "pending", "approved")
+//   ✅ Raw("created_at > NOW() - INTERVAL '1 day'")
+//
+// UNSAFE Examples (SQL INJECTION VULNERABILITIES):
+//   ❌ Raw(fmt.Sprintf("name = '%s'", userName))  // NEVER DO THIS!
+//   ❌ Raw("email = '" + userEmail + "'")        // NEVER DO THIS!
+//   ❌ Raw(userInput)                            // NEVER DO THIS!
+//
+// If you need to filter by user input, use the type-safe condition builders instead:
+//   query.Eq("name", userName)  // Safe - automatically parameterized
+//   query.In("status", statuses...)  // Safe - automatically parameterized
+//
+// Raw() should only be used for:
+//   - Complex SQL functions not supported by the query builder
+//   - Database-specific features (e.g., PostgreSQL operators)
+//   - Performance-critical queries requiring hand-optimized SQL
+//
+// Always review Raw() usage during security audits.
 func Raw(sql string, args ...any) Condition {
 	return &rawCondition{sql: sql, args: args}
 }
@@ -249,17 +332,61 @@ func (c *columnComparisonCondition) ToSQL(dialect database.Dialect, paramStart i
 }
 
 func ColEq(col1, col2 string) Condition {
+	if err := ValidateIdentifier(col1); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColEq (col1): %w", err)}
+	}
+	if err := ValidateIdentifier(col2); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColEq (col2): %w", err)}
+	}
 	return &columnComparisonCondition{col1: col1, col2: col2, operator: "="}
 }
 
 func ColNe(col1, col2 string) Condition {
+	if err := ValidateIdentifier(col1); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColNe (col1): %w", err)}
+	}
+	if err := ValidateIdentifier(col2); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColNe (col2): %w", err)}
+	}
 	return &columnComparisonCondition{col1: col1, col2: col2, operator: "!="}
 }
 
 func ColGt(col1, col2 string) Condition {
+	if err := ValidateIdentifier(col1); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColGt (col1): %w", err)}
+	}
+	if err := ValidateIdentifier(col2); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColGt (col2): %w", err)}
+	}
 	return &columnComparisonCondition{col1: col1, col2: col2, operator: ">"}
 }
 
+func ColGte(col1, col2 string) Condition {
+	if err := ValidateIdentifier(col1); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColGte (col1): %w", err)}
+	}
+	if err := ValidateIdentifier(col2); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColGte (col2): %w", err)}
+	}
+	return &columnComparisonCondition{col1: col1, col2: col2, operator: ">="}
+}
+
 func ColLt(col1, col2 string) Condition {
+	if err := ValidateIdentifier(col1); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColLt (col1): %w", err)}
+	}
+	if err := ValidateIdentifier(col2); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColLt (col2): %w", err)}
+	}
 	return &columnComparisonCondition{col1: col1, col2: col2, operator: "<"}
+}
+
+func ColLte(col1, col2 string) Condition {
+	if err := ValidateIdentifier(col1); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColLte (col1): %w", err)}
+	}
+	if err := ValidateIdentifier(col2); err != nil {
+		return &invalidCondition{err: fmt.Errorf("ColLte (col2): %w", err)}
+	}
+	return &columnComparisonCondition{col1: col1, col2: col2, operator: "<="}
 }

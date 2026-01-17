@@ -14,13 +14,55 @@ type Expression interface {
 	ToSQL(dialect database.Dialect, paramStart int) (sql string, args []any, nextParam int)
 }
 
+// invalidExpression represents an expression with a validation error
+type invalidExpression struct {
+	err error
+}
+
+func (e *invalidExpression) ToSQL(dialect database.Dialect, paramStart int) (string, []any, int) {
+	return "", nil, paramStart
+}
+
 // rawExpr represents a raw SQL expression with optional parameters.
 type rawExpr struct {
 	sql  string
 	args []any
 }
 
-// RawExpr creates a raw SQL expression.
+// RawExpr creates a raw SQL expression for SELECT clauses.
+//
+// ⚠️  SECURITY WARNING: Use RawExpr() with EXTREME CAUTION!
+//
+// The sql parameter is inserted directly into the SELECT clause WITHOUT validation.
+// This creates a HIGH RISK of SQL injection if misused.
+//
+// RULES FOR SAFE USAGE:
+//   1. NEVER pass user input directly in the sql parameter
+//   2. ONLY use for static, trusted SQL expressions
+//   3. Use for database functions and calculated fields
+//
+// SAFE Examples:
+//   ✅ RawExpr("COUNT(*)")
+//   ✅ RawExpr("SUM(price * quantity)")
+//   ✅ RawExpr("CONCAT(first_name, ' ', last_name)")
+//   ✅ RawExpr("DATE_TRUNC('day', created_at)")
+//
+// UNSAFE Examples (SQL INJECTION VULNERABILITIES):
+//   ❌ RawExpr(userProvidedColumn)              // NEVER DO THIS!
+//   ❌ RawExpr(fmt.Sprintf("%s * 2", colName))  // NEVER DO THIS!
+//
+// If you need to select user-specified columns, validate them against a whitelist:
+//   allowedCols := map[string]bool{"name": true, "email": true, "age": true}
+//   if allowedCols[userCol] {
+//       builder.Select(userCol)  // Safe - validated
+//   }
+//
+// RawExpr() should only be used for:
+//   - Aggregate functions (COUNT, SUM, AVG, etc.)
+//   - Database-specific functions
+//   - Complex calculated fields
+//
+// Always review RawExpr() usage during security audits.
 func RawExpr(sql string, args ...any) Expression {
 	return &rawExpr{sql: sql, args: args}
 }
@@ -430,11 +472,17 @@ type aliasExpr struct {
 
 // As creates an aliased expression (for use in SELECT).
 func (e *columnExpr) As(alias string) Expression {
+	if err := ValidateIdentifier(alias); err != nil {
+		return &invalidExpression{err: fmt.Errorf("As: %w", err)}
+	}
 	return &aliasExpr{expr: e, alias: alias}
 }
 
 // As adds an alias to any expression.
 func As(expr Expression, alias string) Expression {
+	if err := ValidateIdentifier(alias); err != nil {
+		return &invalidExpression{err: fmt.Errorf("As: %w", err)}
+	}
 	return &aliasExpr{expr: expr, alias: alias}
 }
 

@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/nicolasbonnici/gorest/database"
@@ -40,6 +41,9 @@ func (s *SelectBuilder) From(table string) *SelectBuilder {
 }
 
 func (s *SelectBuilder) As(alias string) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(alias)
+	}
 	s.tableAlias = alias
 	return s
 }
@@ -77,6 +81,13 @@ func (s *SelectBuilder) Join(table string, on Condition) *SelectBuilder {
 
 // InnerJoin adds an INNER JOIN clause to the query.
 func (s *SelectBuilder) InnerJoin(table string, on Condition) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(table)
+	}
+	if s.err != nil {
+		return s
+	}
+
 	s.joins = append(s.joins, joinClause{
 		joinType:  InnerJoin,
 		table:     table,
@@ -87,6 +98,13 @@ func (s *SelectBuilder) InnerJoin(table string, on Condition) *SelectBuilder {
 
 // LeftJoin adds a LEFT JOIN clause to the query.
 func (s *SelectBuilder) LeftJoin(table string, on Condition) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(table)
+	}
+	if s.err != nil {
+		return s
+	}
+
 	s.joins = append(s.joins, joinClause{
 		joinType:  LeftJoin,
 		table:     table,
@@ -97,6 +115,13 @@ func (s *SelectBuilder) LeftJoin(table string, on Condition) *SelectBuilder {
 
 // RightJoin adds a RIGHT JOIN clause to the query.
 func (s *SelectBuilder) RightJoin(table string, on Condition) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(table)
+	}
+	if s.err != nil {
+		return s
+	}
+
 	s.joins = append(s.joins, joinClause{
 		joinType:  RightJoin,
 		table:     table,
@@ -106,11 +131,19 @@ func (s *SelectBuilder) RightJoin(table string, on Condition) *SelectBuilder {
 }
 
 // FullJoin adds a FULL OUTER JOIN clause to the query.
-// This will panic if the dialect doesn't support FULL JOIN (MySQL, SQLite).
+// This will return an error if the dialect doesn't support FULL JOIN (MySQL, SQLite).
 func (s *SelectBuilder) FullJoin(table string, on Condition) *SelectBuilder {
-	if !s.dialect.SupportsFullJoin() {
-		panic("FULL JOIN not supported by this database dialect")
+	if s.err == nil {
+		if !s.dialect.SupportsFullJoin() {
+			s.err = fmt.Errorf("FULL JOIN not supported by %T", s.dialect)
+			return s
+		}
+		s.err = ValidateIdentifier(table)
 	}
+	if s.err != nil {
+		return s
+	}
+
 	s.joins = append(s.joins, joinClause{
 		joinType:  FullJoin,
 		table:     table,
@@ -121,6 +154,13 @@ func (s *SelectBuilder) FullJoin(table string, on Condition) *SelectBuilder {
 
 // CrossJoin adds a CROSS JOIN clause to the query.
 func (s *SelectBuilder) CrossJoin(table string) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(table)
+	}
+	if s.err != nil {
+		return s
+	}
+
 	s.joins = append(s.joins, joinClause{
 		joinType: CrossJoin,
 		table:    table,
@@ -130,6 +170,16 @@ func (s *SelectBuilder) CrossJoin(table string) *SelectBuilder {
 
 // JoinAs adds a JOIN clause with a table alias.
 func (s *SelectBuilder) JoinAs(table, alias string, on Condition) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(table)
+	}
+	if s.err == nil {
+		s.err = ValidateIdentifier(alias)
+	}
+	if s.err != nil {
+		return s
+	}
+
 	s.joins = append(s.joins, joinClause{
 		joinType:  InnerJoin,
 		table:     table,
@@ -141,6 +191,16 @@ func (s *SelectBuilder) JoinAs(table, alias string, on Condition) *SelectBuilder
 
 // LeftJoinAs adds a LEFT JOIN clause with a table alias.
 func (s *SelectBuilder) LeftJoinAs(table, alias string, on Condition) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(table)
+	}
+	if s.err == nil {
+		s.err = ValidateIdentifier(alias)
+	}
+	if s.err != nil {
+		return s
+	}
+
 	s.joins = append(s.joins, joinClause{
 		joinType:  LeftJoin,
 		table:     table,
@@ -157,6 +217,9 @@ func (s *SelectBuilder) SelectExpr(exprs ...Expression) *SelectBuilder {
 }
 
 func (s *SelectBuilder) OrderBy(column string, direction Order) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(column)
+	}
 	s.orderBy = append(s.orderBy, orderClause{
 		column:    column,
 		direction: direction,
@@ -175,6 +238,14 @@ func (s *SelectBuilder) OrderByExpr(expr Expression, direction Order) *SelectBui
 
 // GroupBy adds column names to the GROUP BY clause.
 func (s *SelectBuilder) GroupBy(columns ...string) *SelectBuilder {
+	for _, col := range columns {
+		if s.err == nil {
+			s.err = ValidateIdentifier(col)
+			if s.err != nil {
+				return s
+			}
+		}
+	}
 	s.groupBy = append(s.groupBy, columns...)
 	return s
 }
@@ -262,6 +333,9 @@ func (s *SelectBuilder) Build() (query string, args []any, err error) {
 	if len(s.conditions) > 0 {
 		var whereParts []string
 		for _, cond := range s.conditions {
+			if invCond, ok := cond.(*invalidCondition); ok {
+				return "", nil, invCond.err
+			}
 			sql, args, nextParam := cond.ToSQL(s.dialect, paramCount)
 			whereParts = append(whereParts, sql)
 			allArgs = append(allArgs, args...)
@@ -292,6 +366,9 @@ func (s *SelectBuilder) Build() (query string, args []any, err error) {
 	if len(s.havingConditions) > 0 {
 		var havingParts []string
 		for _, cond := range s.havingConditions {
+			if invCond, ok := cond.(*invalidCondition); ok {
+				return "", nil, invCond.err
+			}
 			sql, args, nextParam := cond.ToSQL(s.dialect, paramCount)
 			havingParts = append(havingParts, sql)
 			allArgs = append(allArgs, args...)
