@@ -14,6 +14,7 @@ type InsertBuilder struct {
 	columns   []string
 	values    [][]any
 	returning []string
+	err       error
 }
 
 // Columns specifies the columns for the INSERT statement.
@@ -56,7 +57,17 @@ func (i *InsertBuilder) Returning(columns ...string) *InsertBuilder {
 }
 
 // Build generates the final SQL query and arguments.
-func (i *InsertBuilder) Build() (query string, args []any) {
+func (i *InsertBuilder) Build() (query string, args []any, err error) {
+	// Return early if there was a validation error
+	if i.err != nil {
+		return "", nil, i.err
+	}
+
+	// Validate table name
+	if err := ValidateIdentifier(i.table); err != nil {
+		return "", nil, err
+	}
+
 	var parts []string
 	var allArgs []any
 
@@ -85,5 +96,5 @@ func (i *InsertBuilder) Build() (query string, args []any) {
 		parts = append(parts, i.dialect.ReturningClause(i.returning...))
 	}
 
-	return strings.Join(parts, " "), allArgs
+	return strings.Join(parts, " "), allArgs, nil
 }

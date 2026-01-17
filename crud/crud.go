@@ -218,7 +218,11 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 			qb = modifiedBuilder
 		}
 
-		queryStr, args = qb.Build()
+		var buildErr error
+		queryStr, args, buildErr = qb.Build()
+		if buildErr != nil {
+			return nil, fmt.Errorf("query build failed: %w", buildErr)
+		}
 	}
 
 	if skip && customQuery != "" {
@@ -306,7 +310,11 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 			qb = modifiedBuilder
 		}
 
-		baseQuery, args = qb.Build()
+		var buildErr error
+		baseQuery, args, buildErr = qb.Build()
+		if buildErr != nil {
+			return nil, fmt.Errorf("query build failed: %w", buildErr)
+		}
 	}
 
 	if skip && customQuery != "" {
@@ -422,7 +430,11 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 			qb = modifiedBuilder
 		}
 
-		queryStr, args = qb.Build()
+		var buildErr error
+		queryStr, args, buildErr = qb.Build()
+		if buildErr != nil {
+			return nil, fmt.Errorf("query build failed: %w", buildErr)
+		}
 	}
 
 	if skip && customQuery != "" {
@@ -559,7 +571,11 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 			qb = modifiedBuilder
 		}
 
-		queryStr, vals = qb.Build()
+		var buildErr error
+		queryStr, vals, buildErr = qb.Build()
+		if buildErr != nil {
+			return fmt.Errorf("query build failed: %w", buildErr)
+		}
 	}
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationUpdate, queryStr, vals)
@@ -607,7 +623,11 @@ func (c *CRUD[T]) Delete(ctx context.Context, id any) error {
 			qb = modifiedBuilder
 		}
 
-		queryStr, args = qb.Build()
+		var buildErr error
+		queryStr, args, buildErr = qb.Build()
+		if buildErr != nil {
+			return fmt.Errorf("query build failed: %w", buildErr)
+		}
 	}
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationDelete, queryStr, args)

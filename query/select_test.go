@@ -55,7 +55,10 @@ func TestSelectBuilder_SimpleQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -101,7 +104,10 @@ func TestSelectBuilder_Distinct(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -141,7 +147,10 @@ func TestSelectBuilder_TableAlias(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -223,7 +232,10 @@ func TestSelectBuilder_Where(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -268,7 +280,10 @@ func TestSelectBuilder_WhereOr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -319,7 +334,10 @@ func TestSelectBuilder_OrderBy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -377,7 +395,10 @@ func TestSelectBuilder_LimitOffset(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -431,7 +452,10 @@ func TestSelectBuilder_ParameterNumbering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -518,7 +542,10 @@ func TestSelectBuilder_IntegrationScenarios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -597,7 +624,10 @@ func TestSelectBuilder_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder.Build()
+			sql, args, err := tt.builder.Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 			if sql != tt.wantSQL {
 				t.Errorf("Build() SQL = %v, want %v", sql, tt.wantSQL)
 			}
@@ -626,7 +656,10 @@ func TestSelectBuilder_FluentInterface(t *testing.T) {
 		Limit(10).
 		Offset(5)
 
-	sql, args := builder.Build()
+	sql, args, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT DISTINCT "id", "name" FROM "users" AS "u" WHERE "status" = $1 AND "age" > $2 ORDER BY "name" ASC LIMIT 10 OFFSET 5`
 	expectedArgs := []any{"active", 18}
@@ -655,7 +688,10 @@ func TestSelectBuilder_MultipleWhereConditions(t *testing.T) {
 		Where(Eq("status", "active")).
 		Where(Gt("age", 18))
 
-	sql, args := builder.Build()
+	sql, args, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT * FROM "users" WHERE "role" = $1 AND "status" = $2 AND "age" > $3`
 	expectedArgs := []any{"admin", "active", 18}

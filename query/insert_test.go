@@ -61,7 +61,10 @@ func TestInsertBuilder_SingleRow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder().Build()
+			sql, args, err := tt.builder().Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 
 			if sql != tt.expectedSQL {
 				t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", tt.expectedSQL, sql)
@@ -138,7 +141,10 @@ func TestInsertBuilder_BatchInsert(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder().Build()
+			sql, args, err := tt.builder().Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 
 			if sql != tt.expectedSQL {
 				t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", tt.expectedSQL, sql)
@@ -168,7 +174,10 @@ func TestInsertBuilder_ValuesMap(t *testing.T) {
 				"age":   30,
 			})
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `INSERT INTO "users" ("name", "email", "age") VALUES ($1, $2, $3)`
 		if sql != expectedSQL {
@@ -188,7 +197,10 @@ func TestInsertBuilder_ValuesMap(t *testing.T) {
 				"email": "john@example.com",
 			})
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, `INSERT INTO "users"`) {
 			t.Errorf("Expected INSERT INTO users, got: %s", sql)
@@ -206,7 +218,10 @@ func TestInsertBuilder_ValuesMap(t *testing.T) {
 			ValuesMap(map[string]any{"name": "John", "email": "john@example.com"}).
 			ValuesMap(map[string]any{"name": "Jane", "email": "jane@example.com"})
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `INSERT INTO "users" ("name", "email") VALUES ($1, $2), ($3, $4)`
 		if sql != expectedSQL {
@@ -227,9 +242,12 @@ func TestInsertBuilder_Returning(t *testing.T) {
 			Values("John Doe", "john@example.com").
 			Returning("id", "created_at")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
-		expectedSQL := `INSERT INTO "users" ("name", "email") VALUES ($1, $2) RETURNING id, created_at`
+		expectedSQL := `INSERT INTO "users" ("name", "email") VALUES ($1, $2) RETURNING "id", "created_at"`
 		if sql != expectedSQL {
 			t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", expectedSQL, sql)
 		}
@@ -246,7 +264,10 @@ func TestInsertBuilder_Returning(t *testing.T) {
 			Values("Jane Doe", "jane@example.com").
 			Returning("id")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `INSERT INTO "users" ("name", "email") VALUES (?, ?) RETURNING "id"`
 		if sql != expectedSQL {
@@ -265,7 +286,10 @@ func TestInsertBuilder_Returning(t *testing.T) {
 			Values("Bob Smith", "bob@example.com").
 			Returning("id")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		// MySQL doesn't support RETURNING, so it should be omitted
 		expectedSQL := "INSERT INTO `users` (`name`, `email`) VALUES (?, ?)"
@@ -287,7 +311,7 @@ func TestInsertBuilder_ParameterNumbering(t *testing.T) {
 			Values(1, 2, 3).
 			Values(4, 5, 6)
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		expected := `INSERT INTO "users" ("a", "b", "c") VALUES ($1, $2, $3), ($4, $5, $6)`
 		if sql != expected {
@@ -303,7 +327,7 @@ func TestInsertBuilder_ParameterNumbering(t *testing.T) {
 			Values(3, 4).
 			Values(5, 6)
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		expected := "INSERT INTO `users` (`a`, `b`) VALUES (?, ?), (?, ?), (?, ?)"
 		if sql != expected {
@@ -320,7 +344,10 @@ func TestInsertBuilder_FluentInterface(t *testing.T) {
 		Values("Jane Doe", "jane@example.com", 25).
 		Returning("id")
 
-	sql, args := builder.Build()
+	sql, args, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	if !strings.Contains(sql, "INSERT INTO") {
 		t.Error("Expected INSERT INTO in SQL")
@@ -338,7 +365,10 @@ func TestInsertBuilder_EdgeCases(t *testing.T) {
 			Columns("name").
 			Values("tag1")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `INSERT INTO "tags" ("name") VALUES ($1)`
 		if sql != expectedSQL {
@@ -356,7 +386,10 @@ func TestInsertBuilder_EdgeCases(t *testing.T) {
 			Columns("a", "b", "c", "d", "e", "f", "g", "h", "i", "j").
 			Values(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "$10") {
 			t.Error("Expected $10 placeholder in SQL")
@@ -376,7 +409,10 @@ func TestInsertBuilder_EdgeCases(t *testing.T) {
 			builder.Values(i, "item")
 		}
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if len(args) != 200 {
 			t.Errorf("Expected 200 args, got %d", len(args))

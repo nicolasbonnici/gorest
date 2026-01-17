@@ -18,7 +18,10 @@ func TestInSubquery_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(InSubquery("id", subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", "email" FROM "users" WHERE "id" IN (SELECT "user_id" FROM "orders" WHERE "total" > $1)`
 	if sql != expectedSQL {
@@ -39,7 +42,10 @@ func TestInSubquery_MySQL(t *testing.T) {
 		From("users").
 		Where(InSubquery("id", subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT `name`, `email` FROM `users` WHERE `id` IN (SELECT `user_id` FROM `orders` WHERE `total` > ?)"
 	if sql != expectedSQL {
@@ -60,7 +66,10 @@ func TestInSubquery_SQLite(t *testing.T) {
 		From("users").
 		Where(InSubquery("id", subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", "email" FROM "users" WHERE "id" IN (SELECT "user_id" FROM "orders" WHERE "total" > ?)`
 	if sql != expectedSQL {
@@ -81,7 +90,10 @@ func TestNotInSubquery_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(NotInSubquery("id", subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "*" FROM "users" WHERE "id" NOT IN (SELECT "id" FROM "blocked_users")`
 	if sql != expectedSQL {
@@ -102,7 +114,10 @@ func TestNotInSubquery_MySQL(t *testing.T) {
 		From("users").
 		Where(NotInSubquery("id", subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT `*` FROM `users` WHERE `id` NOT IN (SELECT `id` FROM `blocked_users`)"
 	if sql != expectedSQL {
@@ -123,7 +138,10 @@ func TestExists_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(Exists(subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name" FROM "users" WHERE EXISTS (SELECT "1" FROM "orders" WHERE "orders.user_id" = "users.id")`
 	if sql != expectedSQL {
@@ -144,7 +162,10 @@ func TestExists_MySQL(t *testing.T) {
 		From("users").
 		Where(Exists(subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT `name` FROM `users` WHERE EXISTS (SELECT `1` FROM `orders` WHERE `orders.user_id` = `users.id`)"
 	if sql != expectedSQL {
@@ -165,7 +186,10 @@ func TestNotExists_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(NotExists(subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name" FROM "users" WHERE NOT EXISTS (SELECT "1" FROM "orders" WHERE "orders.user_id" = "users.id")`
 	if sql != expectedSQL {
@@ -186,7 +210,10 @@ func TestNotExists_MySQL(t *testing.T) {
 		From("users").
 		Where(NotExists(subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT `name` FROM `users` WHERE NOT EXISTS (SELECT `1` FROM `orders` WHERE `orders.user_id` = `users.id`)"
 	if sql != expectedSQL {
@@ -212,7 +239,10 @@ func TestSubqueryWithMultipleConditions_PostgreSQL(t *testing.T) {
 		Where(InSubquery("id", subquery)).
 		Where(Eq("active", true))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", "email" FROM "users" WHERE "id" IN (SELECT "user_id" FROM "orders" WHERE "total" > $1 AND "status" = $2) AND "active" = $3`
 	if sql != expectedSQL {
@@ -244,7 +274,10 @@ func TestSubqueryParameterRenumbering_PostgreSQL(t *testing.T) {
 		Where(InSubquery("id", subquery)).
 		Where(Gt("age", 18))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "*" FROM "users" WHERE "country" = $1 AND "id" IN (SELECT "user_id" FROM "orders" WHERE "total" > $2 AND "status" = $3) AND "age" > $4`
 	if sql != expectedSQL {
@@ -274,7 +307,10 @@ func TestSubqueryParameterRenumbering_MySQL(t *testing.T) {
 		Where(InSubquery("id", subquery)).
 		Where(Gt("age", 18))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	// MySQL uses ? for all parameters, so renumbering doesn't change appearance
 	expectedSQL := "SELECT `*` FROM `users` WHERE `country` = ? AND `id` IN (SELECT `user_id` FROM `orders` WHERE `total` > ? AND `status` = ?) AND `age` > ?"
@@ -304,7 +340,10 @@ func TestComplexSubqueryWithJoin_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(InSubquery("id", subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", "email" FROM "users" WHERE "id" IN (SELECT "o.user_id" FROM "orders" AS "o" INNER JOIN "order_items" ON "order_items.order_id" = "o.id" WHERE "order_items.quantity" > $1)`
 	if sql != expectedSQL {
@@ -328,7 +367,10 @@ func TestMultipleSubqueries_PostgreSQL(t *testing.T) {
 		Where(InSubquery("id", subquery1)).
 		Where(NotInSubquery("id", subquery2))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "*" FROM "users" WHERE "id" IN (SELECT "user_id" FROM "premium_users") AND "id" NOT IN (SELECT "user_id" FROM "banned_users")`
 	if sql != expectedSQL {
@@ -349,7 +391,10 @@ func TestSubqueryWithDistinct_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(InSubquery("id", subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "*" FROM "users" WHERE "id" IN (SELECT DISTINCT "user_id" FROM "orders")`
 	if sql != expectedSQL {
@@ -375,7 +420,10 @@ func TestSubqueryWithOrderByLimit_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(InSubquery("id", subquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "*" FROM "users" WHERE "id" IN (SELECT "user_id" FROM "orders" WHERE "status" = $1 ORDER BY "created_at" DESC LIMIT 10)`
 	if sql != expectedSQL {
@@ -402,7 +450,10 @@ func TestExistsWithMultipleConditions_PostgreSQL(t *testing.T) {
 		Where(Exists(subquery)).
 		Where(Eq("users.active", true))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", "email" FROM "users" WHERE EXISTS (SELECT "1" FROM "orders" WHERE "orders.user_id" = "users.id" AND "orders.total" > $1 AND "orders.status" = $2) AND "users.active" = $3`
 	if sql != expectedSQL {
@@ -434,7 +485,10 @@ func TestCombinedExistsAndIn_PostgreSQL(t *testing.T) {
 		Where(Exists(existsSubquery)).
 		Where(InSubquery("plan_id", inSubquery))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "*" FROM "users" WHERE EXISTS (SELECT "1" FROM "orders" WHERE "orders.user_id" = "users.id") AND "plan_id" IN (SELECT "id" FROM "premium_plans" WHERE "price" > $1)`
 	if sql != expectedSQL {

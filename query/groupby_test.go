@@ -19,7 +19,10 @@ func TestGroupBy_SingleColumn_PostgreSQL(t *testing.T) {
 		From("orders").
 		GroupBy("status")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "status", COUNT("*") AS "count" FROM "orders" GROUP BY "status"`
 	if sql != expectedSQL {
@@ -40,7 +43,10 @@ func TestGroupBy_MultipleColumns_MySQL(t *testing.T) {
 		From("orders").
 		GroupBy("user_id", "status")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT `user_id`, `status`, SUM(`total`) AS `total_amount` FROM `orders` GROUP BY `user_id`, `status`"
 	if sql != expectedSQL {
@@ -62,7 +68,10 @@ func TestGroupBy_WithWhere_PostgreSQL(t *testing.T) {
 		Where(Gt("price", 100)).
 		GroupBy("category")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "category", COUNT("*") AS "product_count" FROM "products" WHERE "price" > $1 GROUP BY "category"`
 	if sql != expectedSQL {
@@ -84,7 +93,10 @@ func TestGroupBy_WithOrderBy_PostgreSQL(t *testing.T) {
 		GroupBy("status").
 		OrderBy("status", ASC)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "status", COUNT("*") AS "count" FROM "orders" GROUP BY "status" ORDER BY "status" ASC`
 	if sql != expectedSQL {
@@ -110,7 +122,10 @@ func TestHaving_Simple_PostgreSQL(t *testing.T) {
 		GroupBy("status").
 		Having(Gt("COUNT(*)", 10))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "status", COUNT("*") AS "count" FROM "orders" GROUP BY "status" HAVING "COUNT(*)" > $1`
 	if sql != expectedSQL {
@@ -136,7 +151,10 @@ func TestHaving_Multiple_MySQL(t *testing.T) {
 		Having(Gt("COUNT(*)", 5)).
 		Having(Gt("SUM(total)", 1000))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT `user_id`, COUNT(`*`) AS `order_count`, SUM(`total`) AS `total_spent` FROM `orders` GROUP BY `user_id` HAVING `COUNT(*)` > ? AND `SUM(total)` > ?"
 	if sql != expectedSQL {
@@ -160,7 +178,10 @@ func TestHaving_WithWhereAndOrderBy_PostgreSQL(t *testing.T) {
 		Having(Gt("AVG(price)", 50)).
 		OrderBy("category", ASC)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "category", AVG("price") AS "avg_price" FROM "products" WHERE "active" = $1 GROUP BY "category" HAVING "AVG(price)" > $2 ORDER BY "category" ASC`
 	if sql != expectedSQL {
@@ -186,7 +207,10 @@ func TestGroupByExpr_PostgreSQL(t *testing.T) {
 		From("orders").
 		GroupByExpr(RawExpr("DATE(created_at)"))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT DATE(created_at) AS "date", COUNT("*") AS "daily_count" FROM "orders" GROUP BY DATE(created_at)`
 	if sql != expectedSQL {
@@ -210,7 +234,10 @@ func TestGroupByExpr_WithParams_PostgreSQL(t *testing.T) {
 		From("products").
 		GroupByExpr(RawExpr("FLOOR(price / ?)", 10))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT FLOOR(price / $1) AS "price_bracket", COUNT("*") AS "count" FROM "products" GROUP BY FLOOR(price / $2)`
 	if sql != expectedSQL {
@@ -235,7 +262,10 @@ func TestMixedGroupBy_ColumnsAndExpressions_PostgreSQL(t *testing.T) {
 		GroupBy("category").
 		GroupByExpr(RawExpr("EXTRACT(YEAR FROM created_at)"))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "category", EXTRACT(YEAR FROM created_at) AS "year", SUM("total") AS "yearly_total" FROM "orders" GROUP BY "category", EXTRACT(YEAR FROM created_at)`
 	if sql != expectedSQL {
@@ -269,7 +299,10 @@ func TestComplexAggregation_PostgreSQL(t *testing.T) {
 		OrderBy("user_id", ASC).
 		OrderByExpr(Sum(Col("total")), DESC)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "user_id", "status", COUNT("*") AS "order_count", SUM("total") AS "total_amount", AVG("total") AS "avg_amount", MIN("created_at") AS "first_order", MAX("created_at") AS "last_order" FROM "orders" WHERE "created_at" > $1 GROUP BY "user_id", "status" HAVING "COUNT(*)" > $2 AND "SUM(total)" > $3 ORDER BY "user_id" ASC, SUM("total") DESC`
 	if sql != expectedSQL {
@@ -295,7 +328,10 @@ func TestGroupByWithJoin_MySQL(t *testing.T) {
 		GroupBy("u.id", "u.name").
 		Having(Gt("COUNT(o.id)", 0))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT `u.name`, `u.id`, COUNT(`o.id`) AS `order_count` FROM `users` AS `u` LEFT JOIN `orders` AS `o` ON `o.user_id` = `u.id` GROUP BY `u.id`, `u.name` HAVING `COUNT(o.id)` > ?"
 	if sql != expectedSQL {
@@ -319,7 +355,10 @@ func TestGroupByWithDistinct_PostgreSQL(t *testing.T) {
 		From("orders").
 		GroupBy("status")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "status", COUNT(DISTINCT "user_id") AS "unique_users" FROM "orders" GROUP BY "status"`
 	if sql != expectedSQL {
@@ -342,7 +381,10 @@ func TestGroupByWithLimit_SQLite(t *testing.T) {
 		OrderByExpr(Count(Col("*")), DESC).
 		Limit(10)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "category", COUNT("*") AS "count" FROM "products" GROUP BY "category" ORDER BY COUNT("*") DESC LIMIT 10`
 	if sql != expectedSQL {
@@ -364,7 +406,10 @@ func TestGroupByOnly_NoAggregates_PostgreSQL(t *testing.T) {
 		From("tasks").
 		GroupBy("status", "priority")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "status", "priority" FROM "tasks" GROUP BY "status", "priority"`
 	if sql != expectedSQL {
@@ -386,7 +431,10 @@ func TestHavingOnly_WithoutGroupBy_PostgreSQL(t *testing.T) {
 		From("users").
 		Having(Gt("COUNT(*)", 100))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT COUNT("*") AS "total" FROM "users" HAVING "COUNT(*)" > $1`
 	if sql != expectedSQL {

@@ -12,6 +12,7 @@ type DeleteBuilder struct {
 	table      string
 	conditions []Condition
 	returning  []string
+	err        error
 }
 
 // Where adds a WHERE condition to the DELETE statement.
@@ -45,7 +46,17 @@ func (d *DeleteBuilder) Returning(columns ...string) *DeleteBuilder {
 }
 
 // Build generates the final SQL query and arguments.
-func (d *DeleteBuilder) Build() (query string, args []any) {
+func (d *DeleteBuilder) Build() (query string, args []any, err error) {
+	// Return early if there was a validation error
+	if d.err != nil {
+		return "", nil, d.err
+	}
+
+	// Validate table name
+	if err := ValidateIdentifier(d.table); err != nil {
+		return "", nil, err
+	}
+
 	var parts []string
 	var allArgs []any
 
@@ -61,5 +72,5 @@ func (d *DeleteBuilder) Build() (query string, args []any) {
 		parts = append(parts, d.dialect.ReturningClause(d.returning...))
 	}
 
-	return strings.Join(parts, " "), allArgs
+	return strings.Join(parts, " "), allArgs, nil
 }

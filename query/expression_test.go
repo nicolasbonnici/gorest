@@ -18,7 +18,10 @@ func TestCount_PostgreSQL(t *testing.T) {
 		SelectExpr(Count(Col("*"))).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT COUNT("*") FROM "users"`
 	if sql != expectedSQL {
@@ -38,7 +41,10 @@ func TestCountDistinct_PostgreSQL(t *testing.T) {
 		SelectExpr(As(CountDistinct(Col("email")), "unique_emails")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT COUNT(DISTINCT "email") AS "unique_emails" FROM "users"`
 	if sql != expectedSQL {
@@ -58,7 +64,10 @@ func TestSum_MySQL(t *testing.T) {
 		SelectExpr(As(Sum(Col("amount")), "total")).
 		From("orders")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT SUM(`amount`) AS `total` FROM `orders`"
 	if sql != expectedSQL {
@@ -78,7 +87,10 @@ func TestAvg_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Avg(Col("price")), "avg_price")).
 		From("products")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT AVG("price") AS "avg_price" FROM "products"`
 	if sql != expectedSQL {
@@ -101,7 +113,10 @@ func TestMinMax_PostgreSQL(t *testing.T) {
 		).
 		From("products")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT MIN("price") AS "min_price", MAX("price") AS "max_price" FROM "products"`
 	if sql != expectedSQL {
@@ -123,7 +138,10 @@ func TestUpper_PostgreSQL(t *testing.T) {
 		SelectExpr(Upper(Col("name"))).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT UPPER("name") FROM "users"`
 	if sql != expectedSQL {
@@ -143,7 +161,10 @@ func TestLower_MySQL(t *testing.T) {
 		SelectExpr(As(Lower(Col("email")), "lowercase_email")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT LOWER(`email`) AS `lowercase_email` FROM `users`"
 	if sql != expectedSQL {
@@ -163,7 +184,10 @@ func TestConcat_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Concat(Col("first_name"), Literal(" "), Col("last_name")), "full_name")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT CONCAT("first_name", $1, "last_name") AS "full_name" FROM "users"`
 	if sql != expectedSQL {
@@ -183,7 +207,10 @@ func TestLength_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Length(Col("name")), "name_length")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", LENGTH("name") AS "name_length" FROM "users"`
 	if sql != expectedSQL {
@@ -203,7 +230,10 @@ func TestTrim_MySQL(t *testing.T) {
 		SelectExpr(Trim(Col("name"))).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT TRIM(`name`) FROM `users`"
 	if sql != expectedSQL {
@@ -223,7 +253,10 @@ func TestSubstring_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Substring(Col("name"), Literal(1), Literal(5)), "short_name")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT SUBSTRING("name", $1, $2) AS "short_name" FROM "users"`
 	if sql != expectedSQL {
@@ -245,7 +278,10 @@ func TestAbs_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Abs(Col("balance")), "abs_balance")).
 		From("accounts")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT ABS("balance") AS "abs_balance" FROM "accounts"`
 	if sql != expectedSQL {
@@ -265,7 +301,10 @@ func TestRound_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Round(Col("price"), Literal(2)), "rounded_price")).
 		From("products")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT ROUND("price", $1) AS "rounded_price" FROM "products"`
 	if sql != expectedSQL {
@@ -288,7 +327,10 @@ func TestCeilFloor_MySQL(t *testing.T) {
 		).
 		From("products")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT CEIL(`price`) AS `ceil_price`, FLOOR(`price`) AS `floor_price` FROM `products`"
 	if sql != expectedSQL {
@@ -310,7 +352,10 @@ func TestNow_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Now(), "current_time")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", "name", NOW() AS "current_time" FROM "users"`
 	if sql != expectedSQL {
@@ -330,7 +375,10 @@ func TestCurrentDate_MySQL(t *testing.T) {
 		SelectExpr(As(CurrentDate(), "today")).
 		From("dual")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT CURRENT_DATE AS `today` FROM `dual`"
 	if sql != expectedSQL {
@@ -351,7 +399,10 @@ func TestCurrentTime_SQLite(t *testing.T) {
 		From("users").
 		Limit(1)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT CURRENT_TIME AS "now" FROM "users" LIMIT 1`
 	if sql != expectedSQL {
@@ -373,7 +424,10 @@ func TestCoalesce_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Coalesce(Col("nickname"), Col("first_name"), Literal("Anonymous")), "display_name")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT COALESCE("nickname", "first_name", $1) AS "display_name" FROM "users"`
 	if sql != expectedSQL {
@@ -393,7 +447,10 @@ func TestNullif_MySQL(t *testing.T) {
 		SelectExpr(As(Nullif(Col("status"), Literal("unknown")), "clean_status")).
 		From("orders")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT NULLIF(`status`, ?) AS `clean_status` FROM `orders`"
 	if sql != expectedSQL {
@@ -420,7 +477,10 @@ func TestMultipleAggregates_PostgreSQL(t *testing.T) {
 		).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT COUNT("*") AS "total_users", COUNT("email") AS "users_with_email", AVG("age") AS "avg_age", SUM("purchases") AS "total_purchases" FROM "users"`
 	if sql != expectedSQL {
@@ -444,7 +504,10 @@ func TestMixedColumnsAndExpressions_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(Gt("age", 18))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", "name", UPPER("email") AS "upper_email", LENGTH("name") AS "name_length" FROM "users" WHERE "age" > $1`
 	if sql != expectedSQL {
@@ -464,7 +527,10 @@ func TestOrderByExpression_PostgreSQL(t *testing.T) {
 		From("users").
 		OrderByExpr(Length(Col("name")), DESC)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", "email" FROM "users" ORDER BY LENGTH("name") DESC`
 	if sql != expectedSQL {
@@ -486,7 +552,10 @@ func TestMixedOrderBy_PostgreSQL(t *testing.T) {
 		OrderBy("status", ASC).
 		OrderByExpr(Count(Col("*")), DESC)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT COUNT("*") AS "count" FROM "orders" ORDER BY "status" ASC, COUNT("*") DESC`
 	if sql != expectedSQL {
@@ -506,7 +575,10 @@ func TestRawExpr_PostgreSQL(t *testing.T) {
 		SelectExpr(As(RawExpr("EXTRACT(YEAR FROM created_at)"), "year")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", EXTRACT(YEAR FROM created_at) AS "year" FROM "users"`
 	if sql != expectedSQL {
@@ -526,7 +598,10 @@ func TestRawExprWithParams_PostgreSQL(t *testing.T) {
 		SelectExpr(As(RawExpr("age * ?", 2), "double_age")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", age * $1 AS "double_age" FROM "users"`
 	if sql != expectedSQL {
@@ -546,7 +621,10 @@ func TestNestedFunctions_PostgreSQL(t *testing.T) {
 		SelectExpr(As(Upper(Trim(Col("name"))), "clean_name")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT UPPER(TRIM("name")) AS "clean_name" FROM "users"`
 	if sql != expectedSQL {

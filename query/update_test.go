@@ -61,7 +61,10 @@ func TestUpdateBuilder_SingleColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder().Build()
+			sql, args, err := tt.builder().Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 
 			if sql != tt.expectedSQL {
 				t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", tt.expectedSQL, sql)
@@ -89,7 +92,10 @@ func TestUpdateBuilder_MultipleColumns(t *testing.T) {
 			Set("age", 35).
 			Where(Eq("id", 123))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `UPDATE "users" SET "name" = $1, "email" = $2, "age" = $3 WHERE "id" = $4`
 		if sql != expectedSQL {
@@ -115,7 +121,10 @@ func TestUpdateBuilder_MultipleColumns(t *testing.T) {
 			Set("price", 29.99).
 			Where(Eq("id", 456))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := "UPDATE `products` SET `name` = ?, `price` = ? WHERE `id` = ?"
 		if sql != expectedSQL {
@@ -139,7 +148,10 @@ func TestUpdateBuilder_SetMap(t *testing.T) {
 			}).
 			Where(Eq("id", 123))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "UPDATE") {
 			t.Error("Expected UPDATE in SQL")
@@ -160,7 +172,10 @@ func TestUpdateBuilder_SetMap(t *testing.T) {
 			}).
 			Where(Eq("id", 123))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "UPDATE") {
 			t.Error("Expected UPDATE in SQL")
@@ -179,7 +194,10 @@ func TestUpdateBuilder_WhereConditions(t *testing.T) {
 			Set("status", "inactive").
 			Where(Eq("id", 123))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `UPDATE "users" SET "status" = $1 WHERE "id" = $2`
 		if sql != expectedSQL {
@@ -198,7 +216,10 @@ func TestUpdateBuilder_WhereConditions(t *testing.T) {
 			Where(Eq("id", 123)).
 			And(Eq("tenant_id", 456))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `UPDATE "users" SET "status" = $1 WHERE ("id" = $2 AND "tenant_id" = $3)`
 		if sql != expectedSQL {
@@ -217,7 +238,10 @@ func TestUpdateBuilder_WhereConditions(t *testing.T) {
 			Where(Eq("email", "john@example.com")).
 			Or(Eq("email", "john.doe@example.com"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "OR") {
 			t.Error("Expected OR in SQL")
@@ -237,7 +261,10 @@ func TestUpdateBuilder_WhereConditions(t *testing.T) {
 				Eq("status", "published"),
 			))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "AND") {
 			t.Error("Expected AND in SQL")
@@ -257,9 +284,12 @@ func TestUpdateBuilder_Returning(t *testing.T) {
 			Where(Eq("id", 123)).
 			Returning("id", "updated_at")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
-		expectedSQL := `UPDATE "users" SET "name" = $1 WHERE "id" = $2 RETURNING id, updated_at`
+		expectedSQL := `UPDATE "users" SET "name" = $1 WHERE "id" = $2 RETURNING "id", "updated_at"`
 		if sql != expectedSQL {
 			t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", expectedSQL, sql)
 		}
@@ -276,7 +306,10 @@ func TestUpdateBuilder_Returning(t *testing.T) {
 			Where(Eq("id", 456)).
 			Returning("updated_at")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `UPDATE "users" SET "name" = ? WHERE "id" = ? RETURNING "updated_at"`
 		if sql != expectedSQL {
@@ -295,7 +328,10 @@ func TestUpdateBuilder_Returning(t *testing.T) {
 			Where(Eq("id", 789)).
 			Returning("id")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := "UPDATE `users` SET `name` = ? WHERE `id` = ?"
 		if sql != expectedSQL {
@@ -317,7 +353,7 @@ func TestUpdateBuilder_ParameterNumbering(t *testing.T) {
 			Set("c", 3).
 			Where(Eq("id", 123))
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		expected := `UPDATE "users" SET "a" = $1, "b" = $2, "c" = $3 WHERE "id" = $4`
 		if sql != expected {
@@ -333,7 +369,7 @@ func TestUpdateBuilder_ParameterNumbering(t *testing.T) {
 			Where(Eq("id", 123)).
 			And(Eq("tenant_id", 456))
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		expected := "UPDATE `users` SET `a` = ?, `b` = ? WHERE (`id` = ? AND `tenant_id` = ?)"
 		if sql != expected {
@@ -352,7 +388,10 @@ func TestUpdateBuilder_FluentInterface(t *testing.T) {
 		And(Eq("tenant_id", 456)).
 		Returning("updated_at")
 
-	sql, args := builder.Build()
+	sql, args, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	if !strings.Contains(sql, "UPDATE") {
 		t.Error("Expected UPDATE in SQL")
@@ -369,7 +408,10 @@ func TestUpdateBuilder_WithoutWhere(t *testing.T) {
 			Update("users").
 			Set("verified", true)
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `UPDATE "users" SET "verified" = $1`
 		if sql != expectedSQL {
@@ -389,7 +431,10 @@ func TestUpdateBuilder_EdgeCases(t *testing.T) {
 			Set("deleted_at", nil).
 			Where(Eq("id", 123))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `UPDATE "users" SET "deleted_at" = $1 WHERE "id" = $2`
 		if sql != expectedSQL {
@@ -413,7 +458,10 @@ func TestUpdateBuilder_EdgeCases(t *testing.T) {
 			Set("name", "Second").
 			Where(Eq("id", 123))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `UPDATE "users" SET "name" = $1, "email" = $2 WHERE "id" = $3`
 		if sql != expectedSQL {
@@ -435,7 +483,10 @@ func TestUpdateBuilder_EdgeCases(t *testing.T) {
 
 		builder.Where(Eq("id", 999))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if len(args) != 11 {
 			t.Errorf("Expected 11 args, got %d", len(args))

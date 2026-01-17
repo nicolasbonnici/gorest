@@ -47,7 +47,10 @@ func NotInSubquery(column string, subquery *SelectBuilder) Condition {
 }
 
 func (c *inSubqueryCondition) ToSQL(dialect database.Dialect, paramStart int) (string, []any, int) {
-	subSQL, subArgs := c.subquery.Build()
+	subSQL, subArgs, err := c.subquery.Build()
+	if err != nil {
+		panic(fmt.Sprintf("subquery build failed: %v", err))
+	}
 	renumberedSQL := renumberParameters(dialect, subSQL, len(subArgs), paramStart)
 
 	operator := "IN"
@@ -80,7 +83,10 @@ func NotExists(subquery *SelectBuilder) Condition {
 }
 
 func (c *existsCondition) ToSQL(dialect database.Dialect, paramStart int) (string, []any, int) {
-	subSQL, subArgs := c.subquery.Build()
+	subSQL, subArgs, err := c.subquery.Build()
+	if err != nil {
+		panic(fmt.Sprintf("subquery build failed: %v", err))
+	}
 	renumberedSQL := renumberParameters(dialect, subSQL, len(subArgs), paramStart)
 
 	operator := "EXISTS"

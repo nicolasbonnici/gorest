@@ -58,7 +58,10 @@ func TestDeleteBuilder_SingleCondition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder().Build()
+			sql, args, err := tt.builder().Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 
 			if sql != tt.expectedSQL {
 				t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", tt.expectedSQL, sql)
@@ -84,7 +87,10 @@ func TestDeleteBuilder_MultipleConditions(t *testing.T) {
 			Where(Eq("id", 123)).
 			And(Eq("tenant_id", 456))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `DELETE FROM "users" WHERE ("id" = $1 AND "tenant_id" = $2)`
 		if sql != expectedSQL {
@@ -109,7 +115,10 @@ func TestDeleteBuilder_MultipleConditions(t *testing.T) {
 			Where(Eq("status", "inactive")).
 			And(Lt("price", 10.0))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := "DELETE FROM `products` WHERE (`status` = ? AND `price` < ?)"
 		if sql != expectedSQL {
@@ -129,7 +138,10 @@ func TestDeleteBuilder_OrCondition(t *testing.T) {
 			Where(Eq("status", "inactive")).
 			Or(Eq("status", "suspended"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "OR") {
 			t.Error("Expected OR in SQL")
@@ -150,7 +162,10 @@ func TestDeleteBuilder_ComplexConditions(t *testing.T) {
 				Eq("status", "draft"),
 			))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "AND") {
 			t.Error("Expected AND in SQL")
@@ -166,7 +181,10 @@ func TestDeleteBuilder_ComplexConditions(t *testing.T) {
 			Delete("users").
 			Where(In("status", "inactive", "suspended", "banned"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `DELETE FROM "users" WHERE "status" IN ($1, $2, $3)`
 		if sql != expectedSQL {
@@ -186,9 +204,12 @@ func TestDeleteBuilder_Returning(t *testing.T) {
 			Where(Eq("id", 123)).
 			Returning("id", "deleted_at")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
-		expectedSQL := `DELETE FROM "users" WHERE "id" = $1 RETURNING id, deleted_at`
+		expectedSQL := `DELETE FROM "users" WHERE "id" = $1 RETURNING "id", "deleted_at"`
 		if sql != expectedSQL {
 			t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", expectedSQL, sql)
 		}
@@ -204,7 +225,10 @@ func TestDeleteBuilder_Returning(t *testing.T) {
 			Where(Eq("id", 456)).
 			Returning("id")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `DELETE FROM "users" WHERE "id" = ? RETURNING "id"`
 		if sql != expectedSQL {
@@ -222,7 +246,10 @@ func TestDeleteBuilder_Returning(t *testing.T) {
 			Where(Eq("id", 789)).
 			Returning("id")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := "DELETE FROM `users` WHERE `id` = ?"
 		if sql != expectedSQL {
@@ -243,7 +270,7 @@ func TestDeleteBuilder_ParameterNumbering(t *testing.T) {
 			And(Eq("tenant_id", 456)).
 			And(Eq("status", "inactive"))
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		expected := `DELETE FROM "users" WHERE ("id" = $1 AND "tenant_id" = $2 AND "status" = $3)`
 		if sql != expected {
@@ -256,7 +283,7 @@ func TestDeleteBuilder_ParameterNumbering(t *testing.T) {
 			Delete("products").
 			Where(In("status", "draft", "inactive", "archived"))
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		expected := "DELETE FROM `products` WHERE `status` IN (?, ?, ?)"
 		if sql != expected {
@@ -272,7 +299,10 @@ func TestDeleteBuilder_FluentInterface(t *testing.T) {
 		And(Eq("tenant_id", 456)).
 		Returning("id")
 
-	sql, args := builder.Build()
+	sql, args, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	if !strings.Contains(sql, "DELETE FROM") {
 		t.Error("Expected DELETE FROM in SQL")
@@ -288,7 +318,10 @@ func TestDeleteBuilder_WithoutWhere(t *testing.T) {
 		builder := New(&postgres.PostgresDialect{}).
 			Delete("temp_data")
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `DELETE FROM "temp_data"`
 		if sql != expectedSQL {
@@ -307,7 +340,10 @@ func TestDeleteBuilder_EdgeCases(t *testing.T) {
 			Delete("users").
 			Where(IsNull("deleted_at"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `DELETE FROM "users" WHERE "deleted_at" IS NULL`
 		if sql != expectedSQL {
@@ -324,7 +360,10 @@ func TestDeleteBuilder_EdgeCases(t *testing.T) {
 			Delete("sessions").
 			Where(Between("created_at", "2024-01-01", "2024-12-31"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `DELETE FROM "sessions" WHERE "created_at" BETWEEN $1 AND $2`
 		if sql != expectedSQL {
@@ -341,7 +380,10 @@ func TestDeleteBuilder_EdgeCases(t *testing.T) {
 			Delete("users").
 			Where(Like("email", "%@spam.com"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `DELETE FROM "users" WHERE "email" LIKE $1`
 		if sql != expectedSQL {

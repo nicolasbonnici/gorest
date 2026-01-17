@@ -23,11 +23,16 @@ func (d *SQLiteDialect) ReturningClause(cols ...string) string {
 	if len(cols) == 0 {
 		return "RETURNING id"
 	}
-	return "RETURNING " + d.QuoteIdentifier(cols[0])
+	quoted := make([]string, len(cols))
+	for i, col := range cols {
+		quoted[i] = d.QuoteIdentifier(col)
+	}
+	return "RETURNING " + strings.Join(quoted, ", ")
 }
 
 func (d *SQLiteDialect) QuoteIdentifier(name string) string {
-	return `"` + name + `"`
+	escaped := strings.ReplaceAll(name, `"`, `""`)
+	return `"` + escaped + `"`
 }
 
 func (d *SQLiteDialect) MapType(stdType string) string {

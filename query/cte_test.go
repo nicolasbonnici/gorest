@@ -23,7 +23,10 @@ func TestCTE_Basic_PostgreSQL(t *testing.T) {
 		Select("*").
 		From("active_users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "active_users" AS (SELECT "id", "name", "email" FROM "users" WHERE "status" = $1) SELECT "*" FROM "active_users"`
 	if sql != expectedSQL {
@@ -51,7 +54,10 @@ func TestCTE_WithColumns_PostgreSQL(t *testing.T) {
 		From("users").As("u").
 		JoinAs("user_stats", "us", ColEq("us.id", "u.id"))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "user_stats" ("id", "count") AS (SELECT "user_id", COUNT("*") AS "order_count" FROM "orders" GROUP BY "user_id") SELECT "u.name", "us.count" FROM "users" AS "u" INNER JOIN "user_stats" AS "us" ON "us.id" = "u.id"`
 	if sql != expectedSQL {
@@ -86,7 +92,10 @@ func TestCTE_Multiple_PostgreSQL(t *testing.T) {
 		From("active_users").As("au").
 		JoinAs("recent_orders", "ro", ColEq("ro.user_id", "au.id"))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "active_users" AS (SELECT "id", "name" FROM "users" WHERE "status" = $1), "recent_orders" AS (SELECT "user_id", "total" FROM "orders" WHERE "created_at" > $2) SELECT "au.name", "ro.total" FROM "active_users" AS "au" INNER JOIN "recent_orders" AS "ro" ON "ro.user_id" = "au.id"`
 	if sql != expectedSQL {
@@ -114,7 +123,10 @@ func TestCTE_Recursive_PostgreSQL(t *testing.T) {
 		Select("*").
 		From("org_hierarchy")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH RECURSIVE "org_hierarchy" AS (SELECT "id", "name", "manager_id", "level" FROM "employees" WHERE "manager_id" IS NULL) SELECT "*" FROM "org_hierarchy"`
 	if sql != expectedSQL {
@@ -151,7 +163,10 @@ func TestCTE_ComplexMain_PostgreSQL(t *testing.T) {
 		OrderBy("os.total_spent", DESC).
 		Limit(10)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "order_summary" AS (SELECT "user_id", SUM("total") AS "total_spent", COUNT("*") AS "order_count" FROM "orders" WHERE "status" = $1 GROUP BY "user_id") SELECT "u.name", "os.total_spent", "os.order_count" FROM "users" AS "u" INNER JOIN "order_summary" AS "os" ON "os.user_id" = "u.id" WHERE "os.total_spent" > $2 ORDER BY "os.total_spent" DESC LIMIT 10`
 	if sql != expectedSQL {
@@ -184,7 +199,10 @@ func TestCTE_WithWindowFunction_PostgreSQL(t *testing.T) {
 		From("ranked_products").
 		Where(Lte("rank", 3))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "ranked_products" AS (SELECT "id", "name", "category", "price", ROW_NUMBER() OVER (PARTITION BY "category" ORDER BY "price" DESC) AS "rank" FROM "products") SELECT "*" FROM "ranked_products" WHERE "rank" <= $1`
 	if sql != expectedSQL {
@@ -216,7 +234,10 @@ func TestCTE_WithSubquery_PostgreSQL(t *testing.T) {
 		Select("name", "email").
 		From("active_premium_users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "active_premium_users" AS (SELECT "*" FROM "users" WHERE "id" IN (SELECT "id" FROM "premium_memberships") AND "status" = $1) SELECT "name", "email" FROM "active_premium_users"`
 	if sql != expectedSQL {
@@ -247,7 +268,10 @@ func TestCTE_WithGroupByHaving_PostgreSQL(t *testing.T) {
 		From("top_categories").
 		OrderBy("product_count", DESC)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "top_categories" AS (SELECT "category", COUNT("*") AS "product_count" FROM "products" GROUP BY "category" HAVING "COUNT(*)" > $1) SELECT "*" FROM "top_categories" ORDER BY "product_count" DESC`
 	if sql != expectedSQL {
@@ -274,7 +298,10 @@ func TestCTE_SQLite(t *testing.T) {
 		From("active_users").
 		Limit(100)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "active_users" AS (SELECT "id", "name" FROM "users" WHERE "active" = ?) SELECT "*" FROM "active_users" LIMIT 100`
 	if sql != expectedSQL {
@@ -310,7 +337,10 @@ func TestCTE_MultipleDependencies_PostgreSQL(t *testing.T) {
 		Select("*").
 		From("top_regions")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `WITH "regional_sales" AS (SELECT "region", SUM("amount") AS "total_sales" FROM "orders" GROUP BY "region"), "top_regions" AS (SELECT "region" FROM "regional_sales" WHERE "total_sales" > $1) SELECT "*" FROM "top_regions"`
 	if sql != expectedSQL {

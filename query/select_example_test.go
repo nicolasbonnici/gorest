@@ -10,7 +10,7 @@ import (
 func ExampleSelectBuilder_simple() {
 	builder := query.New(&postgres.PostgresDialect{})
 
-	sql, args := builder.Select("id", "name", "email").
+	sql, args, _ := builder.Select("id", "name", "email").
 		From("users").
 		Build()
 
@@ -25,7 +25,7 @@ func ExampleSelectBuilder_simple() {
 func ExampleSelectBuilder_where() {
 	builder := query.New(&postgres.PostgresDialect{})
 
-	sql, args := builder.Select().
+	sql, args, _ := builder.Select().
 		From("users").
 		Where(query.Eq("status", "active")).
 		And(query.Gt("age", 18)).
@@ -42,7 +42,7 @@ func ExampleSelectBuilder_where() {
 func ExampleSelectBuilder_orderByLimit() {
 	builder := query.New(&postgres.PostgresDialect{})
 
-	sql, args := builder.Select("id", "name", "created_at").
+	sql, args, _ := builder.Select("id", "name", "created_at").
 		From("users").
 		OrderBy("created_at", query.DESC).
 		Limit(10).
@@ -59,7 +59,7 @@ func ExampleSelectBuilder_orderByLimit() {
 func ExampleSelectBuilder_distinct() {
 	builder := query.New(&postgres.PostgresDialect{})
 
-	sql, args := builder.Select("country").
+	sql, args, _ := builder.Select("country").
 		Distinct().
 		From("users").
 		OrderBy("country", query.ASC).
@@ -76,7 +76,7 @@ func ExampleSelectBuilder_distinct() {
 func ExampleSelectBuilder_alias() {
 	builder := query.New(&postgres.PostgresDialect{})
 
-	sql, args := builder.Select("u.id", "u.name").
+	sql, args, _ := builder.Select("u.id", "u.name").
 		From("users").
 		As("u").
 		Build()
@@ -92,7 +92,7 @@ func ExampleSelectBuilder_alias() {
 func ExampleSelectBuilder_complex() {
 	builder := query.New(&postgres.PostgresDialect{})
 
-	sql, args := builder.Select("id", "name", "email", "created_at").
+	sql, args, _ := builder.Select("id", "name", "email", "created_at").
 		From("users").
 		As("u").
 		Where(query.Eq("status", "active")).
@@ -114,7 +114,7 @@ func ExampleSelectBuilder_complex() {
 func ExampleSelectBuilder_or() {
 	builder := query.New(&postgres.PostgresDialect{})
 
-	sql, args := builder.Select().
+	sql, args, _ := builder.Select().
 		From("users").
 		Where(query.Eq("status", "active")).
 		Or(query.Eq("status", "pending")).

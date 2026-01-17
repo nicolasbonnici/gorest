@@ -43,8 +43,8 @@ func TestPostgresDialect_ReturningClause(t *testing.T) {
 		expected string
 	}{
 		{"no columns", []string{}, "RETURNING id"},
-		{"single column", []string{"id"}, "RETURNING id"},
-		{"multiple columns", []string{"id", "name"}, "RETURNING id, name"},
+		{"single column", []string{"id"}, `RETURNING "id"`},
+		{"multiple columns", []string{"id", "name"}, `RETURNING "id", "name"`},
 	}
 
 	for _, tt := range tests {

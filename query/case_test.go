@@ -24,7 +24,10 @@ func TestSimpleCase_PostgreSQL(t *testing.T) {
 		SelectExpr(As(caseExpr, "status_text")).
 		From("orders")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", "name", CASE "status" WHEN $1 THEN $2 WHEN $3 THEN $4 ELSE $5 END AS "status_text" FROM "orders"`
 	if sql != expectedSQL {
@@ -53,7 +56,10 @@ func TestSimpleCase_MySQL(t *testing.T) {
 		SelectExpr(As(caseExpr, "priority_name")).
 		From("tasks")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT CASE `priority` WHEN ? THEN ? WHEN ? THEN ? WHEN ? THEN ? END AS `priority_name` FROM `tasks`"
 	if sql != expectedSQL {
@@ -78,7 +84,10 @@ func TestSimpleCase_NoElse_SQLite(t *testing.T) {
 		SelectExpr(As(caseExpr, "type_value")).
 		From("items")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", CASE "type" WHEN ? THEN ? WHEN ? THEN ? END AS "type_value" FROM "items"`
 	if sql != expectedSQL {
@@ -107,7 +116,10 @@ func TestSearchedCase_PostgreSQL(t *testing.T) {
 		SelectExpr(As(caseExpr, "price_category")).
 		From("products")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", "name", "price", CASE WHEN "price" > $1 THEN $2 WHEN "price" BETWEEN $3 AND $4 THEN $5 WHEN "price" < $6 THEN $7 ELSE $8 END AS "price_category" FROM "products"`
 	if sql != expectedSQL {
@@ -136,7 +148,10 @@ func TestSearchedCase_MySQL(t *testing.T) {
 		SelectExpr(As(caseExpr, "status_code")).
 		From("orders")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := "SELECT `id`, CASE WHEN `status` = ? THEN ? WHEN `status` = ? THEN ? ELSE ? END AS `status_code` FROM `orders`"
 	if sql != expectedSQL {
@@ -162,7 +177,10 @@ func TestSearchedCase_ComplexConditions_PostgreSQL(t *testing.T) {
 		SelectExpr(As(caseExpr, "user_category")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "name", CASE WHEN ("status" = $1 AND "age" > $2) THEN $3 WHEN ("status" = $4 AND "age" <= $5) THEN $6 WHEN "status" = $7 THEN $8 END AS "user_category" FROM "users"`
 	if sql != expectedSQL {
@@ -185,7 +203,10 @@ func TestCase_InWhere_PostgreSQL(t *testing.T) {
 		From("users").
 		Where(Eq("status", "active"))
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "*" FROM "users" WHERE "status" = $1`
 	if sql != expectedSQL {
@@ -211,7 +232,10 @@ func TestCase_InOrderBy_PostgreSQL(t *testing.T) {
 		From("tasks").
 		OrderByExpr(caseExpr, ASC)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", "name", "priority" FROM "tasks" ORDER BY CASE "priority" WHEN $1 THEN $2 WHEN $3 THEN $4 WHEN $5 THEN $6 END ASC`
 	if sql != expectedSQL {
@@ -240,7 +264,10 @@ func TestCase_InGroupBy_PostgreSQL(t *testing.T) {
 		From("users").
 		GroupByExpr(caseExpr)
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT CASE WHEN "age" < $1 THEN $2 ELSE $3 END AS "age_group", COUNT("*") AS "count" FROM "users" GROUP BY CASE WHEN "age" < $4 THEN $5 ELSE $6 END`
 	if sql != expectedSQL {
@@ -274,7 +301,10 @@ func TestNestedCase_PostgreSQL(t *testing.T) {
 		SelectExpr(As(outerCase, "description")).
 		From("items")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", CASE WHEN "status" = $1 THEN CASE "type" WHEN $2 THEN $3 WHEN $4 THEN $5 ELSE $6 END ELSE $7 END AS "description" FROM "items"`
 	if sql != expectedSQL {
@@ -302,7 +332,10 @@ func TestCase_WithColumnReferences_PostgreSQL(t *testing.T) {
 		SelectExpr(As(caseExpr, "effective_price")).
 		From("products")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", "name", CASE WHEN "quantity" > $1 THEN "bulk_price" WHEN "quantity" > $2 THEN "wholesale_price" ELSE "retail_price" END AS "effective_price" FROM "products"`
 	if sql != expectedSQL {
@@ -332,7 +365,10 @@ func TestCase_WithFunctions_PostgreSQL(t *testing.T) {
 		SelectExpr(As(caseExpr, "display_name")).
 		From("users")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", CASE WHEN "nickname" IS NULL THEN "first_name" ELSE CONCAT("nickname", $1, "first_name", $2) END AS "display_name" FROM "users"`
 	if sql != expectedSQL {
@@ -369,7 +405,10 @@ func TestMultipleCaseExpressions_PostgreSQL(t *testing.T) {
 		).
 		From("tasks")
 
-	sql, args := query.Build()
+	sql, args, err := query.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
 
 	expectedSQL := `SELECT "id", CASE "status" WHEN $1 THEN $2 WHEN $3 THEN $4 ELSE $5 END AS "status_code", CASE "priority" WHEN $6 THEN $7 WHEN $8 THEN $9 WHEN $10 THEN $11 END AS "priority_name" FROM "tasks"`
 	if sql != expectedSQL {

@@ -59,7 +59,10 @@ func TestSelectBuilder_InnerJoin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder().Build()
+			sql, args, err := tt.builder().Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 
 			if sql != tt.expectedSQL {
 				t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", tt.expectedSQL, sql)
@@ -127,7 +130,10 @@ func TestSelectBuilder_LeftJoin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder().Build()
+			sql, args, err := tt.builder().Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 
 			if sql != tt.expectedSQL {
 				t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", tt.expectedSQL, sql)
@@ -147,7 +153,10 @@ func TestSelectBuilder_RightJoin(t *testing.T) {
 			From("users").As("u").
 			RightJoin("orders", ColEq("u.id", "o.user_id"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `SELECT "u.id", "u.name", "o.total" FROM "users" AS "u" RIGHT JOIN "orders" ON "u.id" = "o.user_id"`
 		if sql != expectedSQL {
@@ -165,7 +174,7 @@ func TestSelectBuilder_RightJoin(t *testing.T) {
 			From("users").As("u").
 			RightJoin("orders", ColEq("u.id", "o.user_id"))
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		if !strings.Contains(sql, "RIGHT JOIN") {
 			t.Error("Expected RIGHT JOIN in SQL")
@@ -180,7 +189,10 @@ func TestSelectBuilder_FullJoin(t *testing.T) {
 			From("users").As("u").
 			FullJoin("orders", ColEq("u.id", "o.user_id"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `SELECT "u.id", "u.name", "o.total" FROM "users" AS "u" FULL OUTER JOIN "orders" ON "u.id" = "o.user_id"`
 		if sql != expectedSQL {
@@ -265,7 +277,10 @@ func TestSelectBuilder_CrossJoin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, args := tt.builder().Build()
+			sql, args, err := tt.builder().Build()
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
 
 			if sql != tt.expectedSQL {
 				t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", tt.expectedSQL, sql)
@@ -287,7 +302,10 @@ func TestSelectBuilder_MultipleJoins(t *testing.T) {
 			LeftJoin("comments", ColEq("p.id", "c.post_id")).
 			Where(Eq("u.status", "active"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		expectedSQL := `SELECT "u.id", "u.name", "p.title", "c.content" FROM "users" AS "u" INNER JOIN "posts" ON "u.id" = "p.user_id" LEFT JOIN "comments" ON "p.id" = "c.post_id" WHERE "u.status" = $1`
 		if sql != expectedSQL {
@@ -309,7 +327,10 @@ func TestSelectBuilder_MultipleJoins(t *testing.T) {
 			Where(Gt("c.count", 10)).
 			OrderBy("c.count", DESC)
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "INNER JOIN") {
 			t.Error("Expected INNER JOIN in SQL")
@@ -335,7 +356,10 @@ func TestSelectBuilder_JoinWithComplexConditions(t *testing.T) {
 				Eq("p.status", "published"),
 			))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "INNER JOIN") {
 			t.Error("Expected INNER JOIN in SQL")
@@ -359,7 +383,7 @@ func TestSelectBuilder_JoinWithComplexConditions(t *testing.T) {
 				ColEq("u.id", "p.author_id"),
 			))
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		if !strings.Contains(sql, "LEFT JOIN") {
 			t.Error("Expected LEFT JOIN in SQL")
@@ -383,7 +407,10 @@ func TestSelectBuilder_JoinParameterNumbering(t *testing.T) {
 			Where(Eq("u.role", "admin")).
 			And(Gt("u.age", 18))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "$1") || !strings.Contains(sql, "$2") || !strings.Contains(sql, "$3") {
 			t.Error("Expected proper parameter numbering $1, $2, $3")
@@ -409,7 +436,10 @@ func TestSelectBuilder_JoinEdgeCases(t *testing.T) {
 			From("users").
 			InnerJoin("posts", ColEq("users.id", "posts.user_id"))
 
-		sql, args := builder.Build()
+		sql, args, err := builder.Build()
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
 
 		if !strings.Contains(sql, "INNER JOIN") {
 			t.Error("Expected INNER JOIN in SQL")
@@ -432,7 +462,7 @@ func TestSelectBuilder_JoinEdgeCases(t *testing.T) {
 			LeftJoin("comments", ColEq("users.id", "comments.user_id")).
 			LeftJoin("likes", ColEq("users.id", "likes.user_id"))
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		leftJoinCount := strings.Count(sql, "LEFT JOIN")
 		if leftJoinCount != 3 {
@@ -447,7 +477,7 @@ func TestSelectBuilder_JoinEdgeCases(t *testing.T) {
 			From("users").As("u").
 			InnerJoin("posts", ColEq("u.id", "p.user_id"))
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		if !strings.Contains(sql, "SELECT DISTINCT") {
 			t.Error("Expected SELECT DISTINCT")
@@ -466,7 +496,7 @@ func TestSelectBuilder_JoinEdgeCases(t *testing.T) {
 			OrderBy("p.created_at", DESC).
 			Limit(10)
 
-		sql, _ := builder.Build()
+		sql, _, _ := builder.Build()
 
 		if !strings.Contains(sql, "ORDER BY") {
 			t.Error("Expected ORDER BY")

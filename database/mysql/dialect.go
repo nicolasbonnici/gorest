@@ -24,7 +24,8 @@ func (d *MySQLDialect) ReturningClause(cols ...string) string {
 }
 
 func (d *MySQLDialect) QuoteIdentifier(name string) string {
-	return "`" + name + "`"
+	escaped := strings.ReplaceAll(name, "`", "``")
+	return "`" + escaped + "`"
 }
 
 func (d *MySQLDialect) MapType(stdType string) string {

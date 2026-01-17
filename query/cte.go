@@ -148,7 +148,7 @@ func (c *CTEBuilder) Offset(offset int) *CTEBuilder {
 	return c
 }
 
-func (c *CTEBuilder) Build() (query string, args []any) {
+func (c *CTEBuilder) Build() (query string, args []any, err error) {
 	var parts []string
 	var allArgs []any
 	currentParam := 1
@@ -161,7 +161,10 @@ func (c *CTEBuilder) Build() (query string, args []any) {
 			hasRecursive = true
 		}
 
-		cteSQL, cteArgs := cte.query.Build()
+		cteSQL, cteArgs, cteErr := cte.query.Build()
+		if cteErr != nil {
+			return "", nil, cteErr
+		}
 
 		if len(cteArgs) > 0 {
 			cteSQL = renumberQueryParameters(c.builder.dialect, cteSQL, len(cteArgs), currentParam)
@@ -190,7 +193,10 @@ func (c *CTEBuilder) Build() (query string, args []any) {
 	withClause += strings.Join(cteParts, ", ")
 	parts = append(parts, withClause)
 
-	mainSQL, mainArgs := c.builder.Build()
+	mainSQL, mainArgs, mainErr := c.builder.Build()
+	if mainErr != nil {
+		return "", nil, mainErr
+	}
 
 	if len(mainArgs) > 0 {
 		mainSQL = renumberQueryParameters(c.builder.dialect, mainSQL, len(mainArgs), currentParam)
@@ -199,7 +205,7 @@ func (c *CTEBuilder) Build() (query string, args []any) {
 
 	parts = append(parts, mainSQL)
 
-	return strings.Join(parts, " "), allArgs
+	return strings.Join(parts, " "), allArgs, nil
 }
 
 func renumberQueryParameters(dialect database.Dialect, sql string, argCount int, startFrom int) string {

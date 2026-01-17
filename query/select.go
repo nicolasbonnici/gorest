@@ -22,6 +22,7 @@ type SelectBuilder struct {
 	limit            int
 	offset           int
 	distinct         bool
+	err              error
 }
 
 // orderByExpr represents an ORDER BY clause using an expression.
@@ -31,6 +32,9 @@ type orderByExpr struct {
 }
 
 func (s *SelectBuilder) From(table string) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateIdentifier(table)
+	}
 	s.table = table
 	return s
 }
@@ -188,16 +192,27 @@ func (s *SelectBuilder) Having(condition Condition) *SelectBuilder {
 }
 
 func (s *SelectBuilder) Limit(limit int) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateLimit(limit)
+	}
 	s.limit = limit
 	return s
 }
 
 func (s *SelectBuilder) Offset(offset int) *SelectBuilder {
+	if s.err == nil {
+		s.err = ValidateOffset(offset)
+	}
 	s.offset = offset
 	return s
 }
 
-func (s *SelectBuilder) Build() (query string, args []any) {
+func (s *SelectBuilder) Build() (query string, args []any, err error) {
+	// Return early if there was a validation error
+	if s.err != nil {
+		return "", nil, s.err
+	}
+
 	var parts []string
 	var allArgs []any
 	paramCount := 1
@@ -312,5 +327,5 @@ func (s *SelectBuilder) Build() (query string, args []any) {
 	}
 
 	query = strings.Join(parts, " ")
-	return query, allArgs
+	return query, allArgs, nil
 }

@@ -250,16 +250,38 @@ func TestGeneratedResourcesCRUDIntegration(t *testing.T) {
 		}
 	}
 
-	errorHandling := []string{
-		"if err != nil",
-		"c.Status(500)",
-		"c.Status(404)",
-		"c.Status(400)",
+	errorHandling := []struct {
+		name     string
+		patterns []string // At least one pattern must match
+	}{
+		{
+			name:     "error checking",
+			patterns: []string{"if err != nil"},
+		},
+		{
+			name:     "500 status code",
+			patterns: []string{"c.Status(500)", "response.SendError(c, 500"},
+		},
+		{
+			name:     "404 status code",
+			patterns: []string{"c.Status(404)", "response.SendError(c, 404"},
+		},
+		{
+			name:     "400 status code",
+			patterns: []string{"c.Status(400)", "response.SendError(c, 400"},
+		},
 	}
 
 	for _, check := range errorHandling {
-		if !strings.Contains(contentStr, check) {
-			t.Errorf("Generated resource missing error handling: %s", check)
+		found := false
+		for _, pattern := range check.patterns {
+			if strings.Contains(contentStr, pattern) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Generated resource missing error handling: %s (tried patterns: %v)", check.name, check.patterns)
 		}
 	}
 }

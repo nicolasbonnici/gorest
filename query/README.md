@@ -491,6 +491,256 @@ The query builder automatically generates correct SQL for your database:
 | Recursive CTEs | ✅ | ✅ | ✅ |
 | Full Outer Join | ✅ | ❌ | ❌ |
 
+## Security
+
+The query builder includes multiple layers of security protection to prevent SQL injection and other attacks.
+
+### 1. Automatic Parameterization
+
+All user-provided values are automatically parameterized, not concatenated into SQL strings:
+
+```go
+// SAFE - Value is parameterized
+query.Where(query.Eq("email", userInput))
+// Generates: WHERE "email" = $1
+// Args: [userInput]
+
+// NEVER manually concatenate:
+// query.Raw(fmt.Sprintf("email = '%s'", userInput)) // UNSAFE!
+```
+
+### 2. Identifier Escaping
+
+Table and column names are automatically escaped for each database:
+
+```go
+// All identifiers are escaped
+sql, _ := query.New(dialect).
+    Select("user.id", "user.name").   // Escaped: "user"."id", "user"."name"
+    From("users").                     // Escaped: "users"
+    Build()
+```
+
+**Protection against identifier injection:**
+- PostgreSQL: Doubles internal quotes (`"` → `""`)
+- MySQL: Doubles internal backticks (`` ` `` → ``` `` ```)
+- SQLite: Doubles internal quotes (`"` → `""`)
+
+```go
+// Malicious input is neutralized
+malicious := `email" FROM users WHERE admin=true; --`
+query.Select(malicious).From("users").Build()
+// Generates: SELECT "email"" FROM users WHERE admin=true; --" FROM "users"
+// Database treats entire string as column name → query fails safely
+```
+
+### 3. Input Validation
+
+The query builder validates inputs at `Build()` time and returns errors for invalid or dangerous inputs.
+
+#### Identifier Validation
+
+Identifiers must follow standard SQL rules:
+- Start with letter or underscore
+- Contain only letters, digits, underscores
+- Maximum 63 characters (PostgreSQL limit)
+- Cannot be SQL reserved words
+
+```go
+// Valid identifiers
+builder.From("users")           // ✅
+builder.From("user_profiles")   // ✅
+builder.From("_temp")           // ✅
+
+// Invalid identifiers return errors
+builder.From("123users")        // ❌ Cannot start with digit
+builder.From("user-profiles")   // ❌ Hyphen not allowed
+builder.From("SELECT")          // ❌ Reserved word
+builder.From(strings.Repeat("a", 64)) // ❌ Too long
+
+sql, args, err := builder.Build()
+if err != nil {
+    // Handle validation error
+    log.Printf("Invalid query: %v", err)
+}
+```
+
+**Reserved words blocked:**
+```go
+// These identifiers are blocked to prevent confusion
+SELECT, INSERT, UPDATE, DELETE, FROM, WHERE, JOIN, ORDER, GROUP,
+UNION, CREATE, DROP, TABLE, INDEX, VIEW, AND, OR, NOT, IN, EXISTS,
+BETWEEN, LIKE, IS, NULL, TRUE, FALSE, CASE, WHEN, THEN, ELSE, END,
+WITH, RECURSIVE, OVER, PARTITION, ROWS, RANGE, ...
+```
+
+#### LIMIT/OFFSET Validation
+
+Prevents resource exhaustion attacks:
+
+```go
+// Reasonable limits
+builder.Limit(100)              // ✅
+builder.Offset(1000)            // ✅
+
+// Excessive values return errors
+builder.Limit(999999)           // ❌ Exceeds max (10,000)
+builder.Offset(10000000)        // ❌ Exceeds max (1,000,000)
+
+sql, args, err := builder.Build()
+// err: "LIMIT 999999 exceeds maximum allowed value of 10000"
+```
+
+**Configurable limits:**
+```go
+query.MaxLimitValue = 10000      // Max LIMIT value
+query.MaxOffsetValue = 1000000   // Max OFFSET value
+```
+
+#### Window Frame Validation
+
+Validates window frame syntax to prevent injection:
+
+```go
+// Valid frames
+query.Window().Frame("ROWS UNBOUNDED PRECEDING")          // ✅
+query.Window().Frame("RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING") // ✅
+
+// Invalid frames are blocked
+query.Window().Frame("ROWS; DROP TABLE users--")          // ❌
+query.Window().Frame("INVALID SYNTAX")                     // ❌
+```
+
+### 4. Subquery Depth Limiting
+
+Prevents deeply nested subqueries that could cause performance issues or stack overflow:
+
+```go
+query.MaxSubqueryDepth = 3  // Maximum nesting depth
+
+// This is safe (depth 1)
+subquery := query.New(dialect).Select("id").From("banned_users")
+query.New(dialect).Select("*").From("users").Where(query.InSubquery("id", subquery"))
+
+// Deep nesting would be rejected (not yet implemented)
+```
+
+### 5. Error Handling
+
+Always check errors from `Build()`:
+
+```go
+sql, args, err := builder.Build()
+if err != nil {
+    // Validation failed - do NOT execute query
+    return fmt.Errorf("invalid query: %w", err)
+}
+
+// Safe to execute
+rows, err := db.Query(ctx, sql, args...)
+```
+
+### 6. Security Best Practices
+
+#### ✅ DO: Use the query builder for all queries
+```go
+// Type-safe, parameterized, validated
+sql, args, _ := query.New(dialect).
+    Select("*").
+    From("users").
+    Where(query.Eq("email", userEmail)).
+    Build()
+```
+
+#### ❌ DON'T: Concatenate user input
+```go
+// NEVER DO THIS - vulnerable to SQL injection
+sql := fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", userEmail)
+```
+
+#### ✅ DO: Validate business logic separately
+```go
+// The query builder validates SQL structure, not business rules
+if !isValidEmail(userEmail) {
+    return errors.New("invalid email format")
+}
+sql, args, _ := query.New(dialect).Select("*").From("users").Where(query.Eq("email", userEmail")).Build()
+```
+
+#### ❌ DON'T: Trust client-provided table/column names without validation
+```go
+// If accepting dynamic table names, maintain a whitelist
+allowedTables := map[string]bool{"users": true, "posts": true}
+if !allowedTables[tableName] {
+    return errors.New("invalid table name")
+}
+sql, args, _ := query.New(dialect).Select("*").From(tableName).Build()
+```
+
+#### ✅ DO: Use Raw() sparingly and carefully
+```go
+// Raw() bypasses validation - use only when necessary
+// Still parameterize values:
+query.Raw("age > ? AND status = ?", 18, "active")  // ✅ Values parameterized
+
+// Never concatenate into Raw():
+// query.Raw(fmt.Sprintf("age > %d", userInput))    // ❌ DANGEROUS
+```
+
+### 7. Security Testing
+
+Test your queries with malicious inputs:
+
+```go
+func TestQuerySecurityValidator(t *testing.T) {
+    dialect := &postgres.PostgresDialect{}
+
+    // Test reserved word blocking
+    builder := query.New(dialect).Select("*").From("SELECT")
+    _, _, err := builder.Build()
+    if err == nil {
+        t.Error("Expected error for reserved word, got nil")
+    }
+
+    // Test identifier injection
+    malicious := `users" WHERE admin=true; --`
+    builder = query.New(dialect).Select("*").From(malicious)
+    _, _, err = builder.Build()
+    if err == nil {
+        t.Error("Expected error for malicious identifier")
+    }
+
+    // Test LIMIT overflow
+    builder = query.New(dialect).Select("*").From("users").Limit(999999)
+    _, _, err = builder.Build()
+    if err == nil {
+        t.Error("Expected error for excessive LIMIT")
+    }
+}
+```
+
+### 8. Defense in Depth
+
+The query builder provides multiple overlapping security layers:
+
+1. **Parameterization** - Separates data from SQL structure
+2. **Identifier escaping** - Neutralizes injection attempts in table/column names
+3. **Input validation** - Rejects invalid or suspicious inputs before query generation
+4. **Length limits** - Prevents excessively long identifiers
+5. **Reserved word blocking** - Prevents confusion with SQL keywords
+6. **Value bounds** - Limits LIMIT/OFFSET to reasonable ranges
+
+Even if one layer fails, others provide protection.
+
+### 9. Reporting Security Issues
+
+If you discover a security vulnerability:
+
+1. **DO NOT** create a public GitHub issue
+2. Email security concerns to: [security contact]
+3. Include proof-of-concept code
+4. Allow time for a fix before public disclosure
+
 ## Best Practices
 
 ### 1. Reuse Query Components

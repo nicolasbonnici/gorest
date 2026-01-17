@@ -15,6 +15,7 @@ type UpdateBuilder struct {
 	setOrder   []string
 	conditions []Condition
 	returning  []string
+	err        error
 }
 
 // Set adds or updates a column value in the SET clause.
@@ -67,7 +68,17 @@ func (u *UpdateBuilder) Returning(columns ...string) *UpdateBuilder {
 }
 
 // Build generates the final SQL query and arguments.
-func (u *UpdateBuilder) Build() (query string, args []any) {
+func (u *UpdateBuilder) Build() (query string, args []any, err error) {
+	// Return early if there was a validation error
+	if u.err != nil {
+		return "", nil, u.err
+	}
+
+	// Validate table name
+	if err := ValidateIdentifier(u.table); err != nil {
+		return "", nil, err
+	}
+
 	var parts []string
 	var allArgs []any
 	paramIdx := 1
@@ -95,5 +106,5 @@ func (u *UpdateBuilder) Build() (query string, args []any) {
 		parts = append(parts, u.dialect.ReturningClause(u.returning...))
 	}
 
-	return strings.Join(parts, " "), allArgs
+	return strings.Join(parts, " "), allArgs, nil
 }
