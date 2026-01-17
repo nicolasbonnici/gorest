@@ -64,6 +64,30 @@ func (m *mockDialect) CaseInsensitiveLike() string {
 	return "LOWER"
 }
 
+func (m *mockDialect) OnConflictClause(columns []string, action string) string {
+	return ""
+}
+
+func (m *mockDialect) SupportsFullJoin() bool {
+	return false
+}
+
+func (m *mockDialect) SupportsWindowFunctions() bool {
+	return false
+}
+
+func (m *mockDialect) SupportsCTE() bool {
+	return false
+}
+
+func (m *mockDialect) SupportsArrays() bool {
+	return false
+}
+
+func (m *mockDialect) UpsertSupport() bool {
+	return false
+}
+
 type mockRow struct {
 	scanFunc func(dest ...interface{}) error
 }
