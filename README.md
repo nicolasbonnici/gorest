@@ -262,6 +262,7 @@ func main() {
 - **[Configuration →](CONFIGURATION.md)** - YAML configuration, environment overrides, and templates
 
 ### Data Management
+- **[Query builder →](query/README.md)** - Flexible query builder on top of the DAL
 - **[Filtering & Ordering →](FILTERING.md)** - Advanced query filtering, comparison operators, and ordering
 - **[Relation Expansion →](serializer/EXPAND_USAGE.md)** - Expand IRI references to full nested objects
 - **[Serializer →](serializer/README.md)** - Flexible resource serializer with JSON-LD support
