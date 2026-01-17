@@ -1,6 +1,9 @@
 package mysql
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/nicolasbonnici/gorest/database"
 )
 
@@ -55,4 +58,47 @@ func (d *MySQLDialect) MapType(stdType string) string {
 	default:
 		return stdType
 	}
+}
+
+func (d *MySQLDialect) SupportsFullJoin() bool {
+	return false
+}
+
+func (d *MySQLDialect) SupportsWindowFunctions() bool {
+	return true
+}
+
+func (d *MySQLDialect) SupportsCTE() bool {
+	return true
+}
+
+func (d *MySQLDialect) SupportsArrays() bool {
+	return false
+}
+
+func (d *MySQLDialect) OnConflictClause(columns []string, action string) string {
+	if len(columns) == 0 {
+		return ""
+	}
+
+	quotedColumns := make([]string, len(columns))
+	for i, col := range columns {
+		quotedColumns[i] = d.QuoteIdentifier(col)
+	}
+
+	updateParts := make([]string, len(columns))
+	for i, col := range columns {
+		quotedCol := d.QuoteIdentifier(col)
+		updateParts[i] = fmt.Sprintf("%s = VALUES(%s)", quotedCol, quotedCol)
+	}
+
+	if action == "DO NOTHING" {
+		return ""
+	}
+
+	return "ON DUPLICATE KEY UPDATE " + strings.Join(updateParts, ", ")
+}
+
+func (d *MySQLDialect) UpsertSupport() bool {
+	return true
 }

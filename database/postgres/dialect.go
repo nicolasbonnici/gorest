@@ -66,3 +66,42 @@ func (d *PostgresDialect) MapType(stdType string) string {
 func (d *PostgresDialect) CaseInsensitiveLike() string {
 	return "ILIKE"
 }
+
+func (d *PostgresDialect) SupportsFullJoin() bool {
+	return true
+}
+
+func (d *PostgresDialect) SupportsWindowFunctions() bool {
+	return true
+}
+
+func (d *PostgresDialect) SupportsCTE() bool {
+	return true
+}
+
+func (d *PostgresDialect) SupportsArrays() bool {
+	return true
+}
+
+func (d *PostgresDialect) OnConflictClause(columns []string, action string) string {
+	if len(columns) == 0 {
+		return ""
+	}
+
+	quotedColumns := make([]string, len(columns))
+	for i, col := range columns {
+		quotedColumns[i] = d.QuoteIdentifier(col)
+	}
+
+	conflict := fmt.Sprintf("ON CONFLICT (%s)", strings.Join(quotedColumns, ", "))
+
+	if action != "" {
+		conflict += " " + action
+	}
+
+	return conflict
+}
+
+func (d *PostgresDialect) UpsertSupport() bool {
+	return true
+}
