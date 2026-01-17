@@ -11,6 +11,7 @@ import (
 
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/hooks"
+	"github.com/nicolasbonnici/gorest/query"
 )
 
 type CRUD[T Model] struct {
@@ -68,11 +69,11 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 
 	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationCreate, nil, &m)
 
-	var query string
+	var queryStr string
 	var vals []interface{}
 
 	if skip && customQuery != "" {
-		query = customQuery
+		queryStr = customQuery
 		vals = customArgs
 	} else {
 		v := reflect.ValueOf(m)
@@ -97,7 +98,7 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 			returning = " " + c.DB.Dialect().ReturningClause()
 		}
 
-		query = fmt.Sprintf(
+		queryStr = fmt.Sprintf(
 			"INSERT INTO %s (%s) VALUES (%s)%s",
 			m.TableName(),
 			strings.Join(cols, ", "),
@@ -106,7 +107,7 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 		)
 	}
 
-	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationCreate, query, vals)
+	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationCreate, queryStr, vals)
 	if err != nil {
 		return err
 	}
@@ -191,12 +192,12 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 
 	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationGetAll, nil, nil)
 
-	var query string
+	var queryStr string
 	var args []any
 	var fieldIndices []int
 
 	if skip && customQuery != "" {
-		query = customQuery
+		queryStr = customQuery
 		args = customArgs
 	} else {
 		t := reflect.TypeOf(zero)
@@ -211,8 +212,13 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 			}
 		}
 
-		query = fmt.Sprintf("SELECT %s FROM %s", strings.Join(cols, ", "), zero.TableName())
-		args = []any{}
+		qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
+		modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
+		if modified {
+			qb = modifiedBuilder
+		}
+
+		queryStr, args = qb.Build()
 	}
 
 	if skip && customQuery != "" {
@@ -226,7 +232,7 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 		}
 	}
 
-	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetAll, query, args)
+	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetAll, queryStr, args)
 	if err != nil {
 		return nil, err
 	}
@@ -294,8 +300,13 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 			}
 		}
 
-		baseQuery = fmt.Sprintf("SELECT %s FROM %s", strings.Join(cols, ", "), zero.TableName())
-		args = []any{}
+		qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
+		modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
+		if modified {
+			qb = modifiedBuilder
+		}
+
+		baseQuery, args = qb.Build()
 	}
 
 	if skip && customQuery != "" {
@@ -322,19 +333,19 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 		total = &count
 	}
 
-	query := baseQuery
+	queryStr := baseQuery
 	if opts.WhereClause != "" {
-		query += " " + opts.WhereClause
+		queryStr += " " + opts.WhereClause
 	}
 	if opts.OrderByClause != "" {
-		query += " " + opts.OrderByClause
+		queryStr += " " + opts.OrderByClause
 	}
 	limitOffsetClause := c.DB.Dialect().LimitOffset(opts.Limit, opts.Offset)
-	query += " " + limitOffsetClause
+	queryStr += " " + limitOffsetClause
 
 	args = append(args, opts.WhereArgs...)
 
-	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetAll, query, args)
+	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetAll, queryStr, args)
 	if err != nil {
 		return nil, err
 	}
@@ -385,12 +396,12 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 
 	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationGetByID, id, nil)
 
-	var query string
+	var queryStr string
 	var args []any
 	var fieldIndices []int
 
 	if skip && customQuery != "" {
-		query = customQuery
+		queryStr = customQuery
 		args = customArgs
 	} else {
 		t := reflect.TypeOf(item)
@@ -405,8 +416,13 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 			}
 		}
 
-		query = fmt.Sprintf("SELECT %s FROM %s WHERE id = %s", strings.Join(cols, ", "), item.TableName(), c.DB.Dialect().Placeholder(1))
-		args = []any{id}
+		qb := query.New(c.DB.Dialect()).Select(cols...).From(item.TableName()).Where(query.Eq("id", id))
+		modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetByID, qb)
+		if modified {
+			qb = modifiedBuilder
+		}
+
+		queryStr, args = qb.Build()
 	}
 
 	if skip && customQuery != "" {
@@ -420,7 +436,7 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 		}
 	}
 
-	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetByID, query, args)
+	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetByID, queryStr, args)
 	if err != nil {
 		return nil, err
 	}
@@ -515,18 +531,17 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 
 	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationUpdate, id, &m)
 
-	var query string
+	var queryStr string
 	var vals []interface{}
 
 	if skip && customQuery != "" {
-		query = customQuery
+		queryStr = customQuery
 		vals = customArgs
 	} else {
 		v := reflect.ValueOf(m)
 		t := reflect.TypeOf(m)
 
-		var setClauses []string
-		paramIdx := 1
+		qb := query.New(c.DB.Dialect()).Update(m.TableName())
 
 		for i := 0; i < t.NumField(); i++ {
 			field := t.Field(i)
@@ -534,21 +549,20 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 			if tag == "" || tag == "id" || tag == "created_at" {
 				continue
 			}
-			setClauses = append(setClauses, fmt.Sprintf("%s = %s", tag, c.DB.Dialect().Placeholder(paramIdx)))
-			vals = append(vals, v.Field(i).Interface())
-			paramIdx++
+			qb = qb.Set(tag, v.Field(i).Interface())
 		}
 
-		vals = append(vals, id)
-		query = fmt.Sprintf(
-			"UPDATE %s SET %s WHERE id = %s",
-			m.TableName(),
-			strings.Join(setClauses, ", "),
-			c.DB.Dialect().Placeholder(paramIdx),
-		)
+		qb = qb.Where(query.Eq("id", id))
+
+		modifiedBuilder, modified := c.Hooks.ModifyUpdateQuery(ctx, hooks.OperationUpdate, id, &m, qb)
+		if modified {
+			qb = modifiedBuilder
+		}
+
+		queryStr, vals = qb.Build()
 	}
 
-	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationUpdate, query, vals)
+	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationUpdate, queryStr, vals)
 	if err != nil {
 		return err
 	}
@@ -579,18 +593,24 @@ func (c *CRUD[T]) Delete(ctx context.Context, id any) error {
 
 	customQuery, customArgs, skip := c.Hooks.OverrideQuery(ctx, hooks.OperationDelete, id, nil)
 
-	var query string
+	var queryStr string
 	var args []any
 
 	if skip && customQuery != "" {
-		query = customQuery
+		queryStr = customQuery
 		args = customArgs
 	} else {
-		query = fmt.Sprintf("DELETE FROM %s WHERE id = %s", zero.TableName(), c.DB.Dialect().Placeholder(1))
-		args = []any{id}
+		qb := query.New(c.DB.Dialect()).Delete(zero.TableName()).Where(query.Eq("id", id))
+
+		modifiedBuilder, modified := c.Hooks.ModifyDeleteQuery(ctx, hooks.OperationDelete, id, qb)
+		if modified {
+			qb = modifiedBuilder
+		}
+
+		queryStr, args = qb.Build()
 	}
 
-	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationDelete, query, args)
+	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationDelete, queryStr, args)
 	if err != nil {
 		return err
 	}
