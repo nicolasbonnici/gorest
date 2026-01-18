@@ -8,7 +8,7 @@ The hooks system provides **4 distinct layers** for customization:
 
 1. **StateProcessor** - Process state for all write operations (Create/Update/Delete)
 2. **SQLQueryListener** - Observe SQL queries (before/after execution)
-3. **SQLQueryOverride** - Override default SQL generation
+3. **SQLQueryBuilderModifier** - Modify queries using the query builder
 4. **Serializer** - Transform response data before sending to client
 
 ## Architecture
@@ -100,35 +100,41 @@ func (h *TodoHooks) AfterQuery(ctx context.Context, operation hooks.Operation, q
 }
 ```
 
-### 3. SQLQueryOverride
+### 3. SQLQueryBuilderModifier
 
-Single method for overriding SQL for any operation:
+Modify queries using the query builder for type-safe SQL generation:
 
 ```go
-type SQLQueryOverride[T any] interface {
-    OverrideQuery(ctx context.Context, operation Operation, id any, model *T) (query string, args []any, skip bool)
+type SQLQueryBuilderModifier[T any] interface {
+    ModifySelectQuery(ctx context.Context, operation Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool)
+    ModifyUpdateQuery(ctx context.Context, operation Operation, id any, model *T, builder *query.UpdateBuilder) (*query.UpdateBuilder, bool)
+    ModifyDeleteQuery(ctx context.Context, operation Operation, id any, builder *query.DeleteBuilder) (*query.DeleteBuilder, bool)
 }
 ```
 
 **Example:**
 ```go
-func (h *TodoHooks) OverrideQuery(ctx context.Context, operation hooks.Operation, id any, todo *models.Todo) (string, []any, bool) {
-    switch operation {
-    case hooks.OperationGetAll:
-        // Custom query with ordering
-        query := "SELECT * FROM todo WHERE user_id = $1 ORDER BY created_at DESC"
-        args := []any{ctx.Value("user_id")}
-        return query, args, true // skip=true to use this query
-
-    case hooks.OperationDelete:
-        // Soft delete
-        query := "UPDATE todo SET deleted_at = NOW() WHERE id = $1"
-        return query, []any{id}, true
-
-    default:
-        // Use default implementation
-        return "", nil, false
+func (h *TodoHooks) ModifySelectQuery(ctx context.Context, operation hooks.Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool) {
+    if operation == hooks.OperationGetAll || operation == hooks.OperationGetByID {
+        // Filter by user for multi-tenancy
+        if userID := ctx.Value("user_id"); userID != nil {
+            builder = builder.Where(query.Eq("user_id", userID))
+            return builder, true
+        }
     }
+    return builder, false
+}
+
+func (h *TodoHooks) ModifyUpdateQuery(ctx context.Context, operation hooks.Operation, id any, todo *models.Todo, builder *query.UpdateBuilder) (*query.UpdateBuilder, bool) {
+    // Could add additional conditions or modifications
+    return builder, false
+}
+
+func (h *TodoHooks) ModifyDeleteQuery(ctx context.Context, operation hooks.Operation, id any, builder *query.DeleteBuilder) (*query.DeleteBuilder, bool) {
+    // Add additional WHERE conditions to delete queries if needed
+    // Note: Soft deletes are better implemented using StateProcessor to prevent deletion
+    // or by adding a deleted_at column and filtering in ModifySelectQuery
+    return builder, false
 }
 ```
 
@@ -222,13 +228,24 @@ func (h *TodoHooks) AfterQuery(ctx context.Context, operation Operation, query s
     return nil
 }
 
-// OverrideQuery - custom SQL
-func (h *TodoHooks) OverrideQuery(ctx context.Context, operation Operation, id any, todo *models.Todo) (string, []any, bool) {
+// ModifySelectQuery - customize SELECT queries
+func (h *TodoHooks) ModifySelectQuery(ctx context.Context, operation Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool) {
     if operation == OperationGetAll {
-        query := "SELECT * FROM todo ORDER BY created_at DESC"
-        return query, []any{}, true
+        // Add default ordering
+        builder = builder.OrderBy("created_at", query.DESC)
+        return builder, true
     }
-    return "", nil, false
+    return builder, false
+}
+
+// ModifyUpdateQuery - customize UPDATE queries
+func (h *TodoHooks) ModifyUpdateQuery(ctx context.Context, operation Operation, id any, todo *models.Todo, builder *query.UpdateBuilder) (*query.UpdateBuilder, bool) {
+    return builder, false
+}
+
+// ModifyDeleteQuery - customize DELETE queries
+func (h *TodoHooks) ModifyDeleteQuery(ctx context.Context, operation Operation, id any, builder *query.DeleteBuilder) (*query.DeleteBuilder, bool) {
+    return builder, false
 }
 
 // SerializeOne - transform response
@@ -289,29 +306,40 @@ func RegisterTodoRoutes(router fiber.Router, db *pgxpool.Pool, factory *hooks.Ho
 
 ### Multi-Tenancy
 ```go
-func (h *TodoHooks) OverrideQuery(ctx context.Context, operation hooks.Operation, id any, model *models.Todo) (string, []any, bool) {
-    if operation == hooks.OperationGetAll {
-        userID := ctx.Value("user_id").(string)
-        query := "SELECT * FROM todo WHERE user_id = $1"
-        return query, []any{userID}, true
+func (h *TodoHooks) ModifySelectQuery(ctx context.Context, operation hooks.Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool) {
+    if operation == hooks.OperationGetAll || operation == hooks.OperationGetByID {
+        if userID := ctx.Value("user_id"); userID != nil {
+            builder = builder.Where(query.Eq("user_id", userID))
+            return builder, true
+        }
     }
-    return "", nil, false
+    return builder, false
 }
 ```
 
 ### Soft Delete
 ```go
-func (h *TodoHooks) OverrideQuery(ctx context.Context, operation hooks.Operation, id any, model *models.Todo) (string, []any, bool) {
-    switch operation {
-    case hooks.OperationDelete:
-        query := "UPDATE todo SET deleted_at = NOW() WHERE id = $1"
-        return query, []any{id}, true
-    case hooks.OperationGetAll:
-        query := "SELECT * FROM todo WHERE deleted_at IS NULL"
-        return query, []any{}, true
+// Filter out soft-deleted records in queries
+func (h *TodoHooks) ModifySelectQuery(ctx context.Context, operation hooks.Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool) {
+    if operation == hooks.OperationGetAll || operation == hooks.OperationGetByID {
+        builder = builder.Where(query.IsNull("deleted_at"))
+        return builder, true
     }
-    return "", nil, false
+    return builder, false
 }
+
+// Prevent actual deletion by returning an error
+func (h *TodoHooks) StateProcessor(ctx context.Context, operation hooks.Operation, id any, model *models.Todo) error {
+    if operation == hooks.OperationDelete {
+        // Instead of deleting, update the deleted_at timestamp
+        // This requires a separate update operation
+        return errors.New("soft delete should be implemented via update operation")
+    }
+    return nil
+}
+
+// Note: For a complete soft delete implementation, you would create a
+// SoftDelete method in your resource that updates deleted_at instead of calling Delete
 ```
 
 ### Audit Logging
@@ -339,7 +367,11 @@ CRUD Layer
     ↓
 StateProcessor (Create/Update/Delete only)
     ↓
-OverrideQuery (optional custom SQL)
+Query Builder Construction
+    ↓
+ModifySelectQuery/ModifyUpdateQuery/ModifyDeleteQuery (optional modifications)
+    ↓
+Build SQL with parameterization
     ↓
 BeforeQuery (log, modify)
     ↓

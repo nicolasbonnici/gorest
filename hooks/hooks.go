@@ -1,6 +1,10 @@
 package hooks
 
-import "context"
+import (
+	"context"
+
+	"github.com/nicolasbonnici/gorest/query"
+)
 
 type Operation string
 
@@ -21,8 +25,10 @@ type SQLQueryListener[T any] interface {
 	AfterQuery(ctx context.Context, operation Operation, query string, args []any, result any, err error) error
 }
 
-type SQLQueryOverride[T any] interface {
-	OverrideQuery(ctx context.Context, operation Operation, id any, model *T) (query string, args []any, skip bool)
+type SQLQueryBuilderModifier[T any] interface {
+	ModifySelectQuery(ctx context.Context, operation Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool)
+	ModifyUpdateQuery(ctx context.Context, operation Operation, id any, model *T, builder *query.UpdateBuilder) (*query.UpdateBuilder, bool)
+	ModifyDeleteQuery(ctx context.Context, operation Operation, id any, builder *query.DeleteBuilder) (*query.DeleteBuilder, bool)
 }
 
 type Serializer[T any] interface {
@@ -33,7 +39,7 @@ type Serializer[T any] interface {
 type Hooks[T any] interface {
 	StateProcessor[T]
 	SQLQueryListener[T]
-	SQLQueryOverride[T]
+	SQLQueryBuilderModifier[T]
 	Serializer[T]
 }
 
@@ -51,8 +57,16 @@ func (h NoOpHooks[T]) AfterQuery(ctx context.Context, operation Operation, query
 	return nil
 }
 
-func (h NoOpHooks[T]) OverrideQuery(ctx context.Context, operation Operation, id any, model *T) (query string, args []any, skip bool) {
-	return "", nil, false
+func (h NoOpHooks[T]) ModifySelectQuery(ctx context.Context, operation Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool) {
+	return builder, false
+}
+
+func (h NoOpHooks[T]) ModifyUpdateQuery(ctx context.Context, operation Operation, id any, model *T, builder *query.UpdateBuilder) (*query.UpdateBuilder, bool) {
+	return builder, false
+}
+
+func (h NoOpHooks[T]) ModifyDeleteQuery(ctx context.Context, operation Operation, id any, builder *query.DeleteBuilder) (*query.DeleteBuilder, bool) {
+	return builder, false
 }
 
 func (h NoOpHooks[T]) SerializeOne(ctx context.Context, operation Operation, model *T) error {

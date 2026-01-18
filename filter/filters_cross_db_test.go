@@ -97,6 +97,12 @@ func TestFilterSet_In_MultipleDialects(t *testing.T) {
 				QuoteIdentifier(name string) string
 				ReturningClause(cols ...string) string
 				SupportsReturning() bool
+				SupportsFullJoin() bool
+				SupportsWindowFunctions() bool
+				SupportsCTE() bool
+				SupportsArrays() bool
+				OnConflictClause(columns []string, action string) string
+				UpsertSupport() bool
 			}))
 			fs.ParseFromQuery(query)
 

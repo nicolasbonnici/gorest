@@ -10,7 +10,8 @@
 
 - 🛠 Codegen REST endpoints, resource DTOs and models for each table
 - 🔎 Auto-discovery of tables, relations, columns & types
-- ⚡  Type-safe generic CRUD operations with hooks system
+- ⚡ Type-safe generic CRUD operations with hooks system
+- 🔧 Fluent SQL query builder with database abstraction
 - 🔐 Full DTO support with field-level control (`dto` tags)
 - 🔑 JWT authentication with context-aware plugins
 - 🎭 Hook layer to add your business logic and override any API layer
@@ -205,6 +206,7 @@ go get github.com/nicolasbonnici/gorest@latest
 
 | Package | Description |
 |---------|-------------|
+| `query` | Type-safe SQL query builder |
 | `crud` | Type-safe CRUD operations with hooks |
 | `database` | Multi-database abstraction |
 | `expand` | Relation expansion (IRI to object) |
@@ -262,6 +264,7 @@ func main() {
 - **[Configuration →](CONFIGURATION.md)** - YAML configuration, environment overrides, and templates
 
 ### Data Management
+- **[Query Builder →](QUERY_BUILDER.md)** - Type-safe SQL query builder with fluent API
 - **[Filtering & Ordering →](FILTERING.md)** - Advanced query filtering, comparison operators, and ordering
 - **[Relation Expansion →](serializer/EXPAND_USAGE.md)** - Expand IRI references to full nested objects
 - **[Serializer →](serializer/README.md)** - Flexible resource serializer with JSON-LD support
@@ -276,6 +279,33 @@ func main() {
 ---
 
 ## 🔍 Quick Examples
+
+### Query Builder
+
+```go
+import "github.com/nicolasbonnici/gorest/query"
+
+// Build type-safe SQL queries
+sql, args := query.New(db.Dialect()).
+    Select("id", "name", "email").
+    From("users").
+    Where(query.Eq("status", "active")).
+    Where(query.Gt("age", 18)).
+    OrderBy("created_at", query.DESC).
+    Limit(10).
+    Build()
+
+// Use in hooks without string manipulation
+func (h *PostHooks) ModifySelectQuery(ctx context.Context, op hooks.Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool) {
+    if !isAuthenticated(ctx) {
+        builder = builder.Where(query.Eq("status", "published"))
+        return builder, true
+    }
+    return builder, false
+}
+```
+
+📚 **[Full query builder documentation →](QUERY_BUILDER.md)**
 
 ### Filtering & Ordering
 
