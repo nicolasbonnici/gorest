@@ -48,7 +48,7 @@ func (b *Builder) Select(columns ...string) *SelectBuilder {
 
 	for _, col := range columns {
 		if sb.err == nil {
-			sb.err = ValidateIdentifier(col)
+			sb.err = ValidateColumnReference(col)
 		}
 	}
 

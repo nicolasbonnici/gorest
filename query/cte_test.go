@@ -59,7 +59,7 @@ func TestCTE_WithColumns_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `WITH "user_stats" ("id", "count") AS (SELECT "user_id", COUNT("*") AS "order_count" FROM "orders" GROUP BY "user_id") SELECT "u.name", "us.count" FROM "users" AS "u" INNER JOIN "user_stats" AS "us" ON "us.id" = "u.id"`
+	expectedSQL := `WITH "user_stats" ("id", "count") AS (SELECT "user_id", COUNT("*") AS "order_count" FROM "orders" GROUP BY "user_id") SELECT "u"."name", "us"."count" FROM "users" AS "u" INNER JOIN "user_stats" AS "us" ON "us"."id" = "u"."id"`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -168,7 +168,7 @@ func TestCTE_ComplexMain_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `WITH "order_summary" AS (SELECT "user_id", SUM("total") AS "total_spent", COUNT("*") AS "order_count" FROM "orders" WHERE "status" = $1 GROUP BY "user_id") SELECT "u.name", "os.total_spent", "os.order_count" FROM "users" AS "u" INNER JOIN "order_summary" AS "os" ON "os.user_id" = "u.id" WHERE "os.total_spent" > $2 ORDER BY "os.total_spent" DESC LIMIT 10`
+	expectedSQL := `WITH "order_summary" AS (SELECT "user_id", SUM("total") AS "total_spent", COUNT("*") AS "order_count" FROM "orders" WHERE "status" = $1 GROUP BY "user_id") SELECT "u"."name", "os.total_spent", "os.order_count" FROM "users" AS "u" INNER JOIN "order_summary" AS "os" ON "os.user_id" = "u"."id" WHERE "os.total_spent" > $2 ORDER BY "os.total_spent" DESC LIMIT 10`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}

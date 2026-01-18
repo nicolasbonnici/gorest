@@ -27,7 +27,7 @@ func TestSelectBuilder_InnerJoin(t *testing.T) {
 					InnerJoin("posts", ColEq("u.id", "p.user_id")).
 					Where(Eq("u.status", "active"))
 			},
-			expectedSQL:  `SELECT "u.id", "u.name", "p.title" FROM "users" AS "u" INNER JOIN "posts" ON "u.id" = "p.user_id" WHERE "u.status" = $1`,
+			expectedSQL:  `SELECT "u"."id", "u"."name", "p"."title" FROM "users" AS "u" INNER JOIN "posts" ON "u"."id" = "p"."user_id" WHERE "u"."status" = $1`,
 			expectedArgs: []any{"active"},
 		},
 		{
@@ -40,7 +40,7 @@ func TestSelectBuilder_InnerJoin(t *testing.T) {
 					InnerJoin("orders", ColEq("u.id", "o.user_id")).
 					Where(Gt("o.total", 100))
 			},
-			expectedSQL:  "SELECT `u.id`, `u.name`, `o.total` FROM `users` AS `u` INNER JOIN `orders` ON `u.id` = `o.user_id` WHERE `o.total` > ?",
+			expectedSQL:  "SELECT `u`.`id`, `u`.`name`, `o`.`total` FROM `users` AS `u` INNER JOIN `orders` ON `u`.`id` = `o`.`user_id` WHERE `o`.`total` > ?",
 			expectedArgs: []any{100},
 		},
 		{
@@ -52,7 +52,7 @@ func TestSelectBuilder_InnerJoin(t *testing.T) {
 					From("users").As("u").
 					JoinAs("posts", "p", ColEq("u.id", "p.user_id"))
 			},
-			expectedSQL:  `SELECT "u.name", "p.title" FROM "users" AS "u" INNER JOIN "posts" AS "p" ON "u.id" = "p.user_id"`,
+			expectedSQL:  `SELECT "u"."name", "p"."title" FROM "users" AS "u" INNER JOIN "posts" AS "p" ON "u"."id" = "p"."user_id"`,
 			expectedArgs: []any{},
 		},
 	}
@@ -98,7 +98,7 @@ func TestSelectBuilder_LeftJoin(t *testing.T) {
 					From("users").As("u").
 					LeftJoin("posts", ColEq("u.id", "p.user_id"))
 			},
-			expectedSQL:  `SELECT "u.id", "u.name", "p.title" FROM "users" AS "u" LEFT JOIN "posts" ON "u.id" = "p.user_id"`,
+			expectedSQL:  `SELECT "u"."id", "u"."name", "p"."title" FROM "users" AS "u" LEFT JOIN "posts" ON "u"."id" = "p"."user_id"`,
 			expectedArgs: []any{},
 		},
 		{
@@ -111,7 +111,7 @@ func TestSelectBuilder_LeftJoin(t *testing.T) {
 					LeftJoin("comment_counts", ColEq("u.id", "c.user_id")).
 					Where(IsNotNull("c.count"))
 			},
-			expectedSQL:  "SELECT `u.id`, `u.name`, `c.count` FROM `users` AS `u` LEFT JOIN `comment_counts` ON `u.id` = `c.user_id` WHERE `c.count` IS NOT NULL",
+			expectedSQL:  "SELECT `u`.`id`, `u`.`name`, `c`.`count` FROM `users` AS `u` LEFT JOIN `comment_counts` ON `u`.`id` = `c.user_id` WHERE `c`.`count` IS NOT NULL",
 			expectedArgs: []any{},
 		},
 		{
@@ -123,7 +123,7 @@ func TestSelectBuilder_LeftJoin(t *testing.T) {
 					From("users").As("u").
 					LeftJoinAs("posts", "p", ColEq("u.id", "p.user_id"))
 			},
-			expectedSQL:  `SELECT "u.name", "p.title" FROM "users" AS "u" LEFT JOIN "posts" AS "p" ON "u.id" = "p.user_id"`,
+			expectedSQL:  `SELECT "u"."name", "p"."title" FROM "users" AS "u" LEFT JOIN "posts" AS "p" ON "u"."id" = "p"."user_id"`,
 			expectedArgs: []any{},
 		},
 	}
@@ -158,7 +158,7 @@ func TestSelectBuilder_RightJoin(t *testing.T) {
 			t.Fatalf("Build() error = %v", err)
 		}
 
-		expectedSQL := `SELECT "u.id", "u.name", "o.total" FROM "users" AS "u" RIGHT JOIN "orders" ON "u.id" = "o.user_id"`
+		expectedSQL := `SELECT "u"."id", "u"."name", "o"."total" FROM "users" AS "u" RIGHT JOIN "orders" ON "u"."id" = "o"."user_id"`
 		if sql != expectedSQL {
 			t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", expectedSQL, sql)
 		}
@@ -194,7 +194,7 @@ func TestSelectBuilder_FullJoin(t *testing.T) {
 			t.Fatalf("Build() error = %v", err)
 		}
 
-		expectedSQL := `SELECT "u.id", "u.name", "o.total" FROM "users" AS "u" FULL OUTER JOIN "orders" ON "u.id" = "o.user_id"`
+		expectedSQL := `SELECT "u"."id", "u"."name", "o"."total" FROM "users" AS "u" FULL OUTER JOIN "orders" ON "u"."id" = "o"."user_id"`
 		if sql != expectedSQL {
 			t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", expectedSQL, sql)
 		}
@@ -260,7 +260,7 @@ func TestSelectBuilder_CrossJoin(t *testing.T) {
 					From("users").As("u").
 					CrossJoin("roles")
 			},
-			expectedSQL: "SELECT `u.name`, `r.name` FROM `users` AS `u` CROSS JOIN `roles`",
+			expectedSQL: "SELECT `u`.`name`, `r`.`name` FROM `users` AS `u` CROSS JOIN `roles`",
 		},
 		{
 			name:    "SQLite CROSS JOIN",
@@ -307,7 +307,7 @@ func TestSelectBuilder_MultipleJoins(t *testing.T) {
 			t.Fatalf("Build() error = %v", err)
 		}
 
-		expectedSQL := `SELECT "u.id", "u.name", "p.title", "c.content" FROM "users" AS "u" INNER JOIN "posts" ON "u.id" = "p.user_id" LEFT JOIN "comments" ON "p.id" = "c.post_id" WHERE "u.status" = $1`
+		expectedSQL := `SELECT "u"."id", "u"."name", "p"."title", "c"."content" FROM "users" AS "u" INNER JOIN "posts" ON "u"."id" = "p"."user_id" LEFT JOIN "comments" ON "p"."id" = "c"."post_id" WHERE "u"."status" = $1`
 		if sql != expectedSQL {
 			t.Errorf("SQL mismatch\nExpected: %s\nGot:      %s", expectedSQL, sql)
 		}

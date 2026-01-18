@@ -218,7 +218,7 @@ func (s *SelectBuilder) SelectExpr(exprs ...Expression) *SelectBuilder {
 
 func (s *SelectBuilder) OrderBy(column string, direction Order) *SelectBuilder {
 	if s.err == nil {
-		s.err = ValidateIdentifier(column)
+		s.err = ValidateColumnReference(column)
 	}
 	s.orderBy = append(s.orderBy, orderClause{
 		column:    column,
@@ -240,7 +240,7 @@ func (s *SelectBuilder) OrderByExpr(expr Expression, direction Order) *SelectBui
 func (s *SelectBuilder) GroupBy(columns ...string) *SelectBuilder {
 	for _, col := range columns {
 		if s.err == nil {
-			s.err = ValidateIdentifier(col)
+			s.err = ValidateColumnReference(col)
 			if s.err != nil {
 				return s
 			}
@@ -299,10 +299,13 @@ func (s *SelectBuilder) Build() (query string, args []any, err error) {
 		var columnParts []string
 
 		for _, col := range s.columns {
-			columnParts = append(columnParts, s.dialect.QuoteIdentifier(col))
+			columnParts = append(columnParts, QuoteQualifiedIdentifier(s.dialect, col))
 		}
 
 		for _, expr := range s.columnExprs {
+			if invExpr, ok := expr.(*invalidExpression); ok {
+				return "", nil, invExpr.err
+			}
 			exprSQL, exprArgs, nextParam := expr.ToSQL(s.dialect, paramCount)
 			columnParts = append(columnParts, exprSQL)
 			allArgs = append(allArgs, exprArgs...)
@@ -349,10 +352,13 @@ func (s *SelectBuilder) Build() (query string, args []any, err error) {
 		var groupParts []string
 
 		for _, col := range s.groupBy {
-			groupParts = append(groupParts, s.dialect.QuoteIdentifier(col))
+			groupParts = append(groupParts, QuoteQualifiedIdentifier(s.dialect, col))
 		}
 
 		for _, expr := range s.groupByExprs {
+			if invExpr, ok := expr.(*invalidExpression); ok {
+				return "", nil, invExpr.err
+			}
 			exprSQL, exprArgs, nextParam := expr.ToSQL(s.dialect, paramCount)
 			groupParts = append(groupParts, exprSQL)
 			allArgs = append(allArgs, exprArgs...)
@@ -382,10 +388,13 @@ func (s *SelectBuilder) Build() (query string, args []any, err error) {
 		var orderParts []string
 
 		for _, order := range s.orderBy {
-			orderParts = append(orderParts, s.dialect.QuoteIdentifier(order.column)+" "+order.direction.String())
+			orderParts = append(orderParts, QuoteQualifiedIdentifier(s.dialect, order.column)+" "+order.direction.String())
 		}
 
 		for _, order := range s.orderByExprs {
+			if invExpr, ok := order.expr.(*invalidExpression); ok {
+				return "", nil, invExpr.err
+			}
 			exprSQL, exprArgs, nextParam := order.expr.ToSQL(s.dialect, paramCount)
 			orderParts = append(orderParts, exprSQL+" "+order.direction.String())
 			allArgs = append(allArgs, exprArgs...)

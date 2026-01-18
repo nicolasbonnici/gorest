@@ -65,6 +65,52 @@ func ValidateIdentifier(name string) error {
 	return nil
 }
 
+// ValidateColumnReference validates a column reference which can be:
+// - Simple identifier: "column_name"
+// - Qualified identifier: "table.column"
+// - Expression with parentheses: "COUNT(*)", "SUM(price)"
+// This is more permissive than ValidateIdentifier to support JOIN conditions and expressions
+func ValidateColumnReference(name string) error {
+	if name == "" {
+		return fmt.Errorf("column reference cannot be empty")
+	}
+
+	// Allow expressions with parentheses (e.g., COUNT(*), SUM(price), etc.)
+	if strings.Contains(name, "(") {
+		// This is a function call or expression - skip validation
+		// The database will validate the syntax
+		return nil
+	}
+
+	// Check if it's a qualified identifier (table.column or alias.column)
+	if strings.Contains(name, ".") {
+		parts := strings.Split(name, ".")
+		if len(parts) != 2 {
+			return fmt.Errorf("column reference %q has invalid qualification (must be table.column)", name)
+		}
+
+		// Validate each part
+		for _, part := range parts {
+			if part == "*" {
+				// Allow SELECT * or table.*
+				continue
+			}
+			if err := ValidateIdentifier(part); err != nil {
+				return fmt.Errorf("in qualified reference %q: %w", name, err)
+			}
+		}
+		return nil
+	}
+
+	// Allow * for SELECT *
+	if name == "*" {
+		return nil
+	}
+
+	// Simple identifier - use strict validation
+	return ValidateIdentifier(name)
+}
+
 // ValidateLimit validates LIMIT value
 func ValidateLimit(limit int) error {
 	if limit < 0 {

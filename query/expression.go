@@ -37,25 +37,28 @@ type rawExpr struct {
 // This creates a HIGH RISK of SQL injection if misused.
 //
 // RULES FOR SAFE USAGE:
-//   1. NEVER pass user input directly in the sql parameter
-//   2. ONLY use for static, trusted SQL expressions
-//   3. Use for database functions and calculated fields
+//  1. NEVER pass user input directly in the sql parameter
+//  2. ONLY use for static, trusted SQL expressions
+//  3. Use for database functions and calculated fields
 //
 // SAFE Examples:
-//   ✅ RawExpr("COUNT(*)")
-//   ✅ RawExpr("SUM(price * quantity)")
-//   ✅ RawExpr("CONCAT(first_name, ' ', last_name)")
-//   ✅ RawExpr("DATE_TRUNC('day', created_at)")
+//
+//	✅ RawExpr("COUNT(*)")
+//	✅ RawExpr("SUM(price * quantity)")
+//	✅ RawExpr("CONCAT(first_name, ' ', last_name)")
+//	✅ RawExpr("DATE_TRUNC('day', created_at)")
 //
 // UNSAFE Examples (SQL INJECTION VULNERABILITIES):
-//   ❌ RawExpr(userProvidedColumn)              // NEVER DO THIS!
-//   ❌ RawExpr(fmt.Sprintf("%s * 2", colName))  // NEVER DO THIS!
+//
+//	❌ RawExpr(userProvidedColumn)              // NEVER DO THIS!
+//	❌ RawExpr(fmt.Sprintf("%s * 2", colName))  // NEVER DO THIS!
 //
 // If you need to select user-specified columns, validate them against a whitelist:
-//   allowedCols := map[string]bool{"name": true, "email": true, "age": true}
-//   if allowedCols[userCol] {
-//       builder.Select(userCol)  // Safe - validated
-//   }
+//
+//	allowedCols := map[string]bool{"name": true, "email": true, "age": true}
+//	if allowedCols[userCol] {
+//	    builder.Select(userCol)  // Safe - validated
+//	}
 //
 // RawExpr() should only be used for:
 //   - Aggregate functions (COUNT, SUM, AVG, etc.)

@@ -333,7 +333,7 @@ func TestGroupByWithJoin_MySQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := "SELECT `u.name`, `u.id`, COUNT(`o.id`) AS `order_count` FROM `users` AS `u` LEFT JOIN `orders` AS `o` ON `o.user_id` = `u.id` GROUP BY `u.id`, `u.name` HAVING `COUNT(o.id)` > ?"
+	expectedSQL := "SELECT `u`.`name`, `u`.`id`, COUNT(`o.id`) AS `order_count` FROM `users` AS `u` LEFT JOIN `orders` AS `o` ON `o`.`user_id` = `u`.`id` GROUP BY `u`.`id`, `u`.`name` HAVING `COUNT(o.id)` > ?"
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}

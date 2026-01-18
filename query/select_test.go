@@ -128,19 +128,19 @@ func TestSelectBuilder_TableAlias(t *testing.T) {
 		{
 			name:     "PostgreSQL - table alias",
 			builder:  New(&postgres.PostgresDialect{}).Select("u.id", "u.name").From("users").As("u"),
-			wantSQL:  `SELECT "u.id", "u.name" FROM "users" AS "u"`,
+			wantSQL:  `SELECT "u"."id", "u"."name" FROM "users" AS "u"`,
 			wantArgs: []any{},
 		},
 		{
 			name:     "MySQL - table alias",
 			builder:  New(&mysql.MySQLDialect{}).Select("u.id", "u.name").From("users").As("u"),
-			wantSQL:  "SELECT `u.id`, `u.name` FROM `users` AS `u`",
+			wantSQL:  "SELECT `u`.`id`, `u`.`name` FROM `users` AS `u`",
 			wantArgs: []any{},
 		},
 		{
 			name:     "SQLite - table alias",
 			builder:  New(&sqlite.SQLiteDialect{}).Select("u.id", "u.name").From("users").As("u"),
-			wantSQL:  `SELECT "u.id", "u.name" FROM "users" AS "u"`,
+			wantSQL:  `SELECT "u"."id", "u"."name" FROM "users" AS "u"`,
 			wantArgs: []any{},
 		},
 	}
@@ -571,8 +571,8 @@ func TestSelectBuilder_EdgeCases(t *testing.T) {
 	}{
 		{
 			name:     "PostgreSQL - no FROM clause",
-			builder:  New(&postgres.PostgresDialect{}).Select("1", "2", "3"),
-			wantSQL:  `SELECT "1", "2", "3"`,
+			builder:  New(&postgres.PostgresDialect{}).Select().SelectExpr(RawExpr("1"), RawExpr("2"), RawExpr("3")),
+			wantSQL:  `SELECT 1, 2, 3`,
 			wantArgs: []any{},
 		},
 		{

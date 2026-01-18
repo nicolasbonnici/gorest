@@ -44,17 +44,17 @@ func TestIdentifierInjection_PostgreSQL(t *testing.T) {
 				t.Errorf("QuoteIdentifier() = %q, should NOT contain %q (vulnerable)", quoted, tt.wantNotContains)
 			}
 
-			// Test in actual query
-			sql, _, _ := New(dialect).
+			// Test in actual query - validation should REJECT malicious identifiers
+			_, _, err := New(dialect).
 				Select(tt.maliciousInput).
 				From("users").
 				Build()
 
-			if !strings.Contains(sql, tt.wantContains) {
-				t.Errorf("Query = %q, want to contain %q", sql, tt.wantContains)
+			if err == nil {
+				t.Errorf("Expected validation error for malicious input %q, but got none", tt.maliciousInput)
 			}
-			if strings.Contains(sql, tt.wantNotContains) {
-				t.Errorf("Query = %q, should NOT contain %q (vulnerable)", sql, tt.wantNotContains)
+			if err != nil && !strings.Contains(err.Error(), "invalid characters") {
+				t.Errorf("Expected 'invalid characters' validation error, got: %v", err)
 			}
 		})
 	}
@@ -95,17 +95,17 @@ func TestIdentifierInjection_MySQL(t *testing.T) {
 				t.Errorf("QuoteIdentifier() = %q, should NOT contain %q (vulnerable)", quoted, tt.wantNotContains)
 			}
 
-			// Test in actual query
-			sql, _, _ := New(dialect).
+			// Test in actual query - validation should REJECT malicious identifiers
+			_, _, err := New(dialect).
 				Select(tt.maliciousInput).
 				From("users").
 				Build()
 
-			if !strings.Contains(sql, tt.wantContains) {
-				t.Errorf("Query = %q, want to contain %q", sql, tt.wantContains)
+			if err == nil {
+				t.Errorf("Expected validation error for malicious input %q, but got none", tt.maliciousInput)
 			}
-			if strings.Contains(sql, tt.wantNotContains) {
-				t.Errorf("Query = %q, should NOT contain %q (vulnerable)", sql, tt.wantNotContains)
+			if err != nil && !strings.Contains(err.Error(), "invalid characters") {
+				t.Errorf("Expected 'invalid characters' validation error, got: %v", err)
 			}
 		})
 	}
@@ -146,17 +146,17 @@ func TestIdentifierInjection_SQLite(t *testing.T) {
 				t.Errorf("QuoteIdentifier() = %q, should NOT contain %q (vulnerable)", quoted, tt.wantNotContains)
 			}
 
-			// Test in actual query
-			sql, _, _ := New(dialect).
+			// Test in actual query - validation should REJECT malicious identifiers
+			_, _, err := New(dialect).
 				Select(tt.maliciousInput).
 				From("users").
 				Build()
 
-			if !strings.Contains(sql, tt.wantContains) {
-				t.Errorf("Query = %q, want to contain %q", sql, tt.wantContains)
+			if err == nil {
+				t.Errorf("Expected validation error for malicious input %q, but got none", tt.maliciousInput)
 			}
-			if strings.Contains(sql, tt.wantNotContains) {
-				t.Errorf("Query = %q, should NOT contain %q (vulnerable)", sql, tt.wantNotContains)
+			if err != nil && !strings.Contains(err.Error(), "invalid characters") {
+				t.Errorf("Expected 'invalid characters' validation error, got: %v", err)
 			}
 		})
 	}

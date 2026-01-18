@@ -73,6 +73,13 @@ func (i *InsertBuilder) Build() (query string, args []any, err error) {
 
 	parts = append(parts, "INSERT INTO", i.dialect.QuoteIdentifier(i.table))
 
+	// Validate column names
+	for _, col := range i.columns {
+		if err := ValidateIdentifier(col); err != nil {
+			return "", nil, fmt.Errorf("INSERT column validation: %w", err)
+		}
+	}
+
 	quotedCols := make([]string, len(i.columns))
 	for idx, col := range i.columns {
 		quotedCols[idx] = i.dialect.QuoteIdentifier(col)

@@ -133,7 +133,7 @@ func TestExists_PostgreSQL(t *testing.T) {
 	dialect := &postgres.PostgresDialect{}
 	builder := New(dialect)
 
-	subquery := builder.Select("1").From("orders").Where(ColEq("orders.user_id", "users.id"))
+	subquery := builder.Select().SelectExpr(RawExpr("1")).From("orders").Where(ColEq("orders.user_id", "users.id"))
 	query := builder.Select("name").
 		From("users").
 		Where(Exists(subquery))
@@ -143,7 +143,7 @@ func TestExists_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT "name" FROM "users" WHERE EXISTS (SELECT "1" FROM "orders" WHERE "orders.user_id" = "users.id")`
+	expectedSQL := `SELECT "name" FROM "users" WHERE EXISTS (SELECT 1 FROM "orders" WHERE "orders"."user_id" = "users"."id")`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -157,7 +157,7 @@ func TestExists_MySQL(t *testing.T) {
 	dialect := &mysql.MySQLDialect{}
 	builder := New(dialect)
 
-	subquery := builder.Select("1").From("orders").Where(ColEq("orders.user_id", "users.id"))
+	subquery := builder.Select().SelectExpr(RawExpr("1")).From("orders").Where(ColEq("orders.user_id", "users.id"))
 	query := builder.Select("name").
 		From("users").
 		Where(Exists(subquery))
@@ -167,7 +167,7 @@ func TestExists_MySQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := "SELECT `name` FROM `users` WHERE EXISTS (SELECT `1` FROM `orders` WHERE `orders.user_id` = `users.id`)"
+	expectedSQL := "SELECT `name` FROM `users` WHERE EXISTS (SELECT 1 FROM `orders` WHERE `orders`.`user_id` = `users`.`id`)"
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -181,7 +181,7 @@ func TestNotExists_PostgreSQL(t *testing.T) {
 	dialect := &postgres.PostgresDialect{}
 	builder := New(dialect)
 
-	subquery := builder.Select("1").From("orders").Where(ColEq("orders.user_id", "users.id"))
+	subquery := builder.Select().SelectExpr(RawExpr("1")).From("orders").Where(ColEq("orders.user_id", "users.id"))
 	query := builder.Select("name").
 		From("users").
 		Where(NotExists(subquery))
@@ -191,7 +191,7 @@ func TestNotExists_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT "name" FROM "users" WHERE NOT EXISTS (SELECT "1" FROM "orders" WHERE "orders.user_id" = "users.id")`
+	expectedSQL := `SELECT "name" FROM "users" WHERE NOT EXISTS (SELECT 1 FROM "orders" WHERE "orders"."user_id" = "users"."id")`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -205,7 +205,7 @@ func TestNotExists_MySQL(t *testing.T) {
 	dialect := &mysql.MySQLDialect{}
 	builder := New(dialect)
 
-	subquery := builder.Select("1").From("orders").Where(ColEq("orders.user_id", "users.id"))
+	subquery := builder.Select().SelectExpr(RawExpr("1")).From("orders").Where(ColEq("orders.user_id", "users.id"))
 	query := builder.Select("name").
 		From("users").
 		Where(NotExists(subquery))
@@ -215,7 +215,7 @@ func TestNotExists_MySQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := "SELECT `name` FROM `users` WHERE NOT EXISTS (SELECT `1` FROM `orders` WHERE `orders.user_id` = `users.id`)"
+	expectedSQL := "SELECT `name` FROM `users` WHERE NOT EXISTS (SELECT 1 FROM `orders` WHERE `orders`.`user_id` = `users`.`id`)"
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -345,7 +345,7 @@ func TestComplexSubqueryWithJoin_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT "name", "email" FROM "users" WHERE "id" IN (SELECT "o.user_id" FROM "orders" AS "o" INNER JOIN "order_items" ON "order_items.order_id" = "o.id" WHERE "order_items.quantity" > $1)`
+	expectedSQL := `SELECT "name", "email" FROM "users" WHERE "id" IN (SELECT "o"."user_id" FROM "orders" AS "o" INNER JOIN "order_items" ON "order_items"."order_id" = "o"."id" WHERE "order_items"."quantity" > $1)`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -439,7 +439,7 @@ func TestExistsWithMultipleConditions_PostgreSQL(t *testing.T) {
 	dialect := &postgres.PostgresDialect{}
 	builder := New(dialect)
 
-	subquery := builder.Select("1").
+	subquery := builder.Select().SelectExpr(RawExpr("1")).
 		From("orders").
 		Where(ColEq("orders.user_id", "users.id")).
 		Where(Gt("orders.total", 1000)).
@@ -455,7 +455,7 @@ func TestExistsWithMultipleConditions_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT "name", "email" FROM "users" WHERE EXISTS (SELECT "1" FROM "orders" WHERE "orders.user_id" = "users.id" AND "orders.total" > $1 AND "orders.status" = $2) AND "users.active" = $3`
+	expectedSQL := `SELECT "name", "email" FROM "users" WHERE EXISTS (SELECT 1 FROM "orders" WHERE "orders"."user_id" = "users"."id" AND "orders"."total" > $1 AND "orders"."status" = $2) AND "users"."active" = $3`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -472,7 +472,7 @@ func TestCombinedExistsAndIn_PostgreSQL(t *testing.T) {
 	dialect := &postgres.PostgresDialect{}
 	builder := New(dialect)
 
-	existsSubquery := builder.Select("1").
+	existsSubquery := builder.Select().SelectExpr(RawExpr("1")).
 		From("orders").
 		Where(ColEq("orders.user_id", "users.id"))
 
@@ -490,7 +490,7 @@ func TestCombinedExistsAndIn_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT "*" FROM "users" WHERE EXISTS (SELECT "1" FROM "orders" WHERE "orders.user_id" = "users.id") AND "plan_id" IN (SELECT "id" FROM "premium_plans" WHERE "price" > $1)`
+	expectedSQL := `SELECT "*" FROM "users" WHERE EXISTS (SELECT 1 FROM "orders" WHERE "orders"."user_id" = "users"."id") AND "plan_id" IN (SELECT "id" FROM "premium_plans" WHERE "price" > $1)`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
