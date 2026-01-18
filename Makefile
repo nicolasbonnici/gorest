@@ -138,7 +138,7 @@ test-generate:
 
 test: test-up test-schema test-generate
 	@echo "[INFO] Running Go tests..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && go test -tags=integration -v -timeout=5m ./...
+	@export $$(grep -v '^#' test/.env.test | xargs) && go test -p 1 -tags=integration -v -timeout=5m ./...
 	@echo "[INFO] Restoring auth-enabled resources after tests..."
 	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen-resources >/dev/null 2>&1
 
@@ -148,7 +148,7 @@ test-coverage: test-up test-schema test-generate
 	@mkdir -p coverage
 	@export $$(grep -v '^#' test/.env.test | xargs) && \
 		packages=$$(go list ./... | grep -v 'github.com/nicolasbonnici/gorest$$' | grep -v '/cmd/' | grep -v '/examples/' | grep -v '/plugins/' | grep -v '/generated/' | grep -v '/test/generated/' | grep -v '/hooks$$' | grep -v '/logger$$' | grep -v '/migrations/cmd/') && \
-		go test -tags=integration -timeout=5m -coverprofile=coverage/coverage.out -covermode=atomic $$packages
+		go test -p 1 -tags=integration -timeout=5m -coverprofile=coverage/coverage.out -covermode=atomic $$packages
 	@echo ""
 	@echo "========================================="
 	@echo "         COVERAGE REPORT"
