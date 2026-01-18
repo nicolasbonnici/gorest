@@ -85,7 +85,7 @@ func ExampleSelectBuilder_alias() {
 	fmt.Println(len(args))
 
 	// Output:
-	// SELECT "u.id", "u.name" FROM "users" AS "u"
+	// SELECT "u"."id", "u"."name" FROM "users" AS "u"
 	// 0
 }
 

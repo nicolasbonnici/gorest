@@ -97,7 +97,7 @@ func TestCTE_Multiple_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `WITH "active_users" AS (SELECT "id", "name" FROM "users" WHERE "status" = $1), "recent_orders" AS (SELECT "user_id", "total" FROM "orders" WHERE "created_at" > $2) SELECT "au.name", "ro.total" FROM "active_users" AS "au" INNER JOIN "recent_orders" AS "ro" ON "ro.user_id" = "au.id"`
+	expectedSQL := `WITH "active_users" AS (SELECT "id", "name" FROM "users" WHERE "status" = $1), "recent_orders" AS (SELECT "user_id", "total" FROM "orders" WHERE "created_at" > $2) SELECT "au"."name", "ro"."total" FROM "active_users" AS "au" INNER JOIN "recent_orders" AS "ro" ON "ro"."user_id" = "au"."id"`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -168,7 +168,7 @@ func TestCTE_ComplexMain_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `WITH "order_summary" AS (SELECT "user_id", SUM("total") AS "total_spent", COUNT("*") AS "order_count" FROM "orders" WHERE "status" = $1 GROUP BY "user_id") SELECT "u"."name", "os.total_spent", "os.order_count" FROM "users" AS "u" INNER JOIN "order_summary" AS "os" ON "os.user_id" = "u"."id" WHERE "os.total_spent" > $2 ORDER BY "os.total_spent" DESC LIMIT 10`
+	expectedSQL := `WITH "order_summary" AS (SELECT "user_id", SUM("total") AS "total_spent", COUNT("*") AS "order_count" FROM "orders" WHERE "status" = $1 GROUP BY "user_id") SELECT "u"."name", "os"."total_spent", "os"."order_count" FROM "users" AS "u" INNER JOIN "order_summary" AS "os" ON "os"."user_id" = "u"."id" WHERE "os"."total_spent" > $2 ORDER BY "os"."total_spent" DESC LIMIT 10`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -273,7 +273,7 @@ func TestCTE_WithGroupByHaving_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `WITH "top_categories" AS (SELECT "category", COUNT("*") AS "product_count" FROM "products" GROUP BY "category" HAVING "COUNT(*)" > $1) SELECT "*" FROM "top_categories" ORDER BY "product_count" DESC`
+	expectedSQL := `WITH "top_categories" AS (SELECT "category", COUNT("*") AS "product_count" FROM "products" GROUP BY "category" HAVING COUNT(*) > $1) SELECT "*" FROM "top_categories" ORDER BY "product_count" DESC`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}

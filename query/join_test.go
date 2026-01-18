@@ -111,7 +111,7 @@ func TestSelectBuilder_LeftJoin(t *testing.T) {
 					LeftJoin("comment_counts", ColEq("u.id", "c.user_id")).
 					Where(IsNotNull("c.count"))
 			},
-			expectedSQL:  "SELECT `u`.`id`, `u`.`name`, `c`.`count` FROM `users` AS `u` LEFT JOIN `comment_counts` ON `u`.`id` = `c.user_id` WHERE `c`.`count` IS NOT NULL",
+			expectedSQL:  "SELECT `u`.`id`, `u`.`name`, `c`.`count` FROM `users` AS `u` LEFT JOIN `comment_counts` ON `u`.`id` = `c`.`user_id` WHERE `c`.`count` IS NOT NULL",
 			expectedArgs: []any{},
 		},
 		{
@@ -204,32 +204,28 @@ func TestSelectBuilder_FullJoin(t *testing.T) {
 		}
 	})
 
-	t.Run("MySQL FULL JOIN panics", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic for MySQL FULL JOIN, but didn't panic")
-			}
-		}()
-
-		New(&mysql.MySQLDialect{}).
+	t.Run("MySQL FULL JOIN returns error", func(t *testing.T) {
+		_, _, err := New(&mysql.MySQLDialect{}).
 			Select("*").
 			From("users").
 			FullJoin("orders", ColEq("u.id", "o.user_id")).
 			Build()
+
+		if err == nil {
+			t.Error("Expected error for MySQL FULL JOIN, but got nil")
+		}
 	})
 
-	t.Run("SQLite FULL JOIN panics", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic for SQLite FULL JOIN, but didn't panic")
-			}
-		}()
-
-		New(&sqlite.SQLiteDialect{}).
+	t.Run("SQLite FULL JOIN returns error", func(t *testing.T) {
+		_, _, err := New(&sqlite.SQLiteDialect{}).
 			Select("*").
 			From("users").
 			FullJoin("orders", ColEq("u.id", "o.user_id")).
 			Build()
+
+		if err == nil {
+			t.Error("Expected error for SQLite FULL JOIN, but got nil")
+		}
 	})
 }
 

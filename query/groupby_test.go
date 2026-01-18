@@ -127,7 +127,7 @@ func TestHaving_Simple_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT "status", COUNT("*") AS "count" FROM "orders" GROUP BY "status" HAVING "COUNT(*)" > $1`
+	expectedSQL := `SELECT "status", COUNT("*") AS "count" FROM "orders" GROUP BY "status" HAVING COUNT(*) > $1`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -156,7 +156,7 @@ func TestHaving_Multiple_MySQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := "SELECT `user_id`, COUNT(`*`) AS `order_count`, SUM(`total`) AS `total_spent` FROM `orders` GROUP BY `user_id` HAVING `COUNT(*)` > ? AND `SUM(total)` > ?"
+	expectedSQL := "SELECT `user_id`, COUNT(`*`) AS `order_count`, SUM(`total`) AS `total_spent` FROM `orders` GROUP BY `user_id` HAVING COUNT(*) > ? AND SUM(total) > ?"
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -183,7 +183,7 @@ func TestHaving_WithWhereAndOrderBy_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT "category", AVG("price") AS "avg_price" FROM "products" WHERE "active" = $1 GROUP BY "category" HAVING "AVG(price)" > $2 ORDER BY "category" ASC`
+	expectedSQL := `SELECT "category", AVG("price") AS "avg_price" FROM "products" WHERE "active" = $1 GROUP BY "category" HAVING AVG(price) > $2 ORDER BY "category" ASC`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -304,7 +304,7 @@ func TestComplexAggregation_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT "user_id", "status", COUNT("*") AS "order_count", SUM("total") AS "total_amount", AVG("total") AS "avg_amount", MIN("created_at") AS "first_order", MAX("created_at") AS "last_order" FROM "orders" WHERE "created_at" > $1 GROUP BY "user_id", "status" HAVING "COUNT(*)" > $2 AND "SUM(total)" > $3 ORDER BY "user_id" ASC, SUM("total") DESC`
+	expectedSQL := `SELECT "user_id", "status", COUNT("*") AS "order_count", SUM("total") AS "total_amount", AVG("total") AS "avg_amount", MIN("created_at") AS "first_order", MAX("created_at") AS "last_order" FROM "orders" WHERE "created_at" > $1 GROUP BY "user_id", "status" HAVING COUNT(*) > $2 AND SUM(total) > $3 ORDER BY "user_id" ASC, SUM("total") DESC`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -333,7 +333,7 @@ func TestGroupByWithJoin_MySQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := "SELECT `u`.`name`, `u`.`id`, COUNT(`o.id`) AS `order_count` FROM `users` AS `u` LEFT JOIN `orders` AS `o` ON `o`.`user_id` = `u`.`id` GROUP BY `u`.`id`, `u`.`name` HAVING `COUNT(o.id)` > ?"
+	expectedSQL := "SELECT `u`.`name`, `u`.`id`, COUNT(`o.id`) AS `order_count` FROM `users` AS `u` LEFT JOIN `orders` AS `o` ON `o`.`user_id` = `u`.`id` GROUP BY `u`.`id`, `u`.`name` HAVING COUNT(o.id) > ?"
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}
@@ -436,7 +436,7 @@ func TestHavingOnly_WithoutGroupBy_PostgreSQL(t *testing.T) {
 		t.Fatalf("Build() error = %v", err)
 	}
 
-	expectedSQL := `SELECT COUNT("*") AS "total" FROM "users" HAVING "COUNT(*)" > $1`
+	expectedSQL := `SELECT COUNT("*") AS "total" FROM "users" HAVING COUNT(*) > $1`
 	if sql != expectedSQL {
 		t.Errorf("Expected SQL:\n%s\nGot:\n%s", expectedSQL, sql)
 	}

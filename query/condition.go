@@ -33,6 +33,12 @@ func (c *comparisonCondition) ToSQL(dialect database.Dialect, paramStart int) (s
 // QuoteQualifiedIdentifier quotes a column reference that may be qualified (table.column).
 // This is exported for use in other query builder functions.
 func QuoteQualifiedIdentifier(dialect database.Dialect, name string) string {
+	// If it's an expression (contains parentheses), don't quote it
+	// This allows function calls like COUNT(*), SUM(price), COUNT(table.id) to pass through unchanged
+	if strings.Contains(name, "(") {
+		return name
+	}
+
 	if strings.Contains(name, ".") {
 		parts := strings.Split(name, ".")
 		quotedParts := make([]string, len(parts))
