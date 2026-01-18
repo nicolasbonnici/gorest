@@ -23,11 +23,16 @@ func (d *PostgresDialect) ReturningClause(cols ...string) string {
 	if len(cols) == 0 {
 		return "RETURNING id"
 	}
-	return "RETURNING " + strings.Join(cols, ", ")
+	quoted := make([]string, len(cols))
+	for i, col := range cols {
+		quoted[i] = d.QuoteIdentifier(col)
+	}
+	return "RETURNING " + strings.Join(quoted, ", ")
 }
 
 func (d *PostgresDialect) QuoteIdentifier(name string) string {
-	return `"` + name + `"`
+	escaped := strings.ReplaceAll(name, `"`, `""`)
+	return `"` + escaped + `"`
 }
 
 func (d *PostgresDialect) MapType(stdType string) string {
@@ -65,4 +70,43 @@ func (d *PostgresDialect) MapType(stdType string) string {
 
 func (d *PostgresDialect) CaseInsensitiveLike() string {
 	return "ILIKE"
+}
+
+func (d *PostgresDialect) SupportsFullJoin() bool {
+	return true
+}
+
+func (d *PostgresDialect) SupportsWindowFunctions() bool {
+	return true
+}
+
+func (d *PostgresDialect) SupportsCTE() bool {
+	return true
+}
+
+func (d *PostgresDialect) SupportsArrays() bool {
+	return true
+}
+
+func (d *PostgresDialect) OnConflictClause(columns []string, action string) string {
+	if len(columns) == 0 {
+		return ""
+	}
+
+	quotedColumns := make([]string, len(columns))
+	for i, col := range columns {
+		quotedColumns[i] = d.QuoteIdentifier(col)
+	}
+
+	conflict := fmt.Sprintf("ON CONFLICT (%s)", strings.Join(quotedColumns, ", "))
+
+	if action != "" {
+		conflict += " " + action
+	}
+
+	return conflict
+}
+
+func (d *PostgresDialect) UpsertSupport() bool {
+	return true
 }

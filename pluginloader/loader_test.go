@@ -57,13 +57,19 @@ func (m *mockDatabase) Introspector() database.SchemaIntrospector      { return 
 
 type mockDialect struct{}
 
-func (d *mockDialect) Placeholder(n int) string              { return "?" }
-func (d *mockDialect) SupportsReturning() bool               { return false }
-func (d *mockDialect) ReturningClause(cols ...string) string { return "" }
-func (d *mockDialect) LimitOffset(limit, offset int) string  { return "" }
-func (d *mockDialect) QuoteIdentifier(name string) string    { return name }
-func (d *mockDialect) MapType(dbType string) string          { return dbType }
-func (d *mockDialect) CaseInsensitiveLike() string           { return "LOWER" }
+func (d *mockDialect) Placeholder(n int) string                                { return "?" }
+func (d *mockDialect) SupportsReturning() bool                                 { return false }
+func (d *mockDialect) ReturningClause(cols ...string) string                   { return "" }
+func (d *mockDialect) LimitOffset(limit, offset int) string                    { return "" }
+func (d *mockDialect) QuoteIdentifier(name string) string                      { return name }
+func (d *mockDialect) MapType(dbType string) string                            { return dbType }
+func (d *mockDialect) CaseInsensitiveLike() string                             { return "LOWER" }
+func (d *mockDialect) SupportsFullJoin() bool                                  { return false }
+func (d *mockDialect) SupportsWindowFunctions() bool                           { return false }
+func (d *mockDialect) SupportsCTE() bool                                       { return false }
+func (d *mockDialect) SupportsArrays() bool                                    { return false }
+func (d *mockDialect) OnConflictClause(columns []string, action string) string { return "" }
+func (d *mockDialect) UpsertSupport() bool                                     { return false }
 
 func TestLoadPlugins_Success(t *testing.T) {
 	pluginFactories = make(map[string]PluginFactory)

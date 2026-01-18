@@ -10,9 +10,37 @@ type Dialect interface {
 	QuoteIdentifier(name string) string
 	MapType(dbType string) string
 	CaseInsensitiveLike() string
+
+	// Query builder capabilities
+	SupportsFullJoin() bool
+	SupportsWindowFunctions() bool
+	SupportsCTE() bool
+	SupportsArrays() bool
+	OnConflictClause(columns []string, action string) string
+	UpsertSupport() bool
 }
 
 type BaseDialect struct{}
+
+func (d *BaseDialect) Placeholder(n int) string {
+	return "?"
+}
+
+func (d *BaseDialect) SupportsReturning() bool {
+	return false
+}
+
+func (d *BaseDialect) ReturningClause(cols ...string) string {
+	return ""
+}
+
+func (d *BaseDialect) QuoteIdentifier(name string) string {
+	return name
+}
+
+func (d *BaseDialect) MapType(dbType string) string {
+	return dbType
+}
 
 func (d *BaseDialect) LimitOffset(limit, offset int) string {
 	if limit > 0 && offset > 0 {
@@ -27,4 +55,28 @@ func (d *BaseDialect) LimitOffset(limit, offset int) string {
 
 func (d *BaseDialect) CaseInsensitiveLike() string {
 	return "LOWER"
+}
+
+func (d *BaseDialect) SupportsFullJoin() bool {
+	return false
+}
+
+func (d *BaseDialect) SupportsWindowFunctions() bool {
+	return false
+}
+
+func (d *BaseDialect) SupportsCTE() bool {
+	return false
+}
+
+func (d *BaseDialect) SupportsArrays() bool {
+	return false
+}
+
+func (d *BaseDialect) OnConflictClause(columns []string, action string) string {
+	return ""
+}
+
+func (d *BaseDialect) UpsertSupport() bool {
+	return false
 }
