@@ -91,25 +91,35 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 		queryParams.Add(string(key), string(value))
 	})
 
+	// Parse filters into conditions
 	filters := filter.NewFilterSet(allowedFields, r.DB.Dialect())
 	if err := filters.ParseFromQuery(queryParams); err != nil {
 		return pagination.SendPaginatedError(c, 400, err.Error())
 	}
-	whereClause, whereArgs := filters.BuildWhereClause()
+	conditions := filters.Conditions()
 
+	// Parse ordering into OrderBy clauses
 	ordering := filter.NewOrderSet(allowedFields)
 	if err := ordering.ParseFromQuery(queryParams); err != nil {
 		return pagination.SendPaginatedError(c, 400, err.Error())
 	}
-	orderByClause := ordering.BuildOrderByClause()
+	orderClauses := ordering.OrderClauses()
+
+	// Convert filter.OrderClause to crud.OrderByClause
+	orderBy := make([]crud.OrderByClause, len(orderClauses))
+	for i, oc := range orderClauses {
+		orderBy[i] = crud.OrderByClause{
+			Column:    oc.Column,
+			Direction: oc.Direction,
+		}
+	}
 
 	result, err := r.CRUD.GetAllPaginated(auth.Context(c), crud.PaginationOptions{
-		Limit:         limit,
-		Offset:        offset,
-		IncludeCount:  includeCount,
-		WhereClause:   whereClause,
-		WhereArgs:     whereArgs,
-		OrderByClause: orderByClause,
+		Limit:        limit,
+		Offset:       offset,
+		IncludeCount: includeCount,
+		Conditions:   conditions,
+		OrderBy:      orderBy,
 	})
 	if err != nil {
 		return pagination.SendPaginatedError(c, 500, err.Error())

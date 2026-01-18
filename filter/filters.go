@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/query"
 )
 
 type FilterOperator string
@@ -184,4 +185,44 @@ func (fs *FilterSet) BuildWhereClause() (string, []interface{}) {
 	}
 
 	return "WHERE " + strings.Join(conditions, " AND "), args
+}
+
+// Conditions returns all filters as query.Condition slice for use with query builder.
+func (fs *FilterSet) Conditions() []query.Condition {
+	var conditions []query.Condition
+	for _, filter := range fs.Filters {
+		if cond := fs.filterToCondition(filter); cond != nil {
+			conditions = append(conditions, cond)
+		}
+	}
+	return conditions
+}
+
+// filterToCondition converts a Filter to a query.Condition.
+func (fs *FilterSet) filterToCondition(filter Filter) query.Condition {
+	switch filter.Operator {
+	case OpEqual:
+		return query.Eq(filter.Field, filter.Values[0])
+	case OpNotEqual:
+		return query.Ne(filter.Field, filter.Values[0])
+	case OpGreaterThan:
+		return query.Gt(filter.Field, filter.Values[0])
+	case OpGreaterThanOrEqual:
+		return query.Gte(filter.Field, filter.Values[0])
+	case OpLessThan:
+		return query.Lt(filter.Field, filter.Values[0])
+	case OpLessThanOrEqual:
+		return query.Lte(filter.Field, filter.Values[0])
+	case OpLike:
+		return query.Like(filter.Field, "%"+filter.Values[0]+"%")
+	case OpILike:
+		return query.ILike(filter.Field, "%"+filter.Values[0]+"%")
+	case OpIn:
+		vals := make([]any, len(filter.Values))
+		for i, v := range filter.Values {
+			vals[i] = v
+		}
+		return query.In(filter.Field, vals...)
+	}
+	return nil
 }
