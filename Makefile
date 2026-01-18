@@ -153,7 +153,7 @@ test-coverage: test-up test-schema test-generate
 	@echo "========================================="
 	@echo "         COVERAGE REPORT"
 	@echo "========================================="
-	@go tool cover -func=coverage/coverage.out | tail -20
+	@go tool cover -func=coverage/coverage.out | column -t
 	@echo "========================================="
 	@go tool cover -func=coverage/coverage.out | grep total | awk '{print "\n📊 Total Coverage: " $$3 "\n"}'
 	@echo "[INFO] Restoring auth-enabled resources after tests..."

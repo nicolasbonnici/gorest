@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+
+	"github.com/nicolasbonnici/gorest/query"
 )
 
 type OrderDirection string
@@ -90,4 +92,26 @@ func (os *OrderSet) BuildOrderByClause() string {
 	}
 
 	return "ORDER BY " + strings.Join(parts, ", ")
+}
+
+// OrderClause represents a column ordering for use with query builder.
+type OrderClause struct {
+	Column    string
+	Direction query.Order
+}
+
+// OrderClauses returns all orders as OrderClause slice for use with query builder.
+func (os *OrderSet) OrderClauses() []OrderClause {
+	clauses := make([]OrderClause, 0, len(os.Orders))
+	for _, order := range os.Orders {
+		direction := query.ASC
+		if order.Direction == OrderDesc {
+			direction = query.DESC
+		}
+		clauses = append(clauses, OrderClause{
+			Column:    order.Field,
+			Direction: direction,
+		})
+	}
+	return clauses
 }

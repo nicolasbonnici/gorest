@@ -20,12 +20,17 @@ type CRUD[T Model] struct {
 }
 
 type PaginationOptions struct {
-	Limit         int
-	Offset        int
-	IncludeCount  bool
-	WhereClause   string
-	WhereArgs     []interface{}
-	OrderByClause string
+	Limit        int
+	Offset       int
+	IncludeCount bool
+	Conditions   []query.Condition
+	OrderBy      []OrderByClause
+}
+
+// OrderByClause represents a column ordering for pagination.
+type OrderByClause struct {
+	Column    string
+	Direction query.Order
 }
 
 type PaginationResult[T any] struct {
@@ -260,41 +265,54 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 		}
 	}
 
+	// Build select query using query builder
 	qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
+
+	// Apply hook modifications
 	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
 	if modified {
 		qb = modifiedBuilder
 	}
 
-	baseQuery, args, buildErr := qb.Build()
-	if buildErr != nil {
-		return nil, fmt.Errorf("query build failed: %w", buildErr)
+	// Apply filter conditions
+	for _, cond := range opts.Conditions {
+		qb = qb.Where(cond)
 	}
 
+	// Apply ordering
+	for _, order := range opts.OrderBy {
+		qb = qb.OrderBy(order.Column, order.Direction)
+	}
+
+	// Apply pagination
+	qb = qb.Limit(opts.Limit).Offset(opts.Offset)
+
+	// Count query (if needed)
 	var total *int
 	if opts.IncludeCount {
-		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", zero.TableName())
-		if opts.WhereClause != "" {
-			countQuery += " " + opts.WhereClause
+		countBuilder := query.New(c.DB.Dialect()).Select("COUNT(*)").From(zero.TableName())
+		countBuilder, _ = c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, countBuilder)
+		for _, cond := range opts.Conditions {
+			countBuilder = countBuilder.Where(cond)
 		}
+
+		countQuery, countArgs, countErr := countBuilder.Build()
+		if countErr != nil {
+			return nil, fmt.Errorf("count query build failed: %w", countErr)
+		}
+
 		var count int
-		if err := c.DB.QueryRow(ctx, countQuery, opts.WhereArgs...).Scan(&count); err != nil {
+		if err := c.DB.QueryRow(ctx, countQuery, countArgs...).Scan(&count); err != nil {
 			return nil, err
 		}
 		total = &count
 	}
 
-	queryStr := baseQuery
-	if opts.WhereClause != "" {
-		queryStr += " " + opts.WhereClause
+	// Build and execute main query
+	queryStr, args, buildErr := qb.Build()
+	if buildErr != nil {
+		return nil, fmt.Errorf("query build failed: %w", buildErr)
 	}
-	if opts.OrderByClause != "" {
-		queryStr += " " + opts.OrderByClause
-	}
-	limitOffsetClause := c.DB.Dialect().LimitOffset(opts.Limit, opts.Offset)
-	queryStr += " " + limitOffsetClause
-
-	args = append(args, opts.WhereArgs...)
 
 	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetAll, queryStr, args)
 	if err != nil {

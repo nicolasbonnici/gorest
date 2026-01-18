@@ -7,6 +7,7 @@ import (
 
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/hooks"
+	"github.com/nicolasbonnici/gorest/query"
 )
 
 type testModel struct {
@@ -697,7 +698,7 @@ func TestGetAllPaginated_WithoutCount(t *testing.T) {
 	}
 }
 
-func TestGetAllPaginated_WithWhereClause(t *testing.T) {
+func TestGetAllPaginated_WithConditions(t *testing.T) {
 	callCount := 0
 	db := &mockDatabase{
 		dialect: &mockDialect{name: "postgres", supportsReturning: true},
@@ -723,8 +724,7 @@ func TestGetAllPaginated_WithWhereClause(t *testing.T) {
 	result, err := crud.GetAllPaginated(context.Background(), PaginationOptions{
 		Limit:        10,
 		Offset:       0,
-		WhereClause:  "WHERE status = ?",
-		WhereArgs:    []interface{}{"active"},
+		Conditions:   []query.Condition{query.Eq("status", "active")},
 		IncludeCount: false,
 	})
 
@@ -741,7 +741,7 @@ func TestGetAllPaginated_WithOrderBy(t *testing.T) {
 	callCount := 0
 	db := &mockDatabase{
 		dialect: &mockDialect{name: "postgres", supportsReturning: true},
-		queryFunc: func(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+		queryFunc: func(ctx context.Context, queryStr string, args ...interface{}) (database.Rows, error) {
 			return &mockRows{
 				nextFunc: func() bool {
 					callCount++
@@ -761,10 +761,10 @@ func TestGetAllPaginated_WithOrderBy(t *testing.T) {
 
 	crud := New[testModel](db)
 	result, err := crud.GetAllPaginated(context.Background(), PaginationOptions{
-		Limit:         10,
-		Offset:        0,
-		OrderByClause: "ORDER BY name DESC",
-		IncludeCount:  false,
+		Limit:        10,
+		Offset:       0,
+		OrderBy:      []OrderByClause{{Column: "name", Direction: query.DESC}},
+		IncludeCount: false,
 	})
 
 	if err != nil {
