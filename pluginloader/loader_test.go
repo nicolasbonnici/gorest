@@ -241,7 +241,8 @@ func TestInjectSharedConfig(t *testing.T) {
 	}
 
 	appConfig := &config.Config{}
-	enriched := InjectSharedConfig(configs, mockDB, appConfig)
+	registry := plugin.NewPluginRegistry()
+	enriched := InjectSharedConfig(configs, mockDB, appConfig, registry)
 
 	if len(enriched) != 2 {
 		t.Fatalf("Expected 2 enriched configs, got %d", len(enriched))
@@ -280,7 +281,8 @@ func TestInjectSharedConfig_EmptyConfig(t *testing.T) {
 	}
 
 	appConfig := &config.Config{}
-	enriched := InjectSharedConfig(configs, mockDB, appConfig)
+	registry := plugin.NewPluginRegistry()
+	enriched := InjectSharedConfig(configs, mockDB, appConfig, registry)
 
 	if len(enriched) != 1 {
 		t.Fatalf("Expected 1 enriched config, got %d", len(enriched))
@@ -603,7 +605,8 @@ func TestInjectSharedConfig_WithPaginationConfig(t *testing.T) {
 		},
 	}
 
-	enriched := InjectSharedConfig(configs, mockDB, appConfig)
+	registry := plugin.NewPluginRegistry()
+	enriched := InjectSharedConfig(configs, mockDB, appConfig, registry)
 
 	if len(enriched) != 1 {
 		t.Fatalf("Expected 1 enriched config, got %d", len(enriched))
@@ -645,7 +648,8 @@ func TestInjectSharedConfig_OpenAPIPlugin(t *testing.T) {
 		},
 	}
 
-	enriched := InjectSharedConfig(configs, mockDB, appConfig)
+	registry := plugin.NewPluginRegistry()
+	enriched := InjectSharedConfig(configs, mockDB, appConfig, registry)
 
 	if len(enriched) != 1 {
 		t.Fatalf("Expected 1 enriched config, got %d", len(enriched))
@@ -823,7 +827,8 @@ func TestInjectSharedConfig_PreservesEnabledFlag(t *testing.T) {
 	}
 
 	appConfig := &config.Config{}
-	enriched := InjectSharedConfig(configs, mockDB, appConfig)
+	registry := plugin.NewPluginRegistry()
+	enriched := InjectSharedConfig(configs, mockDB, appConfig, registry)
 
 	if len(enriched) != 2 {
 		t.Fatalf("Expected 2 enriched configs, got %d", len(enriched))
