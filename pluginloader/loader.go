@@ -92,7 +92,7 @@ func SetupPluginEndpoints(registry *plugin.PluginRegistry, app *fiber.App) error
 	return nil
 }
 
-func InjectSharedConfig(configs []config.PluginConfig, db database.Database, appConfig *config.Config) []config.PluginConfig {
+func InjectSharedConfig(configs []config.PluginConfig, db database.Database, appConfig *config.Config, registry *plugin.PluginRegistry) []config.PluginConfig {
 	enriched := make([]config.PluginConfig, len(configs))
 	for i, cfg := range configs {
 		enrichedCfg := make(map[string]interface{})
@@ -109,6 +109,9 @@ func InjectSharedConfig(configs []config.PluginConfig, db database.Database, app
 		enrichedCfg["server_port"] = appConfig.Server.Port
 
 		if cfg.Name == "openapi" {
+			if registry != nil {
+				enrichedCfg["plugin_registry"] = registry
+			}
 			projectRoot, err := findProjectRoot()
 			if err == nil {
 				dtosDir := filepath.Join(projectRoot, appConfig.Codegen.Output.DTOs)
