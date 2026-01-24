@@ -75,3 +75,18 @@ type MigrationProvider interface {
 type PluginDependencies interface {
 	Dependencies() []string
 }
+
+type OpenAPIProvider interface {
+	GetOpenAPIResources() []OpenAPIResource
+}
+
+type OpenAPIResource struct {
+	Name          string
+	PluralName    string
+	BasePath      string
+	Tags          []string
+	ResponseModel interface{}
+	CreateModel   interface{}
+	UpdateModel   interface{}
+	Description   string
+}
