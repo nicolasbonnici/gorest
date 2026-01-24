@@ -82,13 +82,25 @@ func Start(cfg Config) {
 		app.Use(middleware.RateLimit(appConfig.Server.RateLimitRPS, appConfig.Server.RateLimitBurst))
 	}
 
-	enrichedConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins, db, appConfig)
+	enrichedConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins, db, appConfig, nil)
 
-	// Load plugins (plugins are NOT automatically applied - user must use app.Use() or fiber groups)
 	pluginRegistry, err := pluginloader.LoadPlugins(enrichedConfigs, Version)
 	if err != nil {
 		logger.Log.Error("Failed to load plugins", "error", err)
 		os.Exit(1)
+	}
+
+	if openAPIPlugin, ok := pluginRegistry.Get("openapi"); ok {
+		enrichedConfigs = pluginloader.InjectSharedConfig(appConfig.Plugins, db, appConfig, pluginRegistry)
+		for _, cfg := range enrichedConfigs {
+			if cfg.Name == "openapi" {
+				if err := openAPIPlugin.Initialize(cfg.Config); err != nil {
+					logger.Log.Error("Failed to reinitialize openapi plugin", "error", err)
+					os.Exit(1)
+				}
+				break
+			}
+		}
 	}
 
 	// Apply global middleware before setting up any endpoints (including plugin endpoints)
