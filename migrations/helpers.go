@@ -2,6 +2,8 @@ package migrations
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/nicolasbonnici/gorest/database"
@@ -37,16 +39,24 @@ func (m *GoMigration) Down(fn func(ctx context.Context, db database.Database) er
 
 // Build creates a Migration from the GoMigration
 func (m *GoMigration) Build() Migration {
+	// Calculate a stable checksum based on version and name
+	// For Go migrations, we can't hash the function code itself, so we use metadata
+	h := sha256.New()
+	h.Write([]byte(m.version))
+	h.Write([]byte(m.description))
+	checksum := hex.EncodeToString(h.Sum(nil))
+
 	executor := &GoMigrationExecutor{
 		upFunc:   m.upFunc,
 		downFunc: m.downFunc,
+		checksum: checksum,
 	}
 
 	return Migration{
 		Version:  m.version,
 		Name:     m.description,
 		Executor: executor,
-		Checksum: executor.Checksum(),
+		Checksum: checksum,
 	}
 }
 
@@ -54,6 +64,7 @@ func (m *GoMigration) Build() Migration {
 type GoMigrationExecutor struct {
 	upFunc   func(ctx context.Context, db database.Database) error
 	downFunc func(ctx context.Context, db database.Database) error
+	checksum string
 }
 
 func (e *GoMigrationExecutor) Up(ctx context.Context, db database.Database) error {
@@ -71,9 +82,11 @@ func (e *GoMigrationExecutor) Down(ctx context.Context, db database.Database) er
 }
 
 func (e *GoMigrationExecutor) Checksum() string {
-	// For Go-based migrations, we use a simple hash based on function pointers
-	// This is stable within a build but allows code changes between builds
-	return fmt.Sprintf("%p_%p", e.upFunc, e.downFunc)
+	return e.checksum
+}
+
+func (e *GoMigrationExecutor) SetChecksum(checksum string) {
+	e.checksum = checksum
 }
 
 // MigrationBuilder provides a fluent interface for building migrations

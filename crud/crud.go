@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/hooks"
 	"github.com/nicolasbonnici/gorest/query"
@@ -83,16 +84,33 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag == "" || tag == "id" || tag == "created_at" || tag == "updated_at" {
+		if tag == "" || tag == "-" || tag == "created_at" || tag == "updated_at" {
 			continue
 		}
+
+		if tag == "id" {
+			fieldValue := v.Field(i)
+			if fieldValue.IsZero() {
+				continue
+			}
+		}
+
 		cols = append(cols, tag)
 		values = append(values, v.Field(i).Interface())
 	}
 
 	qb = qb.Columns(cols...).Values(values...)
 
-	if c.DB.Dialect().SupportsReturning() {
+	idPreSet := false
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.Tag.Get("db") == "id" && !v.Field(i).IsZero() {
+			idPreSet = true
+			break
+		}
+	}
+
+	if c.DB.Dialect().SupportsReturning() && !idPreSet {
 		qb = qb.Returning("id")
 	}
 
@@ -110,7 +128,7 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 	var result any
 	var createdID any
 
-	if c.DB.Dialect().SupportsReturning() {
+	if c.DB.Dialect().SupportsReturning() && !idPreSet {
 		row := c.DB.QueryRow(ctx, finalQuery, finalArgs...)
 		scanErr := row.Scan(&createdID)
 		if scanErr != nil {
@@ -122,7 +140,7 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 		res, err := c.DB.Exec(ctx, finalQuery, finalArgs...)
 		if err != nil {
 			execErr = err
-		} else {
+		} else if !idPreSet {
 			id, err := res.LastInsertId()
 			if err != nil {
 				execErr = err
@@ -133,7 +151,7 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 		}
 	}
 
-	if execErr == nil && createdID != nil {
+	if execErr == nil && createdID != nil && !idPreSet {
 		v := reflect.ValueOf(&m).Elem()
 		t := v.Type()
 		for i := 0; i < t.NumField(); i++ {
@@ -146,6 +164,27 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 					case reflect.String:
 						if s, ok := createdID.(string); ok {
 							fieldValue.SetString(s)
+						} else if byteArr, ok := createdID.([16]byte); ok {
+							// PostgreSQL UUID returned as [16]byte
+							u, err := uuid.FromBytes(byteArr[:])
+							if err == nil {
+								fieldValue.SetString(u.String())
+							} else {
+								log.Printf("warning: failed to convert [16]byte to UUID: %v", err)
+							}
+						} else if byteSlice, ok := createdID.([]byte); ok {
+							// PostgreSQL UUID returned as []byte
+							if len(byteSlice) == 16 {
+								u, err := uuid.FromBytes(byteSlice)
+								if err == nil {
+									fieldValue.SetString(u.String())
+								} else {
+									log.Printf("warning: failed to convert []byte to UUID: %v", err)
+								}
+							} else {
+								// Might be a string stored as bytes
+								fieldValue.SetString(string(byteSlice))
+							}
 						} else {
 							log.Printf("warning: failed to cast ID to string, got type %T", createdID)
 						}
@@ -190,7 +229,7 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag != "" {
+		if tag != "" && tag != "-" {
 			cols = append(cols, tag)
 			fieldIndices = append(fieldIndices, i)
 		}
@@ -259,7 +298,7 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag != "" {
+		if tag != "" && tag != "-" {
 			cols = append(cols, tag)
 			fieldIndices = append(fieldIndices, i)
 		}
@@ -369,7 +408,7 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag != "" {
+		if tag != "" && tag != "-" {
 			cols = append(cols, tag)
 			fieldIndices = append(fieldIndices, i)
 		}
@@ -430,7 +469,7 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag != "" {
+		if tag != "" && tag != "-" {
 			cols = append(cols, tag)
 			fieldIndices = append(fieldIndices, i)
 		}
@@ -487,7 +526,7 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("db")
-		if tag == "" || tag == "id" || tag == "created_at" {
+		if tag == "" || tag == "-" || tag == "id" || tag == "created_at" {
 			continue
 		}
 		qb = qb.Set(tag, v.Field(i).Interface())
