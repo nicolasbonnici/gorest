@@ -30,6 +30,8 @@ pagination:
 plugins:
 - name: status
   enabled: true
+- name: codegen
+  enabled: true
 - name: openapi
   enabled: true
 - name: dummy

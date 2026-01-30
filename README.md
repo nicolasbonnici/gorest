@@ -478,17 +478,17 @@ livenessProbe:
 
 This directory contains git hooks for the GoREST project to maintain code quality.
 
-## Available Hooks
+### Available Hooks
 
-### pre-commit
+#### pre-commit
 
 Runs before each commit to ensure code quality:
 - **Linting**: Runs `make lint` to check code style and potential issues
 - **Tests**: Runs `make test` to verify all tests pass
 
-## Installation
+### Installation
 
-### Automatic Installation
+#### Automatic Installation
 
 Run the install script from the project root:
 
