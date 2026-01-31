@@ -160,7 +160,7 @@ plugins:
 
 ### 3. Generate Code from Your Database
 ```bash
-go run github.com/nicolasbonnici/gorest/cmd/codegen@latest all
+go run github.com/nicolasbonnici/gorest-codegen/cmd/codegen@latest all
 ```
 
 ### 4. Create Your Main Application
@@ -380,14 +380,12 @@ gorest/
 ├── expand/                  # Relation expansion
 ├── filter/                  # Query filtering
 ├── serializer/              # JSON-LD serialization
-├── codegen/                 # Code generation
 ├── hooks/                   # Lifecycle hooks
 ├── plugin/                  # Plugin interfaces
 ├── pluginloader/            # Plugin loading
 ├── middleware/              # Core middleware
 ├── pagination/              # Hydra pagination
-├── response/                # HTTP helpers
-└── cmd/codegen/             # CLI tool
+└── response/                # HTTP helpers
 ```
 
 ---
@@ -395,11 +393,9 @@ gorest/
 ## 🛠 Development Commands
 
 ```bash
-# Code Generation
-make codegen          # Run all code generation
-make codegen-models   # Generate models only
-make codegen-resources # Generate resources & DTOs only
-make codegen-openapi  # Generate OpenAPI schema only
+# Code Generation (via gorest-codegen plugin)
+# See: https://github.com/nicolasbonnici/gorest-codegen
+go run github.com/nicolasbonnici/gorest-codegen/cmd/codegen@latest all
 
 # Testing
 make test-up          # Start test databases
