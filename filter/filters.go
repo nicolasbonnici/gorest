@@ -21,6 +21,7 @@ const (
 	OpLike               FilterOperator = "like"
 	OpILike              FilterOperator = "ilike"
 	OpIn                 FilterOperator = "in"
+	OpNotIn              FilterOperator = "nin"
 )
 
 type Filter struct {
@@ -71,6 +72,11 @@ func (fs *FilterSet) ParseFromQuery(query url.Values) error {
 			Values:   values,
 		}
 
+		// Handle optional array both field[]=val1&field[]=val2 AND field=val1&field=val2 syntax
+		if operator == OpEqual && len(values) > 1 {
+			filter.Operator = OpIn
+		}
+
 		if operator == OpIn && len(values) == 1 {
 			filter.Operator = OpEqual
 		}
@@ -83,7 +89,12 @@ func (fs *FilterSet) ParseFromQuery(query url.Values) error {
 
 func (fs *FilterSet) parseFieldAndOperator(key string) (string, FilterOperator) {
 	if strings.HasSuffix(key, "[]") {
-		return strings.TrimSuffix(key, "[]"), OpIn
+		trimmedKey := strings.TrimSuffix(key, "[]")
+		// Check for [nin][] pattern: field[nin][]
+		if strings.HasSuffix(trimmedKey, "[nin]") {
+			return strings.TrimSuffix(trimmedKey, "[nin]"), OpNotIn
+		}
+		return trimmedKey, OpIn
 	}
 
 	if strings.Contains(key, "[") && strings.Contains(key, "]") {
@@ -107,6 +118,8 @@ func (fs *FilterSet) parseFieldAndOperator(key string) (string, FilterOperator) 
 			return field, OpLike
 		case "ilike":
 			return field, OpILike
+		case "nin":
+			return field, OpNotIn
 		}
 	}
 
@@ -177,6 +190,15 @@ func (fs *FilterSet) BuildWhereClause() (string, []interface{}) {
 				fs.paramIndex++
 			}
 			conditions = append(conditions, fmt.Sprintf("%s IN (%s)", filter.Field, strings.Join(placeholders, ", ")))
+
+		case OpNotIn:
+			placeholders := make([]string, len(filter.Values))
+			for i, val := range filter.Values {
+				placeholders[i] = fs.dialect.Placeholder(fs.paramIndex)
+				args = append(args, val)
+				fs.paramIndex++
+			}
+			conditions = append(conditions, fmt.Sprintf("%s NOT IN (%s)", filter.Field, strings.Join(placeholders, ", ")))
 		}
 	}
 
@@ -223,6 +245,12 @@ func (fs *FilterSet) filterToCondition(filter Filter) query.Condition {
 			vals[i] = v
 		}
 		return query.In(filter.Field, vals...)
+	case OpNotIn:
+		vals := make([]any, len(filter.Values))
+		for i, v := range filter.Values {
+			vals[i] = v
+		}
+		return query.NotIn(filter.Field, vals...)
 	}
 	return nil
 }

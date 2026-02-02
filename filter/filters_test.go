@@ -74,6 +74,27 @@ func TestFilterSet_ParseFromQuery(t *testing.T) {
 			expectedCount: 1,
 			expectedOps:   []FilterOperator{OpEqual},
 		},
+		{
+			name:          "multiple values without brackets (auto IN)",
+			queryString:   "status=active&status=archived",
+			allowedFields: []string{"status"},
+			expectedCount: 1,
+			expectedOps:   []FilterOperator{OpIn},
+		},
+		{
+			name:          "NOT IN operator with brackets",
+			queryString:   "status[nin][]=draft&status[nin][]=deleted",
+			allowedFields: []string{"status"},
+			expectedCount: 1,
+			expectedOps:   []FilterOperator{OpNotIn},
+		},
+		{
+			name:          "NOT IN operator without brackets",
+			queryString:   "status[nin]=draft&status[nin]=deleted",
+			allowedFields: []string{"status"},
+			expectedCount: 1,
+			expectedOps:   []FilterOperator{OpNotIn},
+		},
 	}
 
 	for _, tt := range tests {
