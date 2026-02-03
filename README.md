@@ -208,9 +208,9 @@ Your API is now running at: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/*
 
 ---
 
-## 📦 Using GoREST as a Library
+## 📦 GoREST usage
 
-Import GoREST packages directly in your Go projects:
+Import GoREST library directly in your Go projects:
 
 ```bash
 go get github.com/nicolasbonnici/gorest@latest
@@ -429,6 +429,8 @@ See [gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen) for gener
 ## 🚀 Production Deployment
 
 ### Docker
+
+Using GoREST status plugin [gorest-status](https://github.com/nicolasbonnici/gorest-status)
 
 ```yaml
 services:
