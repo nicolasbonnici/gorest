@@ -8,6 +8,59 @@ import (
 	"github.com/nicolasbonnici/gorest/database/postgres"
 )
 
+func TestFilterSetWithMapping_ParseFromQuery(t *testing.T) {
+	dialect := &postgres.PostgresDialect{}
+
+	tests := []struct {
+		name          string
+		queryString   string
+		fieldMap      map[string]string
+		expectedCount int
+		expectedField string // Expected DB column name in filter
+	}{
+		{
+			name:          "simple equality with JSON field name",
+			queryString:   "createdAt=2024-01-01",
+			fieldMap:      map[string]string{"createdAt": "created_at"},
+			expectedCount: 1,
+			expectedField: "created_at",
+		},
+		{
+			name:          "ordering with JSON field name",
+			queryString:   "userId=123",
+			fieldMap:      map[string]string{"userId": "user_id", "createdAt": "created_at"},
+			expectedCount: 1,
+			expectedField: "user_id",
+		},
+		{
+			name:          "comparison with JSON field name",
+			queryString:   "createdAt[gte]=2024-01-01",
+			fieldMap:      map[string]string{"createdAt": "created_at"},
+			expectedCount: 1,
+			expectedField: "created_at",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query, _ := url.ParseQuery(tt.queryString)
+			fs := NewFilterSetWithMapping(tt.fieldMap, dialect)
+			err := fs.ParseFromQuery(query)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if len(fs.Filters) != tt.expectedCount {
+				t.Errorf("expected %d filters, got %d", tt.expectedCount, len(fs.Filters))
+			}
+
+			if tt.expectedCount > 0 && fs.Filters[0].Field != tt.expectedField {
+				t.Errorf("expected field %s, got %s", tt.expectedField, fs.Filters[0].Field)
+			}
+		})
+	}
+}
+
 func TestFilterSet_ParseFromQuery(t *testing.T) {
 	dialect := &postgres.PostgresDialect{}
 

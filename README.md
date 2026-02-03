@@ -317,10 +317,10 @@ GET /todos?status=active
 GET /todos?status=active&priority[gte]=5
 
 # Order results
-GET /todos?order[created_at]=desc
+GET /todos?order[createdAt]=desc
 
 # Combine all
-GET /todos?status=active&priority[gte]=5&order[created_at]=desc&limit=10
+GET /todos?status=active&priority[gte]=5&order[createdAt]=desc&limit=10
 ```
 
 📚 **[Full filtering documentation →](FILTERING.md)**

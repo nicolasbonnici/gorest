@@ -24,6 +24,7 @@ type Order struct {
 type OrderSet struct {
 	Orders        []Order
 	AllowedFields map[string]bool
+	FieldMap      map[string]string // Maps JSON field names to DB column names
 }
 
 func NewOrderSet(allowedFields []string) *OrderSet {
@@ -34,6 +35,20 @@ func NewOrderSet(allowedFields []string) *OrderSet {
 	return &OrderSet{
 		Orders:        []Order{},
 		AllowedFields: allowed,
+		FieldMap:      nil,
+	}
+}
+
+// NewOrderSetWithMapping creates an OrderSet with field name mapping from JSON to DB columns.
+func NewOrderSetWithMapping(fieldMap map[string]string) *OrderSet {
+	allowed := make(map[string]bool)
+	for jsonName := range fieldMap {
+		allowed[jsonName] = true
+	}
+	return &OrderSet{
+		Orders:        []Order{},
+		AllowedFields: allowed,
+		FieldMap:      fieldMap,
 	}
 }
 
@@ -68,8 +83,16 @@ func (os *OrderSet) ParseFromQuery(query url.Values) error {
 			direction = OrderDesc
 		}
 
+		// Map JSON field name to DB column name if mapping exists
+		dbField := field
+		if os.FieldMap != nil {
+			if mapped, ok := os.FieldMap[field]; ok {
+				dbField = mapped
+			}
+		}
+
 		os.Orders = append(os.Orders, Order{
-			Field:     field,
+			Field:     dbField,
 			Direction: direction,
 		})
 	}

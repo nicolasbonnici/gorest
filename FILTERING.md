@@ -47,13 +47,13 @@ GET /todos?status=active&priority[gte]=7
 ### Single Field
 
 ```bash
-GET /todos?order[created_at]=desc
+GET /todos?order[createdAt]=desc
 ```
 
 ### Multiple Fields
 
 ```bash
-GET /todos?order[priority]=desc&order[created_at]=asc
+GET /todos?order[priority]=desc&order[createdAt]=asc
 ```
 
 **Sort directions:**
@@ -65,5 +65,5 @@ GET /todos?order[priority]=desc&order[created_at]=asc
 You can combine filters, ordering, pagination, and expansion:
 
 ```bash
-GET /todos?status=active&priority[gte]=5&order[created_at]=desc&limit=10&expand[]=user
+GET /todos?status=active&priority[gte]=5&order[createdAt]=desc&limit=10&expand[]=user
 ```

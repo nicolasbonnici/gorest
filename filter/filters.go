@@ -33,6 +33,7 @@ type Filter struct {
 type FilterSet struct {
 	Filters       []Filter
 	AllowedFields map[string]bool
+	FieldMap      map[string]string // Maps JSON field names to DB column names
 	paramIndex    int
 	dialect       database.Dialect
 }
@@ -45,6 +46,22 @@ func NewFilterSet(allowedFields []string, dialect database.Dialect) *FilterSet {
 	return &FilterSet{
 		Filters:       []Filter{},
 		AllowedFields: allowed,
+		FieldMap:      nil,
+		paramIndex:    1,
+		dialect:       dialect,
+	}
+}
+
+// NewFilterSetWithMapping creates a FilterSet with field name mapping from JSON to DB columns.
+func NewFilterSetWithMapping(fieldMap map[string]string, dialect database.Dialect) *FilterSet {
+	allowed := make(map[string]bool)
+	for jsonName := range fieldMap {
+		allowed[jsonName] = true
+	}
+	return &FilterSet{
+		Filters:       []Filter{},
+		AllowedFields: allowed,
+		FieldMap:      fieldMap,
 		paramIndex:    1,
 		dialect:       dialect,
 	}
@@ -66,8 +83,16 @@ func (fs *FilterSet) ParseFromQuery(query url.Values) error {
 			continue
 		}
 
+		// Map JSON field name to DB column name if mapping exists
+		dbField := field
+		if fs.FieldMap != nil {
+			if mapped, ok := fs.FieldMap[field]; ok {
+				dbField = mapped
+			}
+		}
+
 		filter := Filter{
-			Field:    field,
+			Field:    dbField,
 			Operator: operator,
 			Values:   values,
 		}
