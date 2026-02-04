@@ -5,6 +5,50 @@ import (
 	"testing"
 )
 
+func TestOrderSetWithMapping_ParseFromQuery(t *testing.T) {
+	tests := []struct {
+		name          string
+		queryString   string
+		fieldMap      map[string]string
+		expectedCount int
+		expectedField string // Expected DB column name in order
+	}{
+		{
+			name:          "single order with JSON field name",
+			queryString:   "order[createdAt]=desc",
+			fieldMap:      map[string]string{"createdAt": "created_at"},
+			expectedCount: 1,
+			expectedField: "created_at",
+		},
+		{
+			name:          "order with userId mapped",
+			queryString:   "order[userId]=asc",
+			fieldMap:      map[string]string{"userId": "user_id", "createdAt": "created_at"},
+			expectedCount: 1,
+			expectedField: "user_id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			query, _ := url.ParseQuery(tt.queryString)
+			os := NewOrderSetWithMapping(tt.fieldMap)
+			err := os.ParseFromQuery(query)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if len(os.Orders) != tt.expectedCount {
+				t.Errorf("expected %d orders, got %d", tt.expectedCount, len(os.Orders))
+			}
+
+			if tt.expectedCount > 0 && os.Orders[0].Field != tt.expectedField {
+				t.Errorf("expected field %s, got %s", tt.expectedField, os.Orders[0].Field)
+			}
+		})
+	}
+}
+
 func TestOrderSet_ParseFromQuery(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -22,17 +22,13 @@ gorest.*.yaml
 # Test environment variables
 /test/.env.test
 
-# Generated code for tests (regenerated on each test run)
-/test/generated/
-
 # bin folder mostly for benchmark
 bin
 
 # pentest
 pentest.sh
 
-# Parallel plugin runner script
+# Parallel plugins runner script
 run-all-plugins.sh
-
-# Version sync
+bump-plugins.sh
 sync-versions.sh

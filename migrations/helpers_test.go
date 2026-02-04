@@ -380,46 +380,61 @@ func TestDialectSQL_MissingDialect(t *testing.T) {
 }
 
 func TestGoMigrationExecutor_Checksum(t *testing.T) {
-	upFunc := func(ctx context.Context, db database.Database) error {
-		return nil
-	}
-	downFunc := func(ctx context.Context, db database.Database) error {
-		return nil
-	}
+	// Create two migrations with the same version and name
+	migration1 := NewGoMigration("20250120000001", "test_migration").
+		Up(func(ctx context.Context, db database.Database) error {
+			return nil
+		}).
+		Down(func(ctx context.Context, db database.Database) error {
+			return nil
+		}).
+		Build()
 
-	executor1 := &GoMigrationExecutor{
-		upFunc:   upFunc,
-		downFunc: downFunc,
-	}
+	migration2 := NewGoMigration("20250120000001", "test_migration").
+		Up(func(ctx context.Context, db database.Database) error {
+			// Different function but same metadata
+			return nil
+		}).
+		Down(func(ctx context.Context, db database.Database) error {
+			return nil
+		}).
+		Build()
 
-	executor2 := &GoMigrationExecutor{
-		upFunc:   upFunc,
-		downFunc: downFunc,
-	}
-
-	// Same functions should produce same checksum
-	checksum1 := executor1.Checksum()
-	checksum2 := executor2.Checksum()
-
-	if checksum1 == "" {
+	// Same version+name should produce same checksum
+	if migration1.Checksum == "" {
 		t.Error("Checksum should not be empty")
 	}
 
-	if checksum1 != checksum2 {
-		t.Error("Same functions should produce same checksum")
+	if migration1.Checksum != migration2.Checksum {
+		t.Error("Same version and name should produce same checksum")
 	}
 
-	// Different functions should produce different checksum
-	executor3 := &GoMigrationExecutor{
-		upFunc: func(ctx context.Context, db database.Database) error {
+	// Different version should produce different checksum
+	migration3 := NewGoMigration("20250120000002", "test_migration").
+		Up(func(ctx context.Context, db database.Database) error {
 			return nil
-		},
-		downFunc: downFunc,
+		}).
+		Down(func(ctx context.Context, db database.Database) error {
+			return nil
+		}).
+		Build()
+
+	if migration1.Checksum == migration3.Checksum {
+		t.Error("Different version should produce different checksum")
 	}
 
-	checksum3 := executor3.Checksum()
-	if checksum1 == checksum3 {
-		t.Error("Different functions should produce different checksum")
+	// Different name should produce different checksum
+	migration4 := NewGoMigration("20250120000001", "different_migration").
+		Up(func(ctx context.Context, db database.Database) error {
+			return nil
+		}).
+		Down(func(ctx context.Context, db database.Database) error {
+			return nil
+		}).
+		Build()
+
+	if migration1.Checksum == migration4.Checksum {
+		t.Error("Different name should produce different checksum")
 	}
 }
 
