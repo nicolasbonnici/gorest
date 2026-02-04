@@ -8,25 +8,24 @@
 
 ## ✨ Features
 
-- 🛠 Codegen REST endpoints, resource DTOs and models for each table
-- 🔎 Auto-discovery of tables, relations, columns & types
 - ⚡ Type-safe generic CRUD operations with hooks system
 - 🔧 Fluent SQL query builder with database abstraction
 - 🔐 Full DTO support with field-level control (`dto` tags)
 - 🔑 JWT authentication with context-aware plugins
 - 🎭 Hook layer to add your business logic and override any API layer
 - 🧩 Modular plugin system that can add features, override some or all existing endpoints or even CLI commands
+- 🛠 **Code generation plugin** for REST endpoints, DTOs and models ([gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen))
 - ✅ Security best practices, rate limiting, CORS and many more configurable core middleware
 - 🌐 JSON-LD support with semantic web context (@context, @type, @id)
-- 🔗 Advanced resource deserialization with IRI and optional on demand relations 
+- 🔗 Advanced resource deserialization with IRI and optional on demand relations
 - 🔍 Advanced serialization, filtering & ordering
 - 📄 Page based pagination with Hydra collections
 - 👨🏻‍💻 DAL, migrations and fixtures with PostgreSQL, MySQL and SQLite engines support
 - 🛡️ Production grade errors and processes management
 - 🐳 Docker and Kubernetes support
 - 🧪 Full test coverage with automated testing
-- 💚 Status check endpoint (`/status`)
-- 📜 OpenAPI 3 spec generation in html or any format
+- 💚 Status endpoint for health check ([gorest-codegen](https://github.com/nicolasbonnici/gorest-status))
+- 📜 OpenAPI 3 spec generation via plugin
 
 ---
 
@@ -65,28 +64,6 @@ plugins:
     config:
       jwt_secret: "${JWT_SECRET}"
       jwt_ttl: 900
-
-codegen:
-  output:
-    models: "generated/models"
-    resources: "generated/resources"
-    dtos: "generated/dtos"
-    openapi: "generated/openapi"
-    config: "generated/config"
-
-  enums:
-    enabled: true
-
-  auth:
-    enabled: true
-    defaults:
-      GET: true
-      POST: true
-      PUT: true
-      DELETE: true
-    endpoints:
-      - name: posts
-        GET: false
 ```
 
 Set required environment variables:
@@ -158,12 +135,49 @@ plugins:
 
 **Note:** Environment variable interpolation only works for string fields in the configuration. Integer fields like `port`, `default_limit`, and `max_limit` must be specified as numeric values directly in the YAML file.
 
-### 3. Generate Code from Your Database
-```bash
-go run github.com/nicolasbonnici/gorest/cmd/codegen@latest all
+### 3. Create Your Main Application
+
+You can either write your routes manually or use the **[gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen)** plugin to generate them from your database schema.
+
+**Manual approach:**
+```go
+package main
+
+import (
+    "github.com/gofiber/fiber/v2"
+    "github.com/nicolasbonnici/gorest"
+    "github.com/nicolasbonnici/gorest/crud"
+    "github.com/nicolasbonnici/gorest/database"
+)
+
+type User struct {
+    ID    string `json:"id" db:"id"`
+    Email string `json:"email" db:"email"`
+}
+
+func (User) TableName() string { return "users" }
+
+func main() {
+    cfg := gorest.Config{
+        ConfigPath: ".",
+        RegisterRoutes: func(app *fiber.App, db database.Database) {
+            userCRUD := crud.New[User](db)
+            app.Get("/users", func(c *fiber.Ctx) error {
+                result, _ := userCRUD.GetAllPaginated(c.Context(), crud.PaginationOptions{Limit: 10})
+                return c.JSON(result.Items)
+            })
+        },
+    }
+    gorest.Start(cfg)
+}
 ```
 
-### 4. Create Your Main Application
+**With code generation plugin:**
+```bash
+# Install and run gorest-codegen
+go run github.com/nicolasbonnici/gorest-codegen/cmd/codegen@latest all
+```
+
 ```go
 package main
 
@@ -181,7 +195,7 @@ func main() {
 }
 ```
 
-### 5. Run Your API
+### 4. Run Your API
 ```bash
 go run main.go
 ```
@@ -194,9 +208,9 @@ Your API is now running at: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/*
 
 ---
 
-## 📦 Using GoREST as a Library
+## 📦 GoREST usage
 
-Import GoREST packages directly in your Go projects:
+Import GoREST library directly in your Go projects:
 
 ```bash
 go get github.com/nicolasbonnici/gorest@latest
@@ -317,10 +331,10 @@ GET /todos?status=active
 GET /todos?status=active&priority[gte]=5
 
 # Order results
-GET /todos?order[created_at]=desc
+GET /todos?order[createdAt]=desc
 
 # Combine all
-GET /todos?status=active&priority[gte]=5&order[created_at]=desc&limit=10
+GET /todos?status=active&priority[gte]=5&order[createdAt]=desc&limit=10
 ```
 
 📚 **[Full filtering documentation →](FILTERING.md)**
@@ -355,12 +369,19 @@ curl -H "Accept: application/ld+json" http://localhost:8000/todos/123
 
 ## 📂 Project Structure
 
-### Generated Project
+### Basic Project
+```
+my-api/
+├── gorest.yaml              # Configuration
+└── main.go                  # Your application
+```
+
+### With Code Generation Plugin (optional)
 ```
 my-api/
 ├── gorest.yaml              # Configuration
 ├── main.go                  # Your application
-└── generated/
+└── generated/               # Generated by gorest-codegen plugin
     ├── models/              # DB models
     ├── resources/           # REST handlers
     ├── dtos/                # Data transfer objects
@@ -380,14 +401,12 @@ gorest/
 ├── expand/                  # Relation expansion
 ├── filter/                  # Query filtering
 ├── serializer/              # JSON-LD serialization
-├── codegen/                 # Code generation
 ├── hooks/                   # Lifecycle hooks
 ├── plugin/                  # Plugin interfaces
 ├── pluginloader/            # Plugin loading
 ├── middleware/              # Core middleware
 ├── pagination/              # Hydra pagination
-├── response/                # HTTP helpers
-└── cmd/codegen/             # CLI tool
+└── response/                # HTTP helpers
 ```
 
 ---
@@ -395,27 +414,23 @@ gorest/
 ## 🛠 Development Commands
 
 ```bash
-# Code Generation
-make codegen          # Run all code generation
-make codegen-models   # Generate models only
-make codegen-resources # Generate resources & DTOs only
-make codegen-openapi  # Generate OpenAPI schema only
-
 # Testing
 make test-up          # Start test databases
 make test-schema      # Load test schema
 make test             # Run all tests
 make test-coverage    # Run tests with coverage
-
-# Benchmarking
-make benchmark        # Run API performance benchmarks
 ```
+
+**Code Generation Plugin:**
+See [gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen) for generating models, resources, DTOs and OpenAPI specs from your database schema.
 
 ---
 
 ## 🚀 Production Deployment
 
 ### Docker
+
+Using GoREST status plugin [gorest-status](https://github.com/nicolasbonnici/gorest-status)
 
 ```yaml
 services:
@@ -473,6 +488,37 @@ livenessProbe:
 - **Security Headers**: X-Frame-Options, CSP, HSTS, etc.
 
 ---
+
+## Git Hooks
+
+This directory contains git hooks for the GoREST project to maintain code quality.
+
+### Available Hooks
+
+#### pre-commit
+
+Runs before each commit to ensure code quality:
+- **Linting**: Runs `make lint` to check code style and potential issues
+- **Tests**: Runs `make test` to verify all tests pass
+
+### Installation
+
+#### Automatic Installation
+
+Run the install script from the project root:
+
+```bash
+./.githooks/install.sh
+```
+
+### Manual Installation
+
+Copy the hooks to your `.git/hooks` directory:
+
+```bash
+cp .githooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
 
 ## 🤝 Contributing
 

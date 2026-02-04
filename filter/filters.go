@@ -21,6 +21,7 @@ const (
 	OpLike               FilterOperator = "like"
 	OpILike              FilterOperator = "ilike"
 	OpIn                 FilterOperator = "in"
+	OpNotIn              FilterOperator = "nin"
 )
 
 type Filter struct {
@@ -32,6 +33,7 @@ type Filter struct {
 type FilterSet struct {
 	Filters       []Filter
 	AllowedFields map[string]bool
+	FieldMap      map[string]string // Maps JSON field names to DB column names
 	paramIndex    int
 	dialect       database.Dialect
 }
@@ -44,6 +46,22 @@ func NewFilterSet(allowedFields []string, dialect database.Dialect) *FilterSet {
 	return &FilterSet{
 		Filters:       []Filter{},
 		AllowedFields: allowed,
+		FieldMap:      nil,
+		paramIndex:    1,
+		dialect:       dialect,
+	}
+}
+
+// NewFilterSetWithMapping creates a FilterSet with field name mapping from JSON to DB columns.
+func NewFilterSetWithMapping(fieldMap map[string]string, dialect database.Dialect) *FilterSet {
+	allowed := make(map[string]bool)
+	for jsonName := range fieldMap {
+		allowed[jsonName] = true
+	}
+	return &FilterSet{
+		Filters:       []Filter{},
+		AllowedFields: allowed,
+		FieldMap:      fieldMap,
 		paramIndex:    1,
 		dialect:       dialect,
 	}
@@ -65,10 +83,23 @@ func (fs *FilterSet) ParseFromQuery(query url.Values) error {
 			continue
 		}
 
+		// Map JSON field name to DB column name if mapping exists
+		dbField := field
+		if fs.FieldMap != nil {
+			if mapped, ok := fs.FieldMap[field]; ok {
+				dbField = mapped
+			}
+		}
+
 		filter := Filter{
-			Field:    field,
+			Field:    dbField,
 			Operator: operator,
 			Values:   values,
+		}
+
+		// Handle optional array both field[]=val1&field[]=val2 AND field=val1&field=val2 syntax
+		if operator == OpEqual && len(values) > 1 {
+			filter.Operator = OpIn
 		}
 
 		if operator == OpIn && len(values) == 1 {
@@ -83,7 +114,12 @@ func (fs *FilterSet) ParseFromQuery(query url.Values) error {
 
 func (fs *FilterSet) parseFieldAndOperator(key string) (string, FilterOperator) {
 	if strings.HasSuffix(key, "[]") {
-		return strings.TrimSuffix(key, "[]"), OpIn
+		trimmedKey := strings.TrimSuffix(key, "[]")
+		// Check for [nin][] pattern: field[nin][]
+		if strings.HasSuffix(trimmedKey, "[nin]") {
+			return strings.TrimSuffix(trimmedKey, "[nin]"), OpNotIn
+		}
+		return trimmedKey, OpIn
 	}
 
 	if strings.Contains(key, "[") && strings.Contains(key, "]") {
@@ -107,6 +143,8 @@ func (fs *FilterSet) parseFieldAndOperator(key string) (string, FilterOperator) 
 			return field, OpLike
 		case "ilike":
 			return field, OpILike
+		case "nin":
+			return field, OpNotIn
 		}
 	}
 
@@ -177,6 +215,15 @@ func (fs *FilterSet) BuildWhereClause() (string, []interface{}) {
 				fs.paramIndex++
 			}
 			conditions = append(conditions, fmt.Sprintf("%s IN (%s)", filter.Field, strings.Join(placeholders, ", ")))
+
+		case OpNotIn:
+			placeholders := make([]string, len(filter.Values))
+			for i, val := range filter.Values {
+				placeholders[i] = fs.dialect.Placeholder(fs.paramIndex)
+				args = append(args, val)
+				fs.paramIndex++
+			}
+			conditions = append(conditions, fmt.Sprintf("%s NOT IN (%s)", filter.Field, strings.Join(placeholders, ", ")))
 		}
 	}
 
@@ -223,6 +270,12 @@ func (fs *FilterSet) filterToCondition(filter Filter) query.Condition {
 			vals[i] = v
 		}
 		return query.In(filter.Field, vals...)
+	case OpNotIn:
+		vals := make([]any, len(filter.Values))
+		for i, v := range filter.Values {
+			vals[i] = v
+		}
+		return query.NotIn(filter.Field, vals...)
 	}
 	return nil
 }

@@ -18,6 +18,7 @@ import (
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/middleware"
+	"github.com/nicolasbonnici/gorest/migrations"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/pluginloader"
 	"github.com/nicolasbonnici/gorest/response"
@@ -90,6 +91,13 @@ func Start(cfg Config) {
 		os.Exit(1)
 	}
 
+	if err := runPluginMigrations(context.Background(), db, pluginRegistry, appConfig.Plugins); err != nil {
+		if err != migrations.ErrNoPendingMigrations {
+			logger.Log.Error("Failed to run migrations", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	if openAPIPlugin, ok := pluginRegistry.Get("openapi"); ok {
 		enrichedConfigs = pluginloader.InjectSharedConfig(appConfig.Plugins, db, appConfig, pluginRegistry)
 		for _, cfg := range enrichedConfigs {
@@ -151,6 +159,91 @@ func Start(cfg Config) {
 
 	db.Close()
 	logger.Log.Info("Server shutdown complete")
+}
+
+func runPluginMigrations(ctx context.Context, db database.Database, pluginRegistry *plugin.PluginRegistry, pluginConfigs []config.PluginConfig) error {
+	configMap := make(map[string]config.PluginConfig)
+	for _, cfg := range pluginConfigs {
+		configMap[cfg.Name] = cfg
+	}
+
+	var sources []migrations.MigrationSource
+	pluginToSourceName := make(map[string]string)
+
+	for _, p := range pluginRegistry.GetAll() {
+		migProvider, hasMigrations := p.(plugin.MigrationProvider)
+		if !hasMigrations {
+			continue
+		}
+
+		pluginCfg, exists := configMap[p.Name()]
+		if !exists {
+			continue
+		}
+
+		migrationsConfig, hasMigConfig := pluginCfg.Config["migrations"].(map[string]interface{})
+		if !hasMigConfig {
+			continue
+		}
+
+		enabled, ok := migrationsConfig["enabled"].(bool)
+		if !ok || !enabled {
+			continue
+		}
+
+		source := migProvider.MigrationSource()
+		if migSource, ok := source.(migrations.MigrationSource); ok {
+			sources = append(sources, migSource)
+			sourceName := migSource.Name()
+			pluginToSourceName[p.Name()] = sourceName
+
+			logger.Log.Info("Registered migrations", "plugin", p.Name(), "source", sourceName, "dependencies", migProvider.MigrationDependencies())
+		}
+	}
+
+	if len(sources) == 0 {
+		logger.Log.Info("No plugin migrations to run")
+		return nil
+	}
+
+	migrator := migrations.NewMigrator(db, sources...)
+
+	for _, p := range pluginRegistry.GetAll() {
+		migProvider, ok := p.(plugin.MigrationProvider)
+		if !ok {
+			continue
+		}
+
+		sourceName, exists := pluginToSourceName[p.Name()]
+		if !exists {
+			continue
+		}
+
+		deps := migProvider.MigrationDependencies()
+		if len(deps) == 0 {
+			continue
+		}
+
+		mappedDeps := make([]string, 0, len(deps))
+		for _, depPluginName := range deps {
+			if depSourceName, ok := pluginToSourceName[depPluginName]; ok {
+				mappedDeps = append(mappedDeps, depSourceName)
+			}
+		}
+
+		if len(mappedDeps) > 0 {
+			migrator.SetSourceDependencies(sourceName, mappedDeps)
+		}
+	}
+
+	logger.Log.Info("Running migrations", "sources", len(sources))
+
+	if err := migrator.Up(ctx); err != nil {
+		return err
+	}
+
+	logger.Log.Info("Migrations completed successfully")
+	return nil
 }
 
 func FindProjectRoot() (string, error) {

@@ -12,7 +12,7 @@ const (
 type Plugin interface {
 	Name() string
 
-	Initialize(config map[string]interface{}) error
+	Initialize(config map[string]any) error
 
 	Handler() fiber.Handler
 }
@@ -28,7 +28,7 @@ type Command interface {
 }
 
 type CommandContext struct {
-	Config interface{}
+	Config any
 
 	Args []string
 
@@ -54,9 +54,9 @@ type CommandProvider interface {
 type MigrationProvider interface {
 	// MigrationSource returns a migration source for this plugin
 	// The source name should match the plugin name
-	// Returns interface{} to avoid circular dependency with migrations package
+	// Returns any to avoid circular dependency with migrations package
 	// Actual type should be migrations.MigrationSource
-	MigrationSource() interface{}
+	MigrationSource() any
 
 	// MigrationDependencies returns list of sources this plugin depends on
 	// Example: ["app", "users-plugin"]
@@ -85,8 +85,8 @@ type OpenAPIResource struct {
 	PluralName    string
 	BasePath      string
 	Tags          []string
-	ResponseModel interface{}
-	CreateModel   interface{}
-	UpdateModel   interface{}
+	ResponseModel any
+	CreateModel   any
+	UpdateModel   any
 	Description   string
 }

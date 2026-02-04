@@ -1,0 +1,40 @@
+#!/bin/bash
+# Pre-commit hook: Run linting and tests before commit
+#
+# To install this hook, run:
+#   cp .githooks/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# Or use the install script:
+#   ./.githooks/install.sh
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+echo ""
+
+# Run linting
+echo "📝 Running linter..."
+if ! make lint; then
+    echo ""
+    echo "❌ Linting failed. Please fix the issues before committing."
+    echo "   You can run 'make lint-fix' to auto-fix some issues."
+    exit 1
+fi
+
+echo ""
+echo "✅ Linting passed"
+echo ""
+
+# Run tests
+echo "🧪 Running tests..."
+if ! make test; then
+    echo ""
+    echo "❌ Tests failed. Please fix the failing tests before committing."
+    exit 1
+fi
+
+echo ""
+echo "✅ All tests passed"
+echo ""
+echo "✨ Pre-commit checks completed successfully!"

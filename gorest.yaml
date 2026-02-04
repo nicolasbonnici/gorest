@@ -7,22 +7,6 @@ codegen:
     config: "test/generated/config"
   auth:
     enabled: false
-    defaults:
-      GET: false
-      POST: false
-      PUT: false
-      DELETE: false
-    endpoints:
-      - name: users
-        GET: false
-        POST: false
-        PUT: false
-        DELETE: false
-      - name: todo
-        GET: false
-        POST: false
-        PUT: false
-        DELETE: false
 
 server:
   port: 3001
@@ -39,9 +23,4 @@ pagination:
   default_limit: 50
   max_limit: 10000
 
-plugins:
-  - name: auth
-    enabled: false
-    config:
-      jwt_secret: "${JWT_SECRET}"
-      jwt_ttl: 3600
+plugins: []

@@ -15,20 +15,15 @@ LDFLAGS=-ldflags "-X 'github.com/nicolasbonnici/gorest.Version=$(VERSION)'"
 .PHONY: help
 help:
 	@echo "Usage:"
-	@echo "  make build           - Build codegen binary with version injection"
-	@echo "  make install         - Install codegen binary with version injection"
 	@echo "  make version         - Show current version"
-	@echo "  make codegen         - Run all code generation (models + resources + openapi)"
-	@echo "  make codegen-models  - Generate models from database schema"
-	@echo "  make codegen-resources - Generate API resources from models"
-	@echo "  make codegen-openapi - Generate OpenAPI schema"
-	@echo "  make generate        - Alias for codegen"
 	@echo "  make lint            - Run golangci-lint to check code"
 	@echo "  make lint-fix        - Run golangci-lint with --fix for auto-fixable issues"
 	@echo "  make test            - Run Go tests"
 	@echo "  make test-coverage   - Run Go tests with coverage report"
-	@echo "  make benchmark       - Benchmark resource generation (1, 10, 100, 1000 tables)"
 	@echo "  make tidy            - Run go mod tidy"
+	@echo ""
+	@echo "Note: Code generation is now in the gorest-codegen plugin"
+	@echo "      See: https://github.com/nicolasbonnici/gorest-codegen"
 
 # ----------------------------
 # Go targets
@@ -39,50 +34,11 @@ tidy:
 	@go mod tidy
 
 # ----------------------------
-# Build targets
+# Version target
 # ----------------------------
 .PHONY: version
 version:
 	@echo "$(VERSION)"
-
-.PHONY: build
-build:
-	@echo "[INFO] Building codegen with version $(VERSION)..."
-	@go build $(LDFLAGS) -o bin/codegen ./cmd/codegen/main.go
-	@echo "[INFO] Binary built at bin/codegen"
-	@./bin/codegen --version 2>/dev/null || echo "[INFO] Version: $(VERSION)"
-
-.PHONY: install
-install:
-	@echo "[INFO] Installing codegen with version $(VERSION)..."
-	@go install $(LDFLAGS) ./cmd/codegen
-	@echo "[INFO] Installed to $(shell go env GOPATH)/bin/codegen"
-
-# ----------------------------
-# Code generation targets
-# ----------------------------
-.PHONY: codegen
-codegen:
-	@echo "[INFO] Running all code generation (version: $(VERSION))..."
-	@go run $(LDFLAGS) ./cmd/codegen/main.go all
-
-.PHONY: codegen-models
-codegen-models:
-	@echo "[INFO] Generating models from database schema..."
-	@go run $(LDFLAGS) ./cmd/codegen/main.go models
-
-.PHONY: codegen-resources
-codegen-resources:
-	@echo "[INFO] Generating API resources from models..."
-	@go run $(LDFLAGS) ./cmd/codegen/main.go resources
-
-.PHONY: codegen-openapi
-codegen-openapi:
-	@echo "[INFO] Generating OpenAPI schema..."
-	@go run $(LDFLAGS) ./cmd/codegen/main.go openapi
-
-.PHONY: generate
-generate: codegen
 
 # ----------------------------
 # Linting targets
@@ -113,7 +69,7 @@ lint-fix:
 # ----------------------------
 # Test targets
 # ----------------------------
-.PHONY: test test-up test-schema test-generate
+.PHONY: test test-up test-schema
 test-up:
 	docker compose -f test/compose.yml up -d db_test mysql_test
 	@echo "Waiting for databases to be ready..."
@@ -131,19 +87,12 @@ test-schema:
 	@echo "[INFO] Loading MySQL test schema..."
 	docker exec -i gorest_mysql_test mysql -h 127.0.0.1 -utestuser -ptestpass mydb_test < test/sql/schema_mysql.sql
 
-test-generate:
-	@echo "[INFO] Code generation for tests..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen
-	@echo "[INFO] Code generation for tests completed"
-
-test: test-up test-schema test-generate
+test: test-up test-schema
 	@echo "[INFO] Running Go tests..."
 	@export $$(grep -v '^#' test/.env.test | xargs) && go test -p 1 -tags=integration -v -timeout=5m ./...
-	@echo "[INFO] Restoring auth-enabled resources after tests..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen-resources >/dev/null 2>&1
 
 .PHONY: test-coverage
-test-coverage: test-up test-schema test-generate
+test-coverage: test-up test-schema
 	@echo "[INFO] Running Go tests with coverage..."
 	@mkdir -p coverage
 	@export $$(grep -v '^#' test/.env.test | xargs) && \
@@ -156,14 +105,10 @@ test-coverage: test-up test-schema test-generate
 	@go tool cover -func=coverage/coverage.out | column -t
 	@echo "========================================="
 	@go tool cover -func=coverage/coverage.out | grep total | awk '{print "\n📊 Total Coverage: " $$3 "\n"}'
-	@echo "[INFO] Restoring auth-enabled resources after tests..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen-resources >/dev/null 2>&1
 
 .PHONY: ci-setup
 ci-setup: test-up test-schema
-	@echo "[INFO] Generating code for CI..."
-	@export $$(grep -v '^#' test/.env.test | xargs) && $(MAKE) codegen
-	@echo "[INFO] CI setup complete - database and generated code ready"
+	@echo "[INFO] CI setup complete - database ready"
 
 # ----------------------------
 # TODO move on benchmarkmark plugin makefile
