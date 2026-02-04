@@ -24,7 +24,7 @@
 - 🛡️ Production grade errors and processes management
 - 🐳 Docker and Kubernetes support
 - 🧪 Full test coverage with automated testing
-- 💚 Status endpoint for health check ([gorest-codegen](https://github.com/nicolasbonnici/gorest-status))
+- 💚 Status endpoint for health check ([gorest-status](https://github.com/nicolasbonnici/gorest-status))
 - 📜 OpenAPI 3 spec generation via plugin
 
 ---
