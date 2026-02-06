@@ -11,7 +11,7 @@
 - ⚡ Type-safe generic CRUD operations with hooks system
 - 🔧 Fluent SQL query builder with database abstraction
 - 🔐 Full DTO support with field-level control (`dto` tags)
-- 🔑 JWT authentication with context-aware plugins
+- 🔑 JWT authentication with context-aware plugins ([gorest-auth](https://github.com/nicolasbonnici/gorest-auth))
 - 🎭 Hook layer to add your business logic and override any API layer
 - 🧩 Modular plugin system that can add features, override some or all existing endpoints or even CLI commands
 - 🛠 **Code generation plugin** for REST endpoints, DTOs and models ([gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen))
@@ -25,7 +25,7 @@
 - 🐳 Docker and Kubernetes support
 - 🧪 Full test coverage with automated testing
 - 💚 Status endpoint for health check ([gorest-status](https://github.com/nicolasbonnici/gorest-status))
-- 📜 OpenAPI 3 spec generation via plugin
+- 📜 OpenAPI 3 spec generation ([gorest-openapi](https://github.com/nicolasbonnici/gorest-openapi))
 
 ---
 
