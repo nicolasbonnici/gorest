@@ -10,7 +10,7 @@
 
 - ⚡ Type-safe generic CRUD operations with hooks system
 - 🔧 Fluent SQL query builder with database abstraction
-- 🔐 Role based access control ([gorest-rbac](https://github.com/nicolasbonnici/gorest-rbac))
+- 🔐 Role based access control and audit log ([gorest-rbac](https://github.com/nicolasbonnici/gorest-rbac))
 - 🔑 Authentication with context-aware plugins ([gorest-auth](https://github.com/nicolasbonnici/gorest-auth))
 - ✅ Security best practices, rate limiting, CORS and many more configurable core middleware
 - 🎭 Hook layer to add your business logic and override any API layer
@@ -246,7 +246,7 @@ import (
 
 type User struct {
     ID    string `json:"id" db:"id"`
-    Email string `json:"email" db:"email"`
+    Email string `json:"email" db:"   email"`
 }
 
 func (User) TableName() string { return "users" }
@@ -291,7 +291,7 @@ func main() {
 - **[Plugins →](PLUGINS.md)** - Plugin system, built-in plugins, and custom plugin creation
 
 ---
-
+   
 ## 🔍 Quick Examples
 
 ### Query Builder
@@ -370,7 +370,7 @@ curl -H "Accept: application/ld+json" http://localhost:8000/todos/123
 ## 📂 Project Structure
 
 ### Basic Project
-```
+```   
 my-api/
 ├── gorest.yaml              # Configuration
 └── main.go                  # Your application
@@ -485,7 +485,7 @@ livenessProbe:
 - **Rate Limiting**: Configurable per-IP limits
 - **SQL Injection**: Parameterized queries
 - **Input Validation**: go-playground/validator support
-- **Security Headers**: X-Frame-Options, CSP, HSTS, etc.
+- **Security Headers**: X-Frame-Options, C   SP, HSTS, etc.
 
 ---
 
