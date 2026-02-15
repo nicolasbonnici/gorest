@@ -98,11 +98,10 @@ func (m *mockRow) Scan(dest ...interface{}) error {
 }
 
 type mockRows struct {
-	scanFunc  func(dest ...interface{}) error
-	nextFunc  func() bool
-	closeErr  error
-	rowErr    error
-	callCount int
+	scanFunc func(dest ...interface{}) error
+	nextFunc func() bool
+	closeErr error
+	rowErr   error
 }
 
 func (m *mockRows) Next() bool {

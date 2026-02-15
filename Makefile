@@ -15,6 +15,7 @@ LDFLAGS=-ldflags "-X 'github.com/nicolasbonnici/gorest.Version=$(VERSION)'"
 .PHONY: help
 help:
 	@echo "Usage:"
+	@echo "  make install         - Install dependencies and git hooks"
 	@echo "  make version         - Show current version"
 	@echo "  make lint            - Run golangci-lint to check code"
 	@echo "  make lint-fix        - Run golangci-lint with --fix for auto-fixable issues"
@@ -24,6 +25,34 @@ help:
 	@echo ""
 	@echo "Note: Code generation is now in the gorest-codegen plugin"
 	@echo "      See: https://github.com/nicolasbonnici/gorest-codegen"
+
+# ----------------------------
+# Installation target
+# ----------------------------
+.PHONY: install
+install:
+	@echo "[INFO] Installing GoREST development environment..."
+	@echo ""
+	@echo "[1/3] Installing Go dependencies..."
+	@go mod download
+	@go mod tidy
+	@echo "✓ Dependencies installed"
+	@echo ""
+	@echo "[2/3] Installing development tools..."
+	@command -v golangci-lint >/dev/null 2>&1 || \
+		(echo "  Installing golangci-lint..." && \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+	@echo "✓ Development tools installed"
+	@echo ""
+	@echo "[3/3] Installing git hooks..."
+	@bash .githooks/install.sh
+	@echo ""
+	@echo "✅ Installation complete! You're ready to develop."
+	@echo ""
+	@echo "Next steps:"
+	@echo "  • Run 'make test' to verify your setup"
+	@echo "  • Run 'make lint' to check code quality"
+	@echo "  • See 'make help' for all available commands"
 
 # ----------------------------
 # Go targets

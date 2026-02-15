@@ -51,12 +51,12 @@ func SendFormatted(c *fiber.Ctx, statusCode int, data interface{}) error {
 
 func ParseExpandQuery(c *fiber.Ctx) []string {
 	var expand []string
-	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+	for key, value := range c.Context().QueryArgs().All() {
 		keyStr := string(key)
 		if keyStr == "expand[]" {
 			expand = append(expand, string(value))
 		}
-	})
+	}
 	return expand
 }
 

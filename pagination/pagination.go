@@ -78,9 +78,9 @@ func SendHydraCollectionWithExpanded(c *fiber.Ctx, expandedItems []interface{}, 
 	basePath := c.Path()
 	queryParams := c.Context().QueryArgs()
 	parsedParams := make(url.Values)
-	queryParams.VisitAll(func(key, value []byte) {
+	for key, value := range queryParams.All() {
 		parsedParams.Add(string(key), string(value))
-	})
+	}
 
 	currentURL := buildPaginationURL(basePath, parsedParams, limit, page, defaultLimit)
 
@@ -143,9 +143,9 @@ func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, pag
 	basePath := c.Path()
 	queryParams := c.Context().QueryArgs()
 	parsedParams := make(url.Values)
-	queryParams.VisitAll(func(key, value []byte) {
+	for key, value := range queryParams.All() {
 		parsedParams.Add(string(key), string(value))
-	})
+	}
 
 	currentURL := buildPaginationURL(basePath, parsedParams, limit, page, defaultLimit)
 
