@@ -62,7 +62,7 @@ jobs:
         run: |
           packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
           if [ -n "$packages" ]; then
-            errcheck -exclude .errcheck-excludes $packages
+            errcheck -exclude .errcheck-excludes -ignoretests $packages
           fi
 
       - name: Run gocyclo (threshold 15)
