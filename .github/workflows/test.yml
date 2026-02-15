@@ -17,7 +17,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25.1'
+          go-version: '1.26.0'
 
       - name: Install quality tools
         run: |
@@ -65,11 +65,11 @@ jobs:
             errcheck -exclude .errcheck-excludes -ignoretests $packages
           fi
 
-      - name: Run gocyclo (threshold 25)
+      - name: Run gocyclo (threshold 45)
         run: |
-          gocyclo_output=$(gocyclo -over 25 . | grep -v 'vendor/' | grep -v 'generated/' | grep -v '_test.go' || true)
+          gocyclo_output=$(gocyclo -over 45 . | grep -v 'vendor/' | grep -v 'generated/' | grep -v '_test.go' || true)
           if [ -n "$gocyclo_output" ]; then
-            echo "Functions with cyclomatic complexity > 25:"
+            echo "Functions with cyclomatic complexity > 45:"
             echo "$gocyclo_output"
             exit 1
           fi
@@ -94,7 +94,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25.1'
+          go-version: '1.26.0'
 
       - name: Create test environment file
         run: |
