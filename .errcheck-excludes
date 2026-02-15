@@ -1,13 +1,24 @@
 # errcheck exclusions for acceptable unchecked errors
+# Format: (package.Type).Method or package.Function
 
-# Defer cleanup operations - all deferred calls are acceptable to ignore
-defer
+# Close methods - deferred cleanup where errors are not actionable
+(*database/sql.Rows).Close
+(*os.File).Close
+(database/sql.DB).Close
+(io.ReadCloser).Close
+(io.Closer).Close
+(github.com/jackc/pgx/v5.Rows).Close
+(github.com/nicolasbonnici/gorest/database.Database).Close
 
-# Close operations - cleanup code where errors are not actionable
-(*.Close)
+# Transaction rollbacks - already in error handling path
+(*database/sql.Tx).Rollback
+(github.com/jackc/pgx/v5.Tx).Rollback
 
-# JSON unmarshaling - errors handled at higher level or acceptable to ignore
+# Migration lock releases
+(github.com/nicolasbonnici/gorest/migrations.Lock).Release
+
+# JSON unmarshaling where errors are handled elsewhere
 encoding/json.Unmarshal
 
-# Migration tracker operations in error handling paths
+# Migration tracker operations
 (github.com/nicolasbonnici/gorest/migrations.MigrationTracker).RecordFailedMigration
