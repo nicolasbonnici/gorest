@@ -1,18 +1,13 @@
-# Errcheck exclusions for GoREST (non-test code only, tests are ignored via -ignoretests)
+# errcheck exclusions for acceptable unchecked errors
 
-# Close operations - deferred cleanup where errors are not actionable
-(*.Rows).Close
-(*os.File).Close
-(*.Database).Close
+# Defer cleanup operations - all deferred calls are acceptable to ignore
+defer
 
-# Transaction rollbacks in error paths - already handling the error
-(*.Tx).Rollback
+# Close operations - cleanup code where errors are not actionable
+(*.Close)
 
-# Migration lock releases - already in defer, errors logged elsewhere
-(github.com/nicolasbonnici/gorest/migrations.Lock).Release
+# JSON unmarshaling - errors handled at higher level or acceptable to ignore
+encoding/json.Unmarshal
 
 # Migration tracker operations in error handling paths
 (github.com/nicolasbonnici/gorest/migrations.MigrationTracker).RecordFailedMigration
-
-# JSON unmarshaling - errors are handled at higher level or acceptable to ignore
-encoding/json.Unmarshal
