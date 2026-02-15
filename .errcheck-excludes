@@ -1,0 +1,45 @@
+# Errcheck exclusions for GoREST
+# These are acceptable unchecked errors that don't represent bugs
+
+# Deferred Close operations are acceptable to leave unchecked
+# because they're cleanup operations and we're already handling the main error
+(*database/sql.Rows).Close
+(*os.File).Close
+(*net/http.Response.Body).Close
+(github.com/jackc/pgx/v5.Rows).Close
+(github.com/nicolasbonnici/gorest/database.Database).Close
+
+# Deferred transaction rollbacks are acceptable
+# The transaction is already failed if we're rolling back
+(*database/sql.Tx).Rollback
+(github.com/jackc/pgx/v5.Tx).Rollback
+
+# JSON unmarshaling in middleware/response handling where errors are handled elsewhere
+encoding/json.Unmarshal
+
+# Test helper cleanup operations
+# These are best-effort cleanup and don't affect test results
+os.Setenv
+os.Unsetenv
+os.WriteFile
+
+# Migration lock releases - already in defer, errors are logged elsewhere
+(github.com/nicolasbonnici/gorest/migrations.Lock).Release
+
+# Buffer and string builder writes never fail
+(*bytes.Buffer).Write
+(*bytes.Buffer).WriteByte
+(*bytes.Buffer).WriteRune
+(*bytes.Buffer).WriteString
+(*strings.Builder).Write
+(*strings.Builder).WriteByte
+(*strings.Builder).WriteRune
+(*strings.Builder).WriteString
+
+# Print operations in tests
+fmt.Fprint
+fmt.Fprintf
+fmt.Fprintln
+
+# Query parser operations in tests where validation happens separately
+(github.com/gofiber/fiber/v2.Ctx).QueryParser

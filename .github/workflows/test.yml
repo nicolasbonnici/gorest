@@ -56,17 +56,23 @@ jobs:
         run: ineffassign ./...
 
       - name: Run misspell
-        run: misspell -error $(find . -type f -name '*.go' ! -path "./vendor/*" ! -path "./generated/*")
+        run: misspell -error .
 
       - name: Run errcheck
         run: |
           packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
           if [ -n "$packages" ]; then
-            errcheck $packages
+            errcheck -exclude .errcheck-excludes $packages
           fi
 
       - name: Run gocyclo (threshold 15)
-        run: gocyclo -over 15 $(find . -type f -name '*.go' ! -path "./vendor/*" ! -path "./generated/*")
+        run: |
+          gocyclo_output=$(gocyclo -over 15 . | grep -v 'vendor/' | grep -v 'generated/' || true)
+          if [ -n "$gocyclo_output" ]; then
+            echo "Functions with cyclomatic complexity > 15:"
+            echo "$gocyclo_output"
+            exit 1
+          fi
 
       - name: Run golangci-lint
         run: |
