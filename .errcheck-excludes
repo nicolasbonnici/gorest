@@ -14,12 +14,13 @@
 # Transaction rollbacks - already in error handling path
 (*database/sql.Tx).Rollback
 (github.com/jackc/pgx/v5.Tx).Rollback
+(github.com/nicolasbonnici/gorest/database.Tx).Rollback
 
-# Migration lock releases
-(github.com/nicolasbonnici/gorest/migrations.Lock).Release
+# Migration lock releases - deferred cleanup
+(*github.com/nicolasbonnici/gorest/migrations.MigrationLock).Release
 
 # JSON unmarshaling where errors are handled elsewhere
 encoding/json.Unmarshal
 
-# Migration tracker operations
-(github.com/nicolasbonnici/gorest/migrations.MigrationTracker).RecordFailedMigration
+# Migration tracker operations - called in error paths
+(*github.com/nicolasbonnici/gorest/migrations.MigrationTracker).RecordFailedMigration
