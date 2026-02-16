@@ -1,0 +1,69 @@
+# golangci-lint configuration
+# https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+  disable:
+    - gocyclo  # We run this separately with custom threshold
+    - misspell # We run this separately
+
+linters-settings:
+  errcheck:
+    # Don't check error in defer
+    check-blank: false
+    check-type-assertions: false
+    # Exclude functions - these match our .errcheck-excludes patterns
+    exclude-functions:
+      - (io.Closer).Close
+      - (io.ReadCloser).Close
+      - (*os.File).Close
+      - (*database/sql.Rows).Close
+      - (*database/sql.Tx).Rollback
+      - (database/sql.DB).Close
+      - encoding/json.Unmarshal
+      # GoREST specific
+      - (github.com/nicolasbonnici/gorest/database.Database).Close
+      - (github.com/nicolasbonnici/gorest/database.Rows).Close
+      - (github.com/nicolasbonnici/gorest/database.Tx).Rollback
+      - (*github.com/nicolasbonnici/gorest/migrations.MigrationLock).Release
+      - (*github.com/nicolasbonnici/gorest/migrations.MigrationTracker).RecordFailedMigration
+
+issues:
+  # Maximum issues count per one linter
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text
+  max-same-issues: 0
+
+  # Exclude directories
+  exclude-dirs:
+    - vendor
+    - generated
+    - test/generated
+
+  # Exclude files
+  exclude-files:
+    - ".*_test\\.go$"
+
+  # Exclude test files from errcheck
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+    - path: test/
+      linters:
+        - errcheck
+    - path: internal/testhelpers/
+      linters:
+        - errcheck

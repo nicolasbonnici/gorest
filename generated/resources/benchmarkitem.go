@@ -42,30 +42,29 @@ func RegisterBenchmarkItemRoutes(router fiber.Router, db database.Database, pagi
 
 func modelToBenchmarkItemDTO(m models.BenchmarkItem) dtos.BenchmarkItemDTO {
 	return dtos.BenchmarkItemDTO{
-		Id: m.Id,
-		Name: m.Name,
-		Value: m.Value,
+		Id:          m.Id,
+		Name:        m.Name,
+		Value:       m.Value,
 		Description: m.Description,
-		CreatedAt: m.CreatedAt,
+		CreatedAt:   m.CreatedAt,
 	}
 }
 
 func benchmarkitemCreateDTOToModel(dto dtos.BenchmarkItemCreateDTO) models.BenchmarkItem {
 	return models.BenchmarkItem{
-		Name: dto.Name,
-		Value: dto.Value,
+		Name:        dto.Name,
+		Value:       dto.Value,
 		Description: dto.Description,
 	}
 }
 
 func benchmarkitemUpdateDTOToModel(dto dtos.BenchmarkItemUpdateDTO) models.BenchmarkItem {
 	return models.BenchmarkItem{
-		Name: dto.Name,
-		Value: dto.Value,
+		Name:        dto.Name,
+		Value:       dto.Value,
 		Description: dto.Description,
 	}
 }
-
 
 // List BenchmarkItem
 // @Summary List BenchmarkItem
@@ -85,9 +84,9 @@ func (r *BenchmarkItemResource) List(c *fiber.Ctx) error {
 	allowedFields := []string{"id", "name", "value", "description", "created_at"}
 
 	queryParams := make(url.Values)
-	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+	for key, value := range c.Context().QueryArgs().All() {
 		queryParams.Add(string(key), string(value))
-	})
+	}
 
 	// Parse filters into conditions
 	filters := filter.NewFilterSet(allowedFields, r.DB.Dialect())
@@ -146,7 +145,7 @@ func (r *BenchmarkItemResource) Get(c *fiber.Ctx) error {
 	}
 
 	dto := modelToBenchmarkItemDTO(*item)
-	return response.SendFormatted(c,200, dto)
+	return response.SendFormatted(c, 200, dto)
 }
 
 // Create BenchmarkItem
@@ -174,11 +173,11 @@ func (r *BenchmarkItemResource) Create(c *fiber.Ctx) error {
 	created, err := r.CRUD.GetByID(ctx, item.Id)
 	if err != nil {
 		dto := modelToBenchmarkItemDTO(item)
-		return response.SendFormatted(c,201, dto)
+		return response.SendFormatted(c, 201, dto)
 	}
 
 	dto := modelToBenchmarkItemDTO(*created)
-	return response.SendFormatted(c,201, dto)
+	return response.SendFormatted(c, 201, dto)
 }
 
 // Update BenchmarkItem
@@ -204,7 +203,7 @@ func (r *BenchmarkItemResource) Update(c *fiber.Ctx) error {
 	}
 
 	dto := modelToBenchmarkItemDTO(item)
-	return response.SendFormatted(c,200, dto)
+	return response.SendFormatted(c, 200, dto)
 }
 
 // Delete BenchmarkItem

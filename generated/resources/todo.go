@@ -9,6 +9,7 @@ import (
 	"github.com/nicolasbonnici/gorest/generated/models"
 
 	"github.com/gofiber/fiber/v2"
+	auth "github.com/nicolasbonnici/gorest-auth"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/filter"
@@ -16,7 +17,6 @@ import (
 	"github.com/nicolasbonnici/gorest/pagination"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/response"
-	auth "github.com/nicolasbonnici/gorest-auth"
 )
 
 type TodoResource struct {
@@ -43,10 +43,10 @@ func RegisterTodoRoutes(router fiber.Router, db database.Database, paginationLim
 
 func modelToTodoDTO(m models.Todo) dtos.TodoDTO {
 	return dtos.TodoDTO{
-		Id: m.Id,
-		UserId: m.UserId,
-		Title: m.Title,
-		Content: m.Content,
+		Id:        m.Id,
+		UserId:    m.UserId,
+		Title:     m.Title,
+		Content:   m.Content,
 		UpdatedAt: m.UpdatedAt,
 		CreatedAt: m.CreatedAt,
 	}
@@ -54,20 +54,19 @@ func modelToTodoDTO(m models.Todo) dtos.TodoDTO {
 
 func todoCreateDTOToModel(dto dtos.TodoCreateDTO) models.Todo {
 	return models.Todo{
-		UserId: dto.UserId,
-		Title: dto.Title,
+		UserId:  dto.UserId,
+		Title:   dto.Title,
 		Content: dto.Content,
 	}
 }
 
 func todoUpdateDTOToModel(dto dtos.TodoUpdateDTO) models.Todo {
 	return models.Todo{
-		UserId: dto.UserId,
-		Title: dto.Title,
+		UserId:  dto.UserId,
+		Title:   dto.Title,
 		Content: dto.Content,
 	}
 }
-
 
 // List Todo
 // @Summary List Todo
@@ -87,9 +86,9 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 	allowedFields := []string{"id", "user_id", "title", "content", "updated_at", "created_at"}
 
 	queryParams := make(url.Values)
-	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+	for key, value := range c.Context().QueryArgs().All() {
 		queryParams.Add(string(key), string(value))
-	})
+	}
 
 	// Parse filters into conditions
 	filters := filter.NewFilterSet(allowedFields, r.DB.Dialect())
@@ -148,7 +147,7 @@ func (r *TodoResource) Get(c *fiber.Ctx) error {
 	}
 
 	dto := modelToTodoDTO(*item)
-	return response.SendFormatted(c,200, dto)
+	return response.SendFormatted(c, 200, dto)
 }
 
 // Create Todo
@@ -181,11 +180,11 @@ func (r *TodoResource) Create(c *fiber.Ctx) error {
 	created, err := r.CRUD.GetByID(ctx, item.Id)
 	if err != nil {
 		dto := modelToTodoDTO(item)
-		return response.SendFormatted(c,201, dto)
+		return response.SendFormatted(c, 201, dto)
 	}
 
 	dto := modelToTodoDTO(*created)
-	return response.SendFormatted(c,201, dto)
+	return response.SendFormatted(c, 201, dto)
 }
 
 // Update Todo
@@ -216,7 +215,7 @@ func (r *TodoResource) Update(c *fiber.Ctx) error {
 	}
 
 	dto := modelToTodoDTO(item)
-	return response.SendFormatted(c,200, dto)
+	return response.SendFormatted(c, 200, dto)
 }
 
 // Delete Todo

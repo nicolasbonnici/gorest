@@ -8,8 +8,8 @@ on:
 
 jobs:
 
-  lint:
-    name: Check lint
+  quality:
+    name: Code Quality Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,15 +17,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25.1'
+          go-version: '1.26.0'
 
-      - name: Run go vet (excluding benchmark testserver)
+      - name: Install quality tools
         run: |
-          # Get all packages except the benchmark testserver which requires generated code
-          packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
-          if [ -n "$packages" ]; then
-            go vet $packages
-          fi
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install github.com/gordonklaus/ineffassign@latest
+          go install github.com/client9/misspell/cmd/misspell@latest
+          go install github.com/kisielk/errcheck@latest
+          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
       - name: Check formatting
         run: |
@@ -37,8 +37,55 @@ jobs:
             exit 1
           fi
 
+      - name: Run go vet (excluding benchmark testserver)
+        run: |
+          # Get all packages except the benchmark testserver which requires generated code
+          packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
+          if [ -n "$packages" ]; then
+            go vet $packages
+          fi
+
+      - name: Run staticcheck
+        run: |
+          packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
+          if [ -n "$packages" ]; then
+            staticcheck $packages
+          fi
+
+      - name: Run ineffassign
+        run: ineffassign ./...
+
+      - name: Run misspell
+        run: misspell -error .
+
+      - name: Run errcheck
+        run: |
+          packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
+          if [ -n "$packages" ]; then
+            errcheck -exclude .errcheck-excludes -ignoretests $packages
+          fi
+
+      - name: Run gocyclo (threshold 45)
+        run: |
+          gocyclo_output=$(gocyclo -over 45 . | grep -v 'vendor/' | grep -v 'generated/' | grep -v '_test.go' || true)
+          if [ -n "$gocyclo_output" ]; then
+            echo "Functions with cyclomatic complexity > 45:"
+            echo "$gocyclo_output"
+            exit 1
+          fi
+
+      - name: Run golangci-lint
+        run: |
+          echo "Running golangci-lint comprehensive checks..."
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint run
+
+      - name: Cleanup
+        if: always()
+        run: go clean -cache -testcache -modcache
+
   test:
-    needs: lint
+    needs: quality
     name: Test suite
     runs-on: ubuntu-latest
     steps:
@@ -47,7 +94,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25.1'
+          go-version: '1.26.0'
 
       - name: Create test environment file
         run: |
