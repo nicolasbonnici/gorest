@@ -42,11 +42,11 @@ func RegisterUserRoutes(router fiber.Router, db database.Database, paginationLim
 
 func modelToUserDTO(m models.User) dtos.UserDTO {
 	return dtos.UserDTO{
-		Id: m.Id,
+		Id:        m.Id,
 		Firstname: m.Firstname,
-		Lastname: m.Lastname,
-		Email: m.Email,
-		Password: m.Password,
+		Lastname:  m.Lastname,
+		Email:     m.Email,
+		Password:  m.Password,
 		UpdatedAt: m.UpdatedAt,
 		CreatedAt: m.CreatedAt,
 	}
@@ -55,21 +55,20 @@ func modelToUserDTO(m models.User) dtos.UserDTO {
 func userCreateDTOToModel(dto dtos.UserCreateDTO) models.User {
 	return models.User{
 		Firstname: dto.Firstname,
-		Lastname: dto.Lastname,
-		Email: dto.Email,
-		Password: dto.Password,
+		Lastname:  dto.Lastname,
+		Email:     dto.Email,
+		Password:  dto.Password,
 	}
 }
 
 func userUpdateDTOToModel(dto dtos.UserUpdateDTO) models.User {
 	return models.User{
 		Firstname: dto.Firstname,
-		Lastname: dto.Lastname,
-		Email: dto.Email,
-		Password: dto.Password,
+		Lastname:  dto.Lastname,
+		Email:     dto.Email,
+		Password:  dto.Password,
 	}
 }
-
 
 // List User
 // @Summary List User
@@ -89,9 +88,9 @@ func (r *UserResource) List(c *fiber.Ctx) error {
 	allowedFields := []string{"id", "firstname", "lastname", "email", "updated_at", "created_at"}
 
 	queryParams := make(url.Values)
-	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+	for key, value := range c.Context().QueryArgs().All() {
 		queryParams.Add(string(key), string(value))
-	})
+	}
 
 	// Parse filters into conditions
 	filters := filter.NewFilterSet(allowedFields, r.DB.Dialect())
@@ -150,7 +149,7 @@ func (r *UserResource) Get(c *fiber.Ctx) error {
 	}
 
 	dto := modelToUserDTO(*item)
-	return response.SendFormatted(c,200, dto)
+	return response.SendFormatted(c, 200, dto)
 }
 
 // Create User
@@ -178,11 +177,11 @@ func (r *UserResource) Create(c *fiber.Ctx) error {
 	created, err := r.CRUD.GetByID(ctx, item.Id)
 	if err != nil {
 		dto := modelToUserDTO(item)
-		return response.SendFormatted(c,201, dto)
+		return response.SendFormatted(c, 201, dto)
 	}
 
 	dto := modelToUserDTO(*created)
-	return response.SendFormatted(c,201, dto)
+	return response.SendFormatted(c, 201, dto)
 }
 
 // Update User
@@ -208,7 +207,7 @@ func (r *UserResource) Update(c *fiber.Ctx) error {
 	}
 
 	dto := modelToUserDTO(item)
-	return response.SendFormatted(c,200, dto)
+	return response.SendFormatted(c, 200, dto)
 }
 
 // Delete User

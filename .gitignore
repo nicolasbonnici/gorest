@@ -30,5 +30,7 @@ pentest.sh
 
 # Parallel plugins runner script
 run-all-plugins.sh
-bump-plugins.sh
+release-all-plugins.sh
 sync-versions.sh
+
+CLAUDE.md

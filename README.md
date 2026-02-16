@@ -38,7 +38,17 @@ go mod init github.com/yourusername/my-api
 go get github.com/nicolasbonnici/gorest@latest
 ```
 
-### 2. Configure Your API
+### 2. Install Development Environment
+
+First you need Go 1.25+ installed, then run:
+
+```bash
+make install
+```
+
+That's it! Your development environment is now set up.
+
+### 3. Configure Your API
 
 Create `gorest.yaml` in your project root:
 
@@ -79,7 +89,7 @@ export PAGINATION_DEFAULT_LIMIT="20" # default: 10
 export PAGINATION_MAX_LIMIT="5000"   # default: 1000
 ```
 
-Or use a `.env` file (dotenv support):
+Or use a `.env` file (dotenv> support):
 ```bash
 ENV=production
 DATABASE_URL=postgres://user:pass@localhost:5432/mydb?sslmode=require

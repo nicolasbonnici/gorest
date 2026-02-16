@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/nicolasbonnici/gorest/migrations"
 )
@@ -104,7 +105,9 @@ func main() {
 	safeName := ""
 	for _, part := range parts {
 		if len(part) > 0 {
-			safeName += strings.Title(part)
+			runes := []rune(part)
+			runes[0] = unicode.ToUpper(runes[0])
+			safeName += string(runes)
 		}
 	}
 
