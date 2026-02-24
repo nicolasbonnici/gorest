@@ -8,6 +8,173 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func TestSetCommonHeaders(t *testing.T) {
+	app := fiber.New()
+
+	app.Get("/test", func(c *fiber.Ctx) error {
+		SetCommonHeaders(c)
+		return c.SendStatus(200)
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	resp, _ := app.Test(req)
+
+	poweredBy := resp.Header.Get("X-Powered-By")
+	if poweredBy == "" {
+		t.Error("Expected X-Powered-By header to be set")
+	}
+	// Just verify it starts with "GoREST/" since version may vary
+	if len(poweredBy) < 7 || poweredBy[:7] != "GoREST/" {
+		t.Errorf("Expected X-Powered-By to start with 'GoREST/', got '%s'", poweredBy)
+	}
+}
+
+func TestSetContentTypeHeader(t *testing.T) {
+	tests := []struct {
+		name     string
+		format   string
+		expected string
+	}{
+		{"JSON-LD format", "jsonld", "application/ld+json"},
+		{"JSON format", "json", "application/json"},
+		{"Other format defaults to JSON", "other", "application/json"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Get("/test", func(c *fiber.Ctx) error {
+				SetContentTypeHeader(c, tt.format)
+				return c.SendStatus(200)
+			})
+
+			req := httptest.NewRequest("GET", "/test", nil)
+			resp, _ := app.Test(req)
+
+			contentType := resp.Header.Get("Content-Type")
+			if contentType != tt.expected {
+				t.Errorf("Expected Content-Type '%s', got '%s'", tt.expected, contentType)
+			}
+		})
+	}
+}
+
+func TestSendJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		data         interface{}
+		status       int
+		acceptHeader string
+	}{
+		{
+			name:         "Send JSON with default accept",
+			data:         fiber.Map{"message": "test"},
+			status:       200,
+			acceptHeader: "",
+		},
+		{
+			name:         "Send JSON with JSON accept",
+			data:         fiber.Map{"message": "test"},
+			status:       201,
+			acceptHeader: "application/json",
+		},
+		{
+			name:         "Send JSON with JSON-LD accept",
+			data:         fiber.Map{"message": "test"},
+			status:       200,
+			acceptHeader: "application/ld+json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Post("/test", func(c *fiber.Ctx) error {
+				return SendJSON(c, tt.status, tt.data)
+			})
+
+			req := httptest.NewRequest("POST", "/test", nil)
+			if tt.acceptHeader != "" {
+				req.Header.Set("Accept", tt.acceptHeader)
+			}
+			resp, _ := app.Test(req)
+
+			if resp.StatusCode != tt.status {
+				t.Errorf("Expected status %d, got %d", tt.status, resp.StatusCode)
+			}
+
+			// Fiber's .JSON() always sets Content-Type to application/json
+			contentType := resp.Header.Get("Content-Type")
+			if contentType != "application/json" {
+				t.Errorf("Expected Content-Type 'application/json', got '%s'", contentType)
+			}
+
+			poweredBy := resp.Header.Get("X-Powered-By")
+			if poweredBy == "" {
+				t.Error("Expected X-Powered-By header to be set")
+			}
+		})
+	}
+}
+
+func TestParseExpandQuery(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected []string
+	}{
+		{
+			name:     "No expand parameter",
+			url:      "/test",
+			expected: []string{},
+		},
+		{
+			name:     "Single expand parameter",
+			url:      "/test?expand[]=author",
+			expected: []string{"author"},
+		},
+		{
+			name:     "Multiple expand parameters",
+			url:      "/test?expand[]=author&expand[]=comments",
+			expected: []string{"author", "comments"},
+		},
+		{
+			name:     "Expand with other parameters",
+			url:      "/test?page=1&expand[]=author&limit=10",
+			expected: []string{"author"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			var result []string
+
+			app.Get("/test", func(c *fiber.Ctx) error {
+				result = ParseExpandQuery(c)
+				return c.SendStatus(200)
+			})
+
+			req := httptest.NewRequest("GET", tt.url, nil)
+			_, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("Request failed: %v", err)
+			}
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d expand values, got %d", len(tt.expected), len(result))
+				return
+			}
+
+			for i, exp := range tt.expected {
+				if i >= len(result) || result[i] != exp {
+					t.Errorf("Expected expand[%d]='%s', got '%s'", i, exp, result[i])
+				}
+			}
+		})
+	}
+}
+
 func TestParseAcceptHeader(t *testing.T) {
 	tests := []struct {
 		name     string

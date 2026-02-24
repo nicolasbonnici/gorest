@@ -60,14 +60,20 @@ func TestNoOpHooks_StateProcessor_WithNilModel(t *testing.T) {
 	}
 }
 
-func TestNoOpHooks_StateProcessor_WithNilContext(t *testing.T) {
+func TestNoOpHooks_StateProcessor_WithContextVariants(t *testing.T) {
 	hooks := NoOpHooks[testModel]{}
 	model := &testModel{ID: "1", Name: "Test"}
 
-	// Should not panic with nil context
-	err := hooks.StateProcessor(nil, OperationCreate, "1", model)
+	// Test with context.Background()
+	err := hooks.StateProcessor(context.Background(), OperationCreate, "1", model)
 	if err != nil {
-		t.Errorf("Expected nil error, got %v", err)
+		t.Errorf("Expected nil error with Background context, got %v", err)
+	}
+
+	// Test with context.TODO()
+	err = hooks.StateProcessor(context.TODO(), OperationCreate, "1", model)
+	if err != nil {
+		t.Errorf("Expected nil error with TODO context, got %v", err)
 	}
 }
 
