@@ -6,6 +6,9 @@
 
 🚀 **GoREST** is a Go library for building type-safe REST APIs in Go from your existing database schema or from scratch.
 
+> [!WARNING]
+> **Pre-1.0 Development**: The API is not yet stabilized and may introduce breaking changes until v1.0.0 is released. Pin to a specific version tag and test thoroughly before production use.
+
 ## ✨ Features
 
 - ⚡ Type-safe generic CRUD operations with hooks system
