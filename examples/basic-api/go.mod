@@ -4,17 +4,11 @@ go 1.26
 
 toolchain go1.26.0
 
-// For production use, replace the line below with the published version
-// require github.com/nicolasbonnici/gorest v0.2.0
-replace github.com/nicolasbonnici/gorest => ../..
-
-replace github.com/nicolasbonnici/gorest-codegen => ../../../gorest-codegen
-
 require (
 	github.com/gofiber/fiber/v2 v2.52.11
 	github.com/nicolasbonnici/gorest v0.4.9
 	github.com/nicolasbonnici/gorest-auth v0.1.7
-	github.com/nicolasbonnici/gorest-codegen v0.0.0-00010101000000-000000000000
+	github.com/nicolasbonnici/gorest-codegen v0.1.3
 	github.com/nicolasbonnici/gorest-openapi v0.1.8
 	github.com/nicolasbonnici/gorest-status v0.1.5
 	golang.org/x/crypto v0.47.0

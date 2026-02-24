@@ -129,3 +129,48 @@ func TestPostgresDialect_LimitOffset(t *testing.T) {
 		})
 	}
 }
+
+func TestPostgresDialect_CaseInsensitiveLike(t *testing.T) {
+	d := &PostgresDialect{}
+	result := d.CaseInsensitiveLike()
+
+	expected := "ILIKE"
+	if result != expected {
+		t.Errorf("Expected %s, got %s", expected, result)
+	}
+}
+
+func TestPostgresDialect_QuoteIdentifier_EdgeCases(t *testing.T) {
+	d := &PostgresDialect{}
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"simple", "users", `"users"`},
+		{"SQL keyword SELECT", "select", `"select"`},
+		{"SQL keyword FROM", "from", `"from"`},
+		{"SQL keyword WHERE", "where", `"where"`},
+		{"embedded quote", `user"name`, `"user""name"`},
+		{"double quotes", `"users"`, `"""users"""`},
+		{"special chars dash", "user-name", `"user-name"`},
+		{"special chars underscore", "user_name_123", `"user_name_123"`},
+		{"special chars dot", "schema.table", `"schema.table"`},
+		{"mixed case", "UserName", `"UserName"`},
+		{"all caps", "TABLENAME", `"TABLENAME"`},
+		{"unicode", "用户", `"用户"`},
+		{"empty string", "", `""`},
+		{"numbers", "table123", `"table123"`},
+		{"starts with number", "123table", `"123table"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := d.QuoteIdentifier(tt.input)
+			if result != tt.expected {
+				t.Errorf("QuoteIdentifier(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
