@@ -64,13 +64,11 @@ func TestNoOpHooks_StateProcessor_WithContextVariants(t *testing.T) {
 	hooks := NoOpHooks[testModel]{}
 	model := &testModel{ID: "1", Name: "Test"}
 
-	// Test with context.Background()
 	err := hooks.StateProcessor(context.Background(), OperationCreate, "1", model)
 	if err != nil {
 		t.Errorf("Expected nil error with Background context, got %v", err)
 	}
 
-	// Test with context.TODO()
 	err = hooks.StateProcessor(context.TODO(), OperationCreate, "1", model)
 	if err != nil {
 		t.Errorf("Expected nil error with TODO context, got %v", err)
@@ -169,7 +167,7 @@ func TestNoOpHooks_AfterQuery(t *testing.T) {
 			query:     "SELECT * FROM users WHERE id = $1",
 			args:      []any{"123"},
 			result:    nil,
-			err:       nil, // NoOpHooks doesn't propagate errors
+			err:       nil,
 		},
 	}
 
@@ -194,8 +192,6 @@ func TestNoOpHooks_AfterQuery(t *testing.T) {
 func TestNoOpHooks_ModifySelectQuery(t *testing.T) {
 	hooks := NoOpHooks[testModel]{}
 
-	// Create a simple select query builder
-	// Note: We can't fully test the builder without a dialect, but we can verify the hook behavior
 	builder := &query.SelectBuilder{}
 
 	resultBuilder, modified := hooks.ModifySelectQuery(

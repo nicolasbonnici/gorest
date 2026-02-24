@@ -65,21 +65,17 @@ func TestHookFactory_Register(t *testing.T) {
 func TestHookFactory_RegisterOverwrite(t *testing.T) {
 	factory := NewHookFactory()
 
-	// Register first hooks
 	firstHooks := &NoOpHooks[testModel]{}
 	factory.Register("users", firstHooks)
 
-	// Overwrite with new hooks
 	secondHooks := &NoOpHooks[string]{}
 	factory.Register("users", secondHooks)
 
-	// Verify overwrite
 	hooks, exists := factory.GetHooks("users")
 	if !exists {
 		t.Fatal("Expected hooks to exist")
 	}
 
-	// Should be the second hooks (different type)
 	if _, ok := hooks.(*NoOpHooks[string]); !ok {
 		t.Error("Expected hooks to be overwritten with string type")
 	}
@@ -232,7 +228,6 @@ func TestHookFactory_ListRegistered(t *testing.T) {
 				t.Errorf("Expected %d resources, got %d", tt.expectedCount, len(resources))
 			}
 
-			// Check all expected names are present (order doesn't matter for map)
 			resourceMap := make(map[string]bool)
 			for _, name := range resources {
 				resourceMap[name] = true
@@ -295,20 +290,16 @@ func TestHookFactory_HasHooks(t *testing.T) {
 func TestHookFactory_Remove(t *testing.T) {
 	factory := NewHookFactory()
 
-	// Register multiple resources
 	factory.Register("users", &NoOpHooks[testModel]{})
 	factory.Register("posts", &NoOpHooks[testModel]{})
 	factory.Register("comments", &NoOpHooks[testModel]{})
 
-	// Remove one
 	factory.Remove("posts")
 
-	// Verify removed
 	if factory.HasHooks("posts") {
 		t.Error("Expected posts to be removed")
 	}
 
-	// Verify others still exist
 	if !factory.HasHooks("users") {
 		t.Error("Expected users to still exist")
 	}
@@ -320,10 +311,8 @@ func TestHookFactory_Remove(t *testing.T) {
 func TestHookFactory_RemoveNonExistent(t *testing.T) {
 	factory := NewHookFactory()
 
-	// Remove non-existent resource should not panic
 	factory.Remove("missing")
 
-	// Verify factory is still functional
 	factory.Register("users", &NoOpHooks[testModel]{})
 	if !factory.HasHooks("users") {
 		t.Error("Factory should still be functional after removing non-existent resource")
@@ -333,15 +322,12 @@ func TestHookFactory_RemoveNonExistent(t *testing.T) {
 func TestHookFactory_Clear(t *testing.T) {
 	factory := NewHookFactory()
 
-	// Register multiple resources
 	factory.Register("users", &NoOpHooks[testModel]{})
 	factory.Register("posts", &NoOpHooks[testModel]{})
 	factory.Register("comments", &NoOpHooks[testModel]{})
 
-	// Clear all
 	factory.Clear()
 
-	// Verify all removed
 	if len(factory.ListRegistered()) != 0 {
 		t.Errorf("Expected empty registry, got %d items", len(factory.ListRegistered()))
 	}
@@ -354,12 +340,10 @@ func TestHookFactory_Clear(t *testing.T) {
 func TestHookFactory_ClearAndReuse(t *testing.T) {
 	factory := NewHookFactory()
 
-	// Register, clear, and register again
 	factory.Register("users", &NoOpHooks[testModel]{})
 	factory.Clear()
 	factory.Register("posts", &NoOpHooks[testModel]{})
 
-	// Verify factory is functional after clear
 	if !factory.HasHooks("posts") {
 		t.Error("Factory should be functional after clear")
 	}
@@ -369,13 +353,11 @@ func TestHookFactory_ClearAndReuse(t *testing.T) {
 }
 
 func TestGlobalFactory(t *testing.T) {
-	// Get global factory
 	factory1 := GlobalFactory()
 	if factory1 == nil {
 		t.Fatal("Expected non-nil global factory")
 	}
 
-	// Get again, should be same instance
 	factory2 := GlobalFactory()
 	if factory1 != factory2 {
 		t.Error("Expected same global factory instance")
@@ -383,30 +365,23 @@ func TestGlobalFactory(t *testing.T) {
 }
 
 func TestRegisterGlobal(t *testing.T) {
-	// Clear global factory first
 	GlobalFactory().Clear()
 
-	// Register to global factory
 	RegisterGlobal("users", &NoOpHooks[testModel]{})
 
-	// Verify registered
 	if !GlobalFactory().HasHooks("users") {
 		t.Error("Expected users to be registered in global factory")
 	}
 
-	// Clean up
 	GlobalFactory().Clear()
 }
 
 func TestGetGlobal(t *testing.T) {
-	// Clear global factory first
 	GlobalFactory().Clear()
 
-	// Register to global factory
 	hooks := &NoOpHooks[testModel]{}
 	RegisterGlobal("users", hooks)
 
-	// Get from global factory
 	retrievedHooks, exists := GetGlobal("users")
 	if !exists {
 		t.Error("Expected to find hooks in global factory")
@@ -415,28 +390,22 @@ func TestGetGlobal(t *testing.T) {
 		t.Error("Expected non-nil hooks")
 	}
 
-	// Get non-existent
 	_, exists = GetGlobal("missing")
 	if exists {
 		t.Error("Expected missing hooks to not exist")
 	}
 
-	// Clean up
 	GlobalFactory().Clear()
 }
 
 func TestGlobalFactory_Isolation(t *testing.T) {
-	// Clear global factory
 	GlobalFactory().Clear()
 
-	// Register to global
 	RegisterGlobal("global-resource", &NoOpHooks[testModel]{})
 
-	// Create local factory
 	localFactory := NewHookFactory()
 	localFactory.Register("local-resource", &NoOpHooks[testModel]{})
 
-	// Verify isolation
 	if localFactory.HasHooks("global-resource") {
 		t.Error("Local factory should not have global resources")
 	}
@@ -447,6 +416,5 @@ func TestGlobalFactory_Isolation(t *testing.T) {
 		t.Error("Global factory should not have local resources")
 	}
 
-	// Clean up
 	GlobalFactory().Clear()
 }

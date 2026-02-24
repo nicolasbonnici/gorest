@@ -43,7 +43,7 @@ func TestValidateStruct_Valid(t *testing.T) {
 			name: "valid with minimum password length",
 			input: ValidationExample{
 				Email:    "min@example.com",
-				Password: "12345678", // exactly 8 chars
+				Password: "12345678",
 				Age:      50,
 			},
 		},
@@ -129,7 +129,6 @@ func TestValidateStruct_Invalid(t *testing.T) {
 				return
 			}
 
-			// Check if error is ValidationErrors
 			if validationErrors, ok := err.(validator.ValidationErrors); ok {
 				found := false
 				for _, fieldErr := range validationErrors {
@@ -149,7 +148,6 @@ func TestValidateStruct_Invalid(t *testing.T) {
 }
 
 func TestValidateStruct_MultipleErrors(t *testing.T) {
-	// All fields invalid
 	input := ValidationExample{
 		Email:    "invalid",
 		Password: "short",
@@ -166,7 +164,6 @@ func TestValidateStruct_MultipleErrors(t *testing.T) {
 		t.Fatalf("Expected validator.ValidationErrors, got: %T", err)
 	}
 
-	// Should have multiple errors
 	if len(validationErrors) < 2 {
 		t.Errorf("Expected at least 2 validation errors, got %d", len(validationErrors))
 	}
@@ -248,8 +245,6 @@ func TestValidateAndRespond_Invalid(t *testing.T) {
 			Age:      -5,
 		}
 
-		// ValidateAndRespond will send error response and return error
-		// The error return stops handler execution
 		return ValidateAndRespond(c, input)
 	})
 
@@ -260,7 +255,6 @@ func TestValidateAndRespond_Invalid(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 
-	// Read response body
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 
@@ -279,7 +273,6 @@ func TestValidateAndRespond_ErrorMessage(t *testing.T) {
 			Age:      25,
 		}
 
-		// Return validation error directly
 		return ValidateAndRespond(c, input)
 	})
 
@@ -290,11 +283,9 @@ func TestValidateAndRespond_ErrorMessage(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 
-	// Read response body
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 
-	// Error message should mention the field
 	if !strings.Contains(bodyStr, "Email") {
 		t.Errorf("Expected error message to mention Email field, got: %s", bodyStr)
 	}
@@ -304,14 +295,12 @@ func TestValidateAndRespond_MultipleErrors(t *testing.T) {
 	app := fiber.New()
 
 	app.Post("/test", func(c *fiber.Ctx) error {
-		// All fields invalid
 		input := ValidationExample{
 			Email:    "bad",
 			Password: "bad",
 			Age:      -1,
 		}
 
-		// Return validation error directly
 		return ValidateAndRespond(c, input)
 	})
 
@@ -322,28 +311,15 @@ func TestValidateAndRespond_MultipleErrors(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", fiber.StatusBadRequest, resp.StatusCode)
 	}
 
-	// Read response body
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 
-	// Should contain error
 	if !strings.Contains(bodyStr, "error") {
 		t.Errorf("Expected error in response, got: %s", bodyStr)
 	}
 }
 
 func TestValidationExample_Tags(t *testing.T) {
-	// Verify ValidationExample has correct tags
-	example := ValidationExample{}
-
-	// Use reflection to check tags
-	typ := example
-
-	// This test verifies that the struct is properly defined
-	// The actual validation is tested by ValidateStruct tests
-	_ = typ
-
-	// Test that validation works as expected
 	validExample := ValidationExample{
 		Email:    "test@example.com",
 		Password: "password123",
@@ -357,7 +333,6 @@ func TestValidationExample_Tags(t *testing.T) {
 }
 
 func TestValidateStruct_NilInput(t *testing.T) {
-	// Passing nil should return error
 	err := ValidateStruct(nil)
 	if err == nil {
 		t.Error("Expected error when validating nil, got nil")
