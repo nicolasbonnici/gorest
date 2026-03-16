@@ -5,9 +5,6 @@ import (
 	"reflect"
 )
 
-// getModelID extracts the ID field from a model using reflection.
-// It looks for a field with the "db" tag set to "id".
-// Returns the ID value or an error if the ID field is not found or invalid.
 func getModelID(model interface{}) (any, error) {
 	v := reflect.ValueOf(model)
 	if v.Kind() == reflect.Ptr {
