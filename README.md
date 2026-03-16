@@ -12,6 +12,7 @@
 ## ✨ Features
 
 - ⚡ Type-safe generic CRUD operations with hooks system
+- 🚀 **Processor pattern** eliminating handler boilerplate with one-liner endpoints
 - 🔧 Fluent SQL query builder with database abstraction
 - 🔐 Role based access control and audit log ([gorest-rbac](https://github.com/nicolasbonnici/gorest-rbac))
 - 🔑 Authentication with context-aware plugins ([gorest-auth](https://github.com/nicolasbonnici/gorest-auth))
@@ -233,6 +234,7 @@ go get github.com/nicolasbonnici/gorest@latest
 
 | Package | Description |
 |---------|-------------|
+| `processor` | Unified API processor eliminating handler boilerplate |
 | `query` | Type-safe SQL query builder |
 | `crud` | Type-safe CRUD operations with hooks |
 | `database` | Multi-database abstraction |
@@ -290,6 +292,9 @@ func main() {
 ### Configuration & Setup
 - **[Configuration →](CONFIGURATION.md)** - YAML configuration, environment overrides, and templates
 
+### API Development
+- **[Processor →](processor/README.md)** - Unified API processor eliminating CRUD boilerplate with one-liner handlers
+
 ### Data Management
 - **[Query Builder →](QUERY_BUILDER.md)** - Type-safe SQL query builder with fluent API
 - **[Filtering & Ordering →](FILTERING.md)** - Advanced query filtering, comparison operators, and ordering
@@ -333,6 +338,42 @@ func (h *PostHooks) ModifySelectQuery(ctx context.Context, op hooks.Operation, b
 ```
 
 📚 **[Full query builder documentation →](QUERY_BUILDER.md)**
+
+### Processor Pattern
+
+```go
+import "github.com/nicolasbonnici/gorest/processor"
+
+// Create processor with configuration
+proc := processor.New(processor.ProcessorConfig[
+    models.Todo,
+    dtos.TodoCreateDTO,
+    dtos.TodoUpdateDTO,
+    dtos.TodoResponseDTO,
+]{
+    DB:                 db,
+    CRUD:               crud.New[models.Todo](db),
+    Converter:          &converters.TodoConverter{},
+    PaginationLimit:    20,
+    PaginationMaxLimit: 100,
+    AllowedFields:      []string{"id", "title", "status", "created_at"},
+}).
+    WithCreateHook(hooks.CreateHook).
+    WithUpdateHook(hooks.UpdateHook)
+
+// Handlers become one-liners
+type TodoResource struct {
+    processor processor.Processor[models.Todo, dtos.TodoCreateDTO, dtos.TodoUpdateDTO, dtos.TodoResponseDTO]
+}
+
+func (r *TodoResource) Create(c *fiber.Ctx) error  { return r.processor.Create(c) }
+func (r *TodoResource) GetAll(c *fiber.Ctx) error  { return r.processor.GetAll(c) }
+func (r *TodoResource) GetByID(c *fiber.Ctx) error { return r.processor.GetByID(c) }
+func (r *TodoResource) Update(c *fiber.Ctx) error  { return r.processor.Update(c) }
+func (r *TodoResource) Delete(c *fiber.Ctx) error  { return r.processor.Delete(c) }
+```
+
+📚 **[Full processor documentation →](processor/README.md)**
 
 ### Filtering & Ordering
 
@@ -404,6 +445,7 @@ my-api/
 ### GoREST Library
 ```
 gorest/
+├── processor/               # Unified API processor
 ├── crud/                    # Generic CRUD
 ├── database/                # Multi-DB abstraction
 │   ├── postgres/
