@@ -26,6 +26,18 @@ echo ""
 echo "✅ Linting passed"
 echo ""
 
+# Run audit (quality checks)
+echo "🔍 Running quality audit..."
+if ! make audit; then
+    echo ""
+    echo "❌ Quality audit failed. Please fix the issues before committing."
+    exit 1
+fi
+
+echo ""
+echo "✅ Quality audit passed"
+echo ""
+
 # Run tests
 echo "🧪 Running tests..."
 if ! make test; then
