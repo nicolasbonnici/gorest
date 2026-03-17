@@ -114,9 +114,9 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetAll
 	includeCount := c.Query("count", "true") != "false"
 
 	queryParams := make(url.Values)
-	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+	for key, value := range c.Context().QueryArgs().All() {
 		queryParams.Add(string(key), string(value))
-	})
+	}
 
 	var conditions []query.Condition
 	if len(p.config.AllowedFields) > 0 || p.config.FieldMap != nil {

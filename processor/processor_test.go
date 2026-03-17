@@ -68,13 +68,7 @@ func testUpdateDTOToModel(dto TestUpdateDTO) TestModel {
 }
 
 func testModelToDTO(m TestModel) TestResponseDTO {
-	return TestResponseDTO{
-		ID:        m.ID,
-		Name:      m.Name,
-		Email:     m.Email,
-		UserID:    m.UserID,
-		CreatedAt: m.CreatedAt,
-	}
+	return TestResponseDTO(m)
 }
 
 // Setup test database
@@ -524,11 +518,6 @@ func TestFuncConverter(t *testing.T) {
 // Test DefaultErrorHandler
 func TestDefaultErrorHandler(t *testing.T) {
 	handler := &DefaultErrorHandler{}
-
-	// Verify handler exists and has the right method signature
-	if handler == nil {
-		t.Error("Expected DefaultErrorHandler to be created")
-	}
 
 	// Test parse error
 	app := fiber.New()
