@@ -32,5 +32,6 @@ pentest.sh
 run-all-plugins.sh
 release-all-plugins.sh
 sync-versions.sh
+open-gorest.sh
 
 CLAUDE.md
