@@ -10,7 +10,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.1
-	github.com/nicolasbonnici/gorest-auth v0.1.13
+	github.com/nicolasbonnici/gorest-auth v0.1.15
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.48.1
 )
@@ -39,7 +39,7 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/tinylib/msgp v1.6.3 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.69.0 // indirect
+	github.com/valyala/fasthttp v1.70.0 // indirect
 	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
