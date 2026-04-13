@@ -15,6 +15,8 @@ server:
   ratelimit_enabled: false
   ratelimit_requests_per_second: 100
   ratelimit_burst: 200
+  compression_enabled: true  # Enable gzip/deflate/brotli compression (default: true)
+  compression_level: 2       # 1=best speed, 2=balanced (default), 3=best compression
 
 database:
   url: "${DATABASE_URL}"

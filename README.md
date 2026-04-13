@@ -16,7 +16,7 @@
 - 🔧 Fluent SQL query builder with database abstraction
 - 🔐 Role based access control and audit log ([gorest-rbac](https://github.com/nicolasbonnici/gorest-rbac))
 - 🔑 Authentication with context-aware plugins ([gorest-auth](https://github.com/nicolasbonnici/gorest-auth))
-- ✅ Security best practices, rate limiting, CORS and many more configurable core middleware
+- ✅ Security best practices, rate limiting, CORS, response compression and many more configurable core middleware
 - 🎭 Hook layer to add your business logic and override any API layer
 - 🧩 Modular plugin system that can add features, override some or all existing endpoints or even CLI commands
 - 🛠 **Code generation plugin** for REST endpoints, DTOs and models ([gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen))
@@ -63,6 +63,8 @@ server:
   port: "${SERVER_PORT:-8000}"
   environment: "${ENV:-development}"
   cors_origins: "${CORS_ORIGINS:-*}"
+  compression_enabled: true  # gzip/deflate/brotli support (default: true)
+  compression_level: 2       # 1=speed, 2=balanced, 3=best compression
 
 
 database:
