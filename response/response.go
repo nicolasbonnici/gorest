@@ -115,6 +115,7 @@ func SendCreated(c *fiber.Ctx, data interface{}) error {
 }
 
 func SendJSON(c *fiber.Ctx, statusCode int, data interface{}) error {
+	c.Set("X-Powered-By", "GoREST/"+version)
 	format := DetermineFormat(c)
 	SetContentTypeHeader(c, format)
 	SetCommonHeaders(c)
