@@ -6,6 +6,8 @@ server:
   host: "${SERVER_HOST:-localhost}"
   port: "${SERVER_PORT:-8000}"
   environment: "${ENV:-development}"
+  compression_enabled: true  # Enable gzip/deflate/brotli compression (default: true)
+  compression_level: 2       # 1=best speed, 2=balanced (default), 3=best compression
 
 database:
   url: "${DATABASE_URL}"

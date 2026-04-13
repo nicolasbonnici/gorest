@@ -50,14 +50,16 @@ type EndpointAuthConfig struct {
 }
 
 type ServerConfig struct {
-	Scheme           string `yaml:"scheme"`
-	Host             string `yaml:"host"`
-	Port             int    `yaml:"port"`
-	Environment      string `yaml:"environment"`
-	CORSOrigins      string `yaml:"cors_origins"`
-	RateLimitRPS     int    `yaml:"ratelimit_requests_per_second"`
-	RateLimitBurst   int    `yaml:"ratelimit_burst"`
-	RateLimitEnabled bool   `yaml:"ratelimit_enabled"`
+	Scheme             string `yaml:"scheme"`
+	Host               string `yaml:"host"`
+	Port               int    `yaml:"port"`
+	Environment        string `yaml:"environment"`
+	CORSOrigins        string `yaml:"cors_origins"`
+	RateLimitRPS       int    `yaml:"ratelimit_requests_per_second"`
+	RateLimitBurst     int    `yaml:"ratelimit_burst"`
+	RateLimitEnabled   bool   `yaml:"ratelimit_enabled"`
+	CompressionEnabled bool   `yaml:"compression_enabled"`
+	CompressionLevel   int    `yaml:"compression_level"`
 }
 
 type DatabaseConfig struct {
@@ -173,6 +175,11 @@ func (c *Config) SetDefaults() {
 	}
 	if c.Server.RateLimitBurst == 0 {
 		c.Server.RateLimitBurst = 200
+	}
+	// CompressionEnabled defaults to true if not explicitly set
+	// CompressionLevel defaults to 2 (balanced) if not set or invalid
+	if c.Server.CompressionLevel == 0 {
+		c.Server.CompressionLevel = 2
 	}
 
 	if c.Pagination.DefaultLimit == 0 {

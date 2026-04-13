@@ -15,6 +15,8 @@ server:
   port: "${SERVER_PORT:-8000}"
   environment: "${ENV:-development}"
   cors_origins: "${CORS_ORIGINS:-*}"
+  compression_enabled: true  # gzip/deflate/brotli (default: true)
+  compression_level: 2       # 1=speed, 2=balanced, 3=best compression
 
 
 database:
@@ -91,6 +93,8 @@ server:
   host: "${SERVER_HOST:-localhost}"
   port: "${SERVER_PORT:-3000}"
   environment: "${ENV:-development}"
+  compression_enabled: true
+  compression_level: 2
 
 database:
   url: "${DATABASE_URL}"

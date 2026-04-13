@@ -79,6 +79,10 @@ func Start(cfg Config) {
 	app.Use(middleware.Logger())
 	app.Use(middleware.ContentNegotiation())
 
+	if appConfig.Server.CompressionEnabled {
+		app.Use(middleware.Compress(appConfig.Server.CompressionLevel))
+	}
+
 	if appConfig.Server.RateLimitEnabled {
 		app.Use(middleware.RateLimit(appConfig.Server.RateLimitRPS, appConfig.Server.RateLimitBurst))
 	}
