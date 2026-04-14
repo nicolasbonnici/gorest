@@ -28,7 +28,7 @@ var Version = "dev"
 
 type Config struct {
 	ConfigPath     string
-	RegisterRoutes func(app *fiber.App, db database.Database, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry)
+	RegisterRoutes func(router fiber.Router, db database.Database, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry)
 }
 
 func Start(cfg Config) {
@@ -115,18 +115,22 @@ func Start(cfg Config) {
 		}
 	}
 
-	// Apply global middleware before setting up any endpoints (including plugin endpoints)
-	// This ensures all endpoints, including /health and /login, are protected by security middleware
 	pluginloader.ApplyGlobalMiddleware(pluginRegistry, app)
 
-	// Setup endpoints for any plugins that implement EndpointSetup interface (e.g. auth /login, health /health)
-	if err := pluginloader.SetupPluginEndpoints(pluginRegistry, app); err != nil {
+	apiVersion := Version
+	if apiVersion == "" || apiVersion == "dev" {
+		apiVersion = "v1.0.0"
+	}
+	versionedRouter := app.Group("/" + apiVersion)
+	logger.Log.Info("API versioning enabled", "version", apiVersion, "prefix", "/"+apiVersion)
+
+	if err := pluginloader.SetupPluginEndpoints(pluginRegistry, versionedRouter); err != nil {
 		logger.Log.Error("Failed to setup plugin endpoints", "error", err)
 		os.Exit(1)
 	}
 
 	if cfg.RegisterRoutes != nil {
-		cfg.RegisterRoutes(app, db, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
+		cfg.RegisterRoutes(versionedRouter, db, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
 	} else {
 		logger.Log.Warn("No routes registered. Set Config.RegisterRoutes to register your API endpoints.")
 	}

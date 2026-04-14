@@ -512,7 +512,7 @@ type mockEndpointSetupPlugin struct {
 	setupErr    error
 }
 
-func (m *mockEndpointSetupPlugin) SetupEndpoints(app *fiber.App) error {
+func (m *mockEndpointSetupPlugin) SetupEndpoints(router fiber.Router) error {
 	m.setupCalled = true
 	return m.setupErr
 }
