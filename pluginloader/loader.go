@@ -81,10 +81,10 @@ func ApplyGlobalMiddleware(registry *plugin.PluginRegistry, app *fiber.App) {
 	}
 }
 
-func SetupPluginEndpoints(registry *plugin.PluginRegistry, app *fiber.App) error {
+func SetupPluginEndpoints(registry *plugin.PluginRegistry, router fiber.Router) error {
 	for _, p := range registry.GetAll() {
 		if setupPlugin, ok := p.(plugin.EndpointSetup); ok {
-			if err := setupPlugin.SetupEndpoints(app); err != nil {
+			if err := setupPlugin.SetupEndpoints(router); err != nil {
 				return fmt.Errorf("failed to setup endpoints for plugin '%s': %w", p.Name(), err)
 			}
 		}
