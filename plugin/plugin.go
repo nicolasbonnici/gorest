@@ -18,7 +18,7 @@ type Plugin interface {
 }
 
 type EndpointSetup interface {
-	SetupEndpoints(app *fiber.App) error
+	SetupEndpoints(router fiber.Router) error
 }
 
 type Command interface {

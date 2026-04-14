@@ -14,6 +14,7 @@
 - ⚡ Type-safe generic CRUD operations with hooks system
 - 🚀 **Processor pattern** eliminating handler boilerplate with one-liner endpoints
 - 🔧 Fluent SQL query builder with database abstraction
+- 🏷️ **Automatic API versioning** from git tags with zero configuration
 - 🔐 Role based access control and audit log ([gorest-rbac](https://github.com/nicolasbonnici/gorest-rbac))
 - 🔑 Authentication with context-aware plugins ([gorest-auth](https://github.com/nicolasbonnici/gorest-auth))
 - ✅ Security best practices, rate limiting, CORS, response compression and many more configurable core middleware
@@ -176,9 +177,9 @@ func (User) TableName() string { return "users" }
 func main() {
     cfg := gorest.Config{
         ConfigPath: ".",
-        RegisterRoutes: func(app *fiber.App, db database.Database) {
+        RegisterRoutes: func(router fiber.Router, db database.Database, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry) {
             userCRUD := crud.New[User](db)
-            app.Get("/users", func(c *fiber.Ctx) error {
+            router.Get("/users", func(c *fiber.Ctx) error {
                 result, _ := userCRUD.GetAllPaginated(c.Context(), crud.PaginationOptions{Limit: 10})
                 return c.JSON(result.Items)
             })
@@ -216,11 +217,13 @@ func main() {
 go run main.go
 ```
 
-Your API is now running at: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/**
-- 📚 API specs: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/openapi**
-- 💚 Status: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/status**
+Your API is now running at: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/v1.0.0/**
+- 📚 API specs: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/v1.0.0/openapi**
+- 💚 Status: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/v1.0.0/status**
 
-(With default values: **http://localhost:8000/**)
+(With default values: **http://localhost:8000/v1.0.0/**)
+
+**Note**: Development builds default to `/v1.0.0` prefix. Use build-time version injection for production deployments.
 
 ---
 
@@ -273,15 +276,15 @@ func main() {
     defer db.Close()
 
     userCRUD := crud.New[User](db)
-    app := fiber.New()
+    router := fiber.New()
 
-    app.Get("/users", auth.RequireAuth("secret", func(c *fiber.Ctx) error {
+    router.Get("/users", auth.RequireAuth("secret", func(c *fiber.Ctx) error {
         ctx := auth.Context(c)
         result, _ := userCRUD.GetAllPaginated(ctx, crud.PaginationOptions{Limit: 10})
         return c.JSON(result.Items)
     }))
 
-    app.Listen(":8000")
+    router.Listen(":8000")
 }
 ```
 
@@ -381,16 +384,16 @@ func (r *TodoResource) Delete(c *fiber.Ctx) error  { return r.processor.Delete(c
 
 ```bash
 # Filter by status
-GET /todos?status=active
+GET /v1.0.0/todos?status=active
 
 # Multiple filters with comparison
-GET /todos?status=active&priority[gte]=5
+GET /v1.0.0/todos?status=active&priority[gte]=5
 
 # Order results
-GET /todos?order[createdAt]=desc
+GET /v1.0.0/todos?order[createdAt]=desc
 
 # Combine all
-GET /todos?status=active&priority[gte]=5&order[createdAt]=desc&limit=10
+GET /v1.0.0/todos?status=active&priority[gte]=5&order[createdAt]=desc&limit=10
 ```
 
 📚 **[Full filtering documentation →](FILTERING.md)**
@@ -399,11 +402,11 @@ GET /todos?status=active&priority[gte]=5&order[createdAt]=desc&limit=10
 
 ```bash
 # IRI reference (default)
-GET /todos/123
-# Returns: { "user": "/users/456", ... }
+GET /v1.0.0/todos/123
+# Returns: { "user": "/v1.0.0/users/456", ... }
 
 # Expand to full object
-GET /todos/123?expand[]=user
+GET /v1.0.0/todos/123?expand[]=user
 # Returns: { "user": { "id": "456", "name": "Alice", ... }, ... }
 ```
 
@@ -413,10 +416,13 @@ GET /todos/123?expand[]=user
 
 ```bash
 # Regular JSON
-curl -H "Accept: application/json" http://localhost:8000/todos/123
+curl -H "Accept: application/json" http://localhost:8000/v1.0.0/todos/123
 
 # JSON-LD with semantic context
-curl -H "Accept: application/ld+json" http://localhost:8000/todos/123
+curl -H "Accept: application/ld+json" http://localhost:8000/v1.0.0/todos/123
+
+# Production with custom version
+curl -H "Accept: application/json" https://api.example.com/v2.1.0/todos/123
 ```
 
 📚 **[Full JSON-LD documentation →](serializer/README.md)**
@@ -489,17 +495,38 @@ See [gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen) for gener
 
 Using GoREST status plugin [gorest-status](https://github.com/nicolasbonnici/gorest-status)
 
+```dockerfile
+# Dockerfile
+FROM golang:1.23-alpine AS builder
+WORKDIR /app
+COPY . .
+# Inject version from git tag at build time
+RUN go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=$(git describe --tags --always)" -o api
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates curl
+WORKDIR /root/
+COPY --from=builder /app/api .
+CMD ["./api"]
+```
+
 ```yaml
+# docker-compose.yml
 services:
   api:
-    build: .
+    build:
+      context: .
+      args:
+        VERSION: v1.0.0  # Or use git describe --tags
     ports: ["8000:8000"]
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1.0.0/status"]
       interval: 30s
+      timeout: 3s
+      retries: 3
 ```
 
 ### Nginx Reverse Proxy
@@ -510,13 +537,29 @@ upstream gorest {
 }
 
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name api.example.com;
 
+    # SSL configuration
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    # Redirect root to latest versioned API docs
+    location = / {
+        return 301 https://$host/v2.0.0/openapi;
+    }
+
+    # Proxy all versioned routes
     location / {
         proxy_pass http://gorest;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Recommended headers
+        proxy_set_header X-Request-ID $request_id;
+        proxy_buffering off;
     }
 }
 ```
@@ -526,11 +569,136 @@ server {
 ```yaml
 livenessProbe:
   httpGet:
-    path: /status
+    path: /v1.0.0/status
     port: 8000
   initialDelaySeconds: 10
   periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /v1.0.0/status
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 10
 ```
+
+---
+
+## 🏷️ API Versioning
+
+GoREST automatically versions your API routes based on your git tags with zero configuration required. All routes are prefixed with the version for consistency across development, staging, and production environments.
+
+> **⚠️ Upgrading from pre-v0.1.12?** All routes now include a version prefix. Update your API clients:
+> - Old: `http://localhost:8000/posts`
+> - New: `http://localhost:8000/v1.0.0/posts`
+
+### How It Works
+
+All routes are automatically prefixed with the version for consistency across all environments:
+
+| Environment | Build Command | Version Variable | Route Example |
+|-------------|--------------|------------------|---------------|
+| Development | `go build` | `dev` → **v1.0.0** (fallback) | `/v1.0.0/posts` |
+| Staging | `go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v1.0.0-rc1"` | `v1.0.0-rc1` | `/v1.0.0-rc1/posts` |
+| Production | `go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v2.3.1"` | `v2.3.1` | `/v2.3.1/posts` |
+| From Git | `go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=$(git describe --tags)"` | Git tag | `/v1.2.3/posts` |
+
+**Fallback behavior**: If no version is provided or version is `"dev"`, routes default to `/v1.0.0` prefix.
+
+### Build with Version
+
+```bash
+# Development build (defaults to v1.0.0)
+go build
+# Routes: /v1.0.0/posts, /v1.0.0/health, /v1.0.0/login
+
+# Production build with version from git tag
+go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=$(git describe --tags --always)"
+# Routes: /v1.2.3/posts, /v1.2.3/health, /v1.2.3/login
+
+# Or use a specific version
+go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v2.0.0"
+# Routes: /v2.0.0/posts, /v2.0.0/health, /v2.0.0/login
+```
+
+### Example
+
+```bash
+# Development build (defaults to v1.0.0)
+go build
+curl http://localhost:8000/v1.0.0/posts
+
+# Production build with version v2.0.0
+go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v2.0.0"
+curl http://localhost:8000/v2.0.0/posts
+```
+
+### What Gets Versioned
+
+All routes are automatically versioned, including:
+- **User routes**: Your application endpoints (e.g., `/v1.0.0/posts`, `/v2.0.0/users`)
+- **Plugin endpoints**: Built-in plugin routes (e.g., `/v1.0.0/health`, `/v1.0.0/login`, `/v1.0.0/openapi`)
+
+### Benefits
+
+✅ **Consistent across environments** - Same URL structure in dev, staging, and production (all use proper semantic versions)
+✅ **Easy API evolution** - Support multiple API versions simultaneously
+✅ **Clear versioning** - Version is always visible in the URL
+✅ **Zero configuration** - Defaults to v1.0.0, or use build-time version injection
+✅ **No weird prefixes** - Always uses proper semantic versioning (v1.0.0, v2.1.3, etc.)
+
+### Multiple API Versions
+
+To support multiple API versions simultaneously, deploy separate instances with different version builds:
+
+```bash
+# Build v1.0.0
+go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v1.0.0" -o api-v1
+
+# Build v2.0.0 with breaking changes
+go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v2.0.0" -o api-v2
+
+# Run both on different ports
+PORT=8001 ./api-v1 &  # Serves /v1.0.0/*
+PORT=8002 ./api-v2 &  # Serves /v2.0.0/*
+```
+
+Use a reverse proxy to route by version prefix:
+
+```nginx
+# Route v1 requests
+location /v1.0.0/ {
+    proxy_pass http://localhost:8001/v1.0.0/;
+}
+
+# Route v2 requests
+location /v2.0.0/ {
+    proxy_pass http://localhost:8002/v2.0.0/;
+}
+
+# Default to latest version
+location / {
+    proxy_pass http://localhost:8002/v2.0.0/;
+}
+```
+
+### Breaking Changes Note
+
+⚠️ **API Version Change (v0.1.12+)**: The `RegisterRoutes` callback signature has changed from accepting `*fiber.App` to `fiber.Router`. Update your code:
+
+```diff
+-func registerRoutes(app *fiber.App, db database.Database, ...) {
++func registerRoutes(router fiber.Router, db database.Database, ...) {
+-    app.Get("/posts", handler)
++    router.Get("/posts", handler)
+}
+```
+
+This change enables automatic API versioning. Since `*fiber.App` implements `fiber.Router`, the change is minimal and only affects the type signature.
+
+**Important**: All routes are now prefixed with a version:
+- Development builds (no version set): `/v1.0.0/your-route` (default fallback)
+- Production builds: `/v2.3.1/your-route` (uses your git tag version)
 
 ---
 

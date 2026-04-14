@@ -104,6 +104,7 @@ func SendError(c *fiber.Ctx, statusCode int, message string) error {
 	})
 }
 
+// TODO refactor to more flexible Send method with status code
 func SendSuccess(c *fiber.Ctx, data interface{}) error {
 	c.Set("X-Powered-By", "GoREST/"+version)
 	return c.Status(fiber.StatusOK).JSON(data)
