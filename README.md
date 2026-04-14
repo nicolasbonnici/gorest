@@ -588,10 +588,6 @@ readinessProbe:
 
 GoREST automatically versions your API routes based on your git tags with zero configuration required. All routes are prefixed with the version for consistency across development, staging, and production environments.
 
-> **⚠️ Upgrading from pre-v0.1.12?** All routes now include a version prefix. Update your API clients:
-> - Old: `http://localhost:8000/posts`
-> - New: `http://localhost:8000/v1.0.0/posts`
-
 ### How It Works
 
 All routes are automatically prefixed with the version for consistency across all environments:
@@ -681,24 +677,6 @@ location / {
     proxy_pass http://localhost:8002/v2.0.0/;
 }
 ```
-
-### Breaking Changes Note
-
-⚠️ **API Version Change (v0.1.12+)**: The `RegisterRoutes` callback signature has changed from accepting `*fiber.App` to `fiber.Router`. Update your code:
-
-```diff
--func registerRoutes(app *fiber.App, db database.Database, ...) {
-+func registerRoutes(router fiber.Router, db database.Database, ...) {
--    app.Get("/posts", handler)
-+    router.Get("/posts", handler)
-}
-```
-
-This change enables automatic API versioning. Since `*fiber.App` implements `fiber.Router`, the change is minimal and only affects the type signature.
-
-**Important**: All routes are now prefixed with a version:
-- Development builds (no version set): `/v1.0.0/your-route` (default fallback)
-- Production builds: `/v2.3.1/your-route` (uses your git tag version)
 
 ---
 
