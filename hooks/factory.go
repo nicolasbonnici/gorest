@@ -1,6 +1,11 @@
 package hooks
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+
+	"github.com/nicolasbonnici/gorest/rbac"
+)
 
 type HookFactory struct {
 	registry map[string]interface{}
@@ -21,7 +26,7 @@ func (f *HookFactory) GetHooks(resourceName string) (interface{}, bool) {
 func GetHooksTyped[T any](f *HookFactory, resourceName string) (Hooks[T], error) {
 	hooksInterface, exists := f.GetHooks(resourceName)
 	if !exists {
-		return NoOpHooks[T]{}, nil
+		return NewNoOpHooks[T](), nil
 	}
 	hooks, ok := hooksInterface.(Hooks[T])
 	if !ok {
@@ -60,4 +65,30 @@ func RegisterGlobal(resourceName string, hooks interface{}) {
 }
 func GetGlobal(resourceName string) (interface{}, bool) {
 	return GlobalFactory().GetHooks(resourceName)
+}
+
+// Global RBAC configuration
+var (
+	globalRBACConfig   rbac.Config
+	globalRBACConfigMu sync.RWMutex
+	rbacConfigSet      bool
+)
+
+// SetGlobalRBACConfig sets the global RBAC configuration for all hooks
+func SetGlobalRBACConfig(config rbac.Config) {
+	globalRBACConfigMu.Lock()
+	defer globalRBACConfigMu.Unlock()
+	globalRBACConfig = config
+	rbacConfigSet = true
+}
+
+// GetGlobalRBACConfig returns the global RBAC configuration
+// If not set, returns default configuration
+func GetGlobalRBACConfig() rbac.Config {
+	globalRBACConfigMu.RLock()
+	defer globalRBACConfigMu.RUnlock()
+	if !rbacConfigSet {
+		return rbac.DefaultConfig()
+	}
+	return globalRBACConfig
 }

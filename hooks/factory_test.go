@@ -175,7 +175,7 @@ func TestGetHooksTyped(t *testing.T) {
 				}
 
 				if tt.expectNoOpHooks {
-					if _, ok := hooks.(NoOpHooks[testModel]); !ok {
+					if _, ok := hooks.(*NoOpHooks[testModel]); !ok {
 						t.Error("Expected NoOpHooks to be returned for non-existent resource")
 					}
 				}
