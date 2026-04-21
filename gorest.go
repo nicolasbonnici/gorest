@@ -117,20 +117,30 @@ func Start(cfg Config) {
 
 	pluginloader.ApplyGlobalMiddleware(pluginRegistry, app)
 
-	apiVersion := Version
-	if apiVersion == "" || apiVersion == "dev" {
-		apiVersion = "v1.0.0"
+	// Determine the router to use for plugin endpoints
+	var router fiber.Router
+	if appConfig.API.Versioning.Enabled {
+		apiVersion := appConfig.API.Versioning.Version
+		if apiVersion == "" {
+			apiVersion = Version
+			if apiVersion == "" || apiVersion == "dev" {
+				apiVersion = "v1"
+			}
+		}
+		router = app.Group("/" + apiVersion)
+		logger.Log.Info("API versioning enabled", "version", apiVersion, "prefix", "/"+apiVersion)
+	} else {
+		router = app
+		logger.Log.Info("API versioning disabled", "routes_at_root", true)
 	}
-	versionedRouter := app.Group("/" + apiVersion)
-	logger.Log.Info("API versioning enabled", "version", apiVersion, "prefix", "/"+apiVersion)
 
-	if err := pluginloader.SetupPluginEndpoints(pluginRegistry, versionedRouter); err != nil {
+	if err := pluginloader.SetupPluginEndpoints(pluginRegistry, router); err != nil {
 		logger.Log.Error("Failed to setup plugin endpoints", "error", err)
 		os.Exit(1)
 	}
 
 	if cfg.RegisterRoutes != nil {
-		cfg.RegisterRoutes(versionedRouter, db, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
+		cfg.RegisterRoutes(router, db, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
 	} else {
 		logger.Log.Warn("No routes registered. Set Config.RegisterRoutes to register your API endpoints.")
 	}

@@ -7,6 +7,7 @@ import (
 
 type Config struct {
 	Codegen    CodegenConfig    `yaml:"codegen"`
+	API        APIConfig        `yaml:"api"`
 	Server     ServerConfig     `yaml:"server"`
 	Database   DatabaseConfig   `yaml:"database"`
 	Pagination PaginationConfig `yaml:"pagination"`
@@ -48,6 +49,15 @@ type EndpointAuthConfig struct {
 	PUT    *bool  `yaml:"PUT,omitempty"`
 	DELETE *bool  `yaml:"DELETE,omitempty"`
 	PATCH  *bool  `yaml:"PATCH,omitempty"`
+}
+
+type APIConfig struct {
+	Versioning VersioningConfig `yaml:"versioning"`
+}
+
+type VersioningConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Version string `yaml:"version"`
 }
 
 type ServerConfig struct {
@@ -268,6 +278,12 @@ func (c *Config) SetDefaults() {
 	if c.Codegen.Output.Config == "" {
 		c.Codegen.Output.Config = "generated/config"
 	}
+
+	// API defaults
+	if c.API.Versioning.Version == "" {
+		c.API.Versioning.Version = "v1"
+	}
+	// Versioning.Enabled defaults to true unless explicitly set to false
 
 	// RBAC defaults
 	if c.RBAC.DefaultPolicy == "" {
