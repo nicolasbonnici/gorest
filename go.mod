@@ -10,7 +10,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
-	github.com/nicolasbonnici/gorest-auth v0.1.18
+	github.com/nicolasbonnici/gorest-auth v0.1.20
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.49.1
 )
