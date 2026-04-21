@@ -7,10 +7,12 @@ import (
 
 type Config struct {
 	Codegen    CodegenConfig    `yaml:"codegen"`
+	API        APIConfig        `yaml:"api"`
 	Server     ServerConfig     `yaml:"server"`
 	Database   DatabaseConfig   `yaml:"database"`
 	Pagination PaginationConfig `yaml:"pagination"`
 	Plugins    PluginsConfig    `yaml:"plugins"`
+	RBAC       RBACConfig       `yaml:"rbac"`
 }
 
 type PluginsConfig []PluginConfig
@@ -49,6 +51,15 @@ type EndpointAuthConfig struct {
 	PATCH  *bool  `yaml:"PATCH,omitempty"`
 }
 
+type APIConfig struct {
+	Versioning VersioningConfig `yaml:"versioning"`
+}
+
+type VersioningConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Version string `yaml:"version"`
+}
+
 type ServerConfig struct {
 	Scheme             string `yaml:"scheme"`
 	Host               string `yaml:"host"`
@@ -69,6 +80,16 @@ type DatabaseConfig struct {
 type PaginationConfig struct {
 	DefaultLimit int `yaml:"default_limit"`
 	MaxLimit     int `yaml:"max_limit"`
+}
+
+type RBACConfig struct {
+	DefaultPolicy      string              `yaml:"default_policy"`
+	SuperuserRole      string              `yaml:"superuser_role"`
+	RoleHierarchy      map[string][]string `yaml:"role_hierarchy"`
+	DefaultFieldPolicy string              `yaml:"default_field_policy"`
+	StrictValidation   bool                `yaml:"strict_validation"`
+	CacheEnabled       bool                `yaml:"cache_enabled"`
+	CacheTTL           int                 `yaml:"cache_ttl"`
 }
 
 func (c *Config) Validate() error {
@@ -154,6 +175,59 @@ func (c *Config) Validate() error {
 		// and are validated by the YAML unmarshaler as booleans
 	}
 
+	// Validate RBAC configuration
+	if c.RBAC.DefaultPolicy != "" && c.RBAC.DefaultPolicy != "deny_all" && c.RBAC.DefaultPolicy != "allow_all" {
+		return fmt.Errorf("rbac.default_policy must be 'deny_all' or 'allow_all'")
+	}
+
+	if c.RBAC.DefaultFieldPolicy != "" && c.RBAC.DefaultFieldPolicy != "deny" && c.RBAC.DefaultFieldPolicy != "allow" {
+		return fmt.Errorf("rbac.default_field_policy must be 'deny' or 'allow'")
+	}
+
+	if c.RBAC.CacheEnabled && c.RBAC.CacheTTL <= 0 {
+		return fmt.Errorf("rbac.cache_ttl must be greater than 0 when cache is enabled")
+	}
+
+	// Validate role hierarchy for cycles
+	if err := validateRoleHierarchy(c.RBAC.RoleHierarchy); err != nil {
+		return fmt.Errorf("rbac.role_hierarchy: %w", err)
+	}
+
+	return nil
+}
+
+// validateRoleHierarchy checks for circular dependencies in role hierarchy
+func validateRoleHierarchy(hierarchy map[string][]string) error {
+	visited := make(map[string]bool)
+	recursionStack := make(map[string]bool)
+
+	var hasCycle func(role string) bool
+	hasCycle = func(role string) bool {
+		visited[role] = true
+		recursionStack[role] = true
+
+		for _, child := range hierarchy[role] {
+			if !visited[child] {
+				if hasCycle(child) {
+					return true
+				}
+			} else if recursionStack[child] {
+				return true
+			}
+		}
+
+		recursionStack[role] = false
+		return false
+	}
+
+	for role := range hierarchy {
+		if !visited[role] {
+			if hasCycle(role) {
+				return fmt.Errorf("circular dependency detected involving role '%s'", role)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -204,4 +278,29 @@ func (c *Config) SetDefaults() {
 	if c.Codegen.Output.Config == "" {
 		c.Codegen.Output.Config = "generated/config"
 	}
+
+	// API defaults
+	if c.API.Versioning.Version == "" {
+		c.API.Versioning.Version = "v1"
+	}
+	// Versioning.Enabled defaults to true unless explicitly set to false
+
+	// RBAC defaults
+	if c.RBAC.DefaultPolicy == "" {
+		c.RBAC.DefaultPolicy = "deny_all"
+	}
+	if c.RBAC.SuperuserRole == "" {
+		c.RBAC.SuperuserRole = "admin"
+	}
+	if c.RBAC.RoleHierarchy == nil {
+		c.RBAC.RoleHierarchy = make(map[string][]string)
+	}
+	if c.RBAC.DefaultFieldPolicy == "" {
+		c.RBAC.DefaultFieldPolicy = "deny"
+	}
+	if c.RBAC.CacheTTL == 0 {
+		c.RBAC.CacheTTL = 300 // 5 minutes
+	}
+	// CacheEnabled defaults to false unless explicitly set
+	// StrictValidation defaults to false unless explicitly set
 }

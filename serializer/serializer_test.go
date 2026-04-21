@@ -329,17 +329,17 @@ func TestParseExpand(t *testing.T) {
 }
 
 type User struct {
-	ID   string `json:"id" db:"id"`
-	Name string `json:"name" db:"name"`
+	ID   string `json:"id" db:"id" rbac:"read:*;write:*"`
+	Name string `json:"name" db:"name" rbac:"read:*;write:*"`
 }
 
 func (User) TableName() string { return "users" }
 
 type Post struct {
-	ID      string  `json:"id" db:"id"`
-	UserID  *string `json:"userId" db:"user_id"`
-	Title   string  `json:"title" db:"title"`
-	Content string  `json:"content" db:"content"`
+	ID      string  `json:"id" db:"id" rbac:"read:*;write:*"`
+	UserID  *string `json:"userId" db:"user_id" rbac:"read:*;write:*"`
+	Title   string  `json:"title" db:"title" rbac:"read:*;write:*"`
+	Content string  `json:"content" db:"content" rbac:"read:*;write:*"`
 }
 
 func (Post) TableName() string { return "posts" }
