@@ -57,7 +57,7 @@ func IsInvalidIDError(err error) bool {
 func New[T Model](db database.Database) *CRUD[T] {
 	return &CRUD[T]{
 		DB:    db,
-		Hooks: hooks.NoOpHooks[T]{},
+		Hooks: hooks.NewNoOpHooks[T](),
 	}
 }
 
@@ -69,6 +69,17 @@ func NewWithHooks[T Model](db database.Database, h hooks.Hooks[T]) *CRUD[T] {
 }
 
 func (c *CRUD[T]) Create(ctx context.Context, m T) error {
+	// Layer 5: Authorization - Validate field-level write permissions
+	if err := c.Hooks.ValidateWrite(ctx, &m); err != nil {
+		return fmt.Errorf("authorization failed: %w", err)
+	}
+
+	// Layer 5: Authorization - Check resource-level create permission
+	if err := c.Hooks.CheckCreate(ctx, &m); err != nil {
+		return fmt.Errorf("authorization failed: %w", err)
+	}
+
+	// Layer 1: StateProcessor - Validation/enrichment
 	if err := c.Hooks.StateProcessor(ctx, hooks.OperationCreate, nil, &m); err != nil {
 		return err
 	}
@@ -271,6 +282,18 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 		if err := rows.Scan(fields...); err != nil {
 			return nil, err
 		}
+
+		// Layer 5: Authorization - Check resource-level read permission
+		if err := c.Hooks.CheckRead(ctx, &item); err != nil {
+			// Skip unauthorized items (404 behavior - don't disclose existence)
+			continue
+		}
+
+		// Layer 5: Authorization - Filter forbidden fields
+		if err := c.Hooks.FilterRead(ctx, &item); err != nil {
+			return nil, fmt.Errorf("authorization failed: %w", err)
+		}
+
 		results = append(results, item)
 	}
 
@@ -378,6 +401,18 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 		if err := rows.Scan(fields...); err != nil {
 			return nil, err
 		}
+
+		// Layer 5: Authorization - Check resource-level read permission
+		if err := c.Hooks.CheckRead(ctx, &item); err != nil {
+			// Skip unauthorized items (404 behavior - don't disclose existence)
+			continue
+		}
+
+		// Layer 5: Authorization - Filter forbidden fields
+		if err := c.Hooks.FilterRead(ctx, &item); err != nil {
+			return nil, fmt.Errorf("authorization failed: %w", err)
+		}
+
 		results = append(results, item)
 	}
 
@@ -449,6 +484,17 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 		return nil, execErr
 	}
 
+	// Layer 5: Authorization - Check resource-level read permission
+	if err := c.Hooks.CheckRead(ctx, &item); err != nil {
+		// Return 404 for unauthorized reads (don't disclose existence)
+		return nil, sql.ErrNoRows
+	}
+
+	// Layer 5: Authorization - Filter forbidden fields
+	if err := c.Hooks.FilterRead(ctx, &item); err != nil {
+		return nil, fmt.Errorf("authorization failed: %w", err)
+	}
+
 	if err := c.Hooks.SerializeOne(ctx, hooks.OperationGetByID, &item); err != nil {
 		return nil, err
 	}
@@ -507,6 +553,17 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 			return nil, err
 		}
 
+		// Layer 5: Authorization - Check resource-level read permission
+		if err := c.Hooks.CheckRead(ctx, &item); err != nil {
+			// Skip unauthorized items (404 behavior - don't disclose existence)
+			continue
+		}
+
+		// Layer 5: Authorization - Filter forbidden fields
+		if err := c.Hooks.FilterRead(ctx, &item); err != nil {
+			return nil, fmt.Errorf("authorization failed: %w", err)
+		}
+
 		items = append(items, item)
 	}
 
@@ -514,6 +571,17 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 }
 
 func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
+	// Layer 5: Authorization - Validate field-level write permissions
+	if err := c.Hooks.ValidateWrite(ctx, &m); err != nil {
+		return fmt.Errorf("authorization failed: %w", err)
+	}
+
+	// Layer 5: Authorization - Check resource-level update permission
+	if err := c.Hooks.CheckUpdate(ctx, id, &m); err != nil {
+		return fmt.Errorf("authorization failed: %w", err)
+	}
+
+	// Layer 1: StateProcessor - Validation/enrichment
 	if err := c.Hooks.StateProcessor(ctx, hooks.OperationUpdate, id, &m); err != nil {
 		return err
 	}
@@ -569,6 +637,12 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 func (c *CRUD[T]) Delete(ctx context.Context, id any) error {
 	var zero T
 
+	// Layer 5: Authorization - Check resource-level delete permission
+	if err := c.Hooks.CheckDelete(ctx, id); err != nil {
+		return fmt.Errorf("authorization failed: %w", err)
+	}
+
+	// Layer 1: StateProcessor - Validation/enrichment
 	if err := c.Hooks.StateProcessor(ctx, hooks.OperationDelete, id, nil); err != nil {
 		return err
 	}

@@ -355,9 +355,10 @@ func TestNoOpHooks_DifferentTypes(t *testing.T) {
 
 // Test that NoOpHooks implements the Hooks interface
 func TestNoOpHooks_ImplementsHooksInterface(t *testing.T) {
-	var _ Hooks[testModel] = NoOpHooks[testModel]{}
-	var _ StateProcessor[testModel] = NoOpHooks[testModel]{}
-	var _ SQLQueryListener[testModel] = NoOpHooks[testModel]{}
-	var _ SQLQueryBuilderModifier[testModel] = NoOpHooks[testModel]{}
-	var _ Serializer[testModel] = NoOpHooks[testModel]{}
+	var _ Hooks[testModel] = NewNoOpHooks[testModel]()
+	var _ StateProcessor[testModel] = NewNoOpHooks[testModel]()
+	var _ SQLQueryListener[testModel] = NewNoOpHooks[testModel]()
+	var _ SQLQueryBuilderModifier[testModel] = NewNoOpHooks[testModel]()
+	var _ Serializer[testModel] = NewNoOpHooks[testModel]()
+	var _ Authorization[testModel] = NewNoOpHooks[testModel]()
 }

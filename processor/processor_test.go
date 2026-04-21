@@ -21,11 +21,11 @@ import (
 
 // Test model
 type TestModel struct {
-	ID        string    `json:"id" db:"id"`
-	Name      string    `json:"name" db:"name"`
-	Email     string    `json:"email" db:"email"`
-	UserID    *string   `json:"user_id,omitempty" db:"user_id"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID        string    `json:"id" db:"id" rbac:"read:*;write:*"`
+	Name      string    `json:"name" db:"name" rbac:"read:*;write:*"`
+	Email     string    `json:"email" db:"email" rbac:"read:*;write:*"`
+	UserID    *string   `json:"user_id,omitempty" db:"user_id" rbac:"read:*;write:*"`
+	CreatedAt time.Time `json:"created_at" db:"created_at" rbac:"read:*;write:none"`
 }
 
 func (TestModel) TableName() string { return "test_models" }
@@ -600,7 +600,7 @@ func TestWithHooksLayer(t *testing.T) {
 	defer db.Close()
 
 	// Use CRUD with hooks
-	testCRUD := crud.NewWithHooks[TestModel](db, hooks.NoOpHooks[TestModel]{})
+	testCRUD := crud.NewWithHooks[TestModel](db, hooks.NewNoOpHooks[TestModel]())
 
 	proc := New(ProcessorConfig[TestModel, TestCreateDTO, TestUpdateDTO, TestResponseDTO]{
 		DB:   db,

@@ -11,11 +11,11 @@ import (
 )
 
 type testModel struct {
-	ID        int64  `db:"id"`
-	Name      string `db:"name"`
-	Email     string `db:"email"`
-	CreatedAt string `db:"created_at"`
-	UpdatedAt string `db:"updated_at"`
+	ID        int64  `db:"id" rbac:"read:*;write:*"`
+	Name      string `db:"name" rbac:"read:*;write:*"`
+	Email     string `db:"email" rbac:"read:*;write:*"`
+	CreatedAt string `db:"created_at" rbac:"read:*;write:none"`
+	UpdatedAt string `db:"updated_at" rbac:"read:*;write:none"`
 }
 
 func (m testModel) TableName() string {
@@ -192,12 +192,18 @@ func (m *mockDatabase) Introspector() database.SchemaIntrospector {
 }
 
 type mockHooks struct {
-	hooks.NoOpHooks[testModel]
+	*hooks.NoOpHooks[testModel]
 	stateProcessorFunc func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error
 	beforeQueryFunc    func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error)
 	afterQueryFunc     func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error
 	serializeOneFunc   func(ctx context.Context, operation hooks.Operation, model *testModel) error
 	serializeManyFunc  func(ctx context.Context, operation hooks.Operation, models *[]testModel) error
+}
+
+func newMockHooks() *mockHooks {
+	return &mockHooks{
+		NoOpHooks: hooks.NewNoOpHooks[testModel](),
+	}
 }
 
 func (m *mockHooks) StateProcessor(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
@@ -259,7 +265,7 @@ func TestNewWithHooks(t *testing.T) {
 	db := &mockDatabase{
 		dialect: &mockDialect{name: "postgres", supportsReturning: true},
 	}
-	customHooks := &mockHooks{}
+	customHooks := newMockHooks()
 
 	crud := NewWithHooks[testModel](db, customHooks)
 
@@ -414,23 +420,22 @@ func TestCreate_WithHooks(t *testing.T) {
 	afterQueryCalled := false
 	serializeOneCalled := false
 
-	customHooks := &mockHooks{
-		stateProcessorFunc: func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
-			stateProcessorCalled = true
-			return nil
-		},
-		beforeQueryFunc: func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error) {
-			beforeQueryCalled = true
-			return query, args, nil
-		},
-		afterQueryFunc: func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error {
-			afterQueryCalled = true
-			return nil
-		},
-		serializeOneFunc: func(ctx context.Context, operation hooks.Operation, model *testModel) error {
-			serializeOneCalled = true
-			return nil
-		},
+	customHooks := newMockHooks()
+	customHooks.stateProcessorFunc = func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
+		stateProcessorCalled = true
+		return nil
+	}
+	customHooks.beforeQueryFunc = func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error) {
+		beforeQueryCalled = true
+		return query, args, nil
+	}
+	customHooks.afterQueryFunc = func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error {
+		afterQueryCalled = true
+		return nil
+	}
+	customHooks.serializeOneFunc = func(ctx context.Context, operation hooks.Operation, model *testModel) error {
+		serializeOneCalled = true
+		return nil
 	}
 
 	crud := NewWithHooks[testModel](db, customHooks)
@@ -827,23 +832,22 @@ func TestUpdate_WithHooks(t *testing.T) {
 	afterQueryCalled := false
 	serializeOneCalled := false
 
-	customHooks := &mockHooks{
-		stateProcessorFunc: func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
-			stateProcessorCalled = true
-			return nil
-		},
-		beforeQueryFunc: func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error) {
-			beforeQueryCalled = true
-			return query, args, nil
-		},
-		afterQueryFunc: func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error {
-			afterQueryCalled = true
-			return nil
-		},
-		serializeOneFunc: func(ctx context.Context, operation hooks.Operation, model *testModel) error {
-			serializeOneCalled = true
-			return nil
-		},
+	customHooks := newMockHooks()
+	customHooks.stateProcessorFunc = func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
+		stateProcessorCalled = true
+		return nil
+	}
+	customHooks.beforeQueryFunc = func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error) {
+		beforeQueryCalled = true
+		return query, args, nil
+	}
+	customHooks.afterQueryFunc = func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error {
+		afterQueryCalled = true
+		return nil
+	}
+	customHooks.serializeOneFunc = func(ctx context.Context, operation hooks.Operation, model *testModel) error {
+		serializeOneCalled = true
+		return nil
 	}
 
 	crud := NewWithHooks[testModel](db, customHooks)
@@ -913,19 +917,18 @@ func TestDelete_WithHooks(t *testing.T) {
 	beforeQueryCalled := false
 	afterQueryCalled := false
 
-	customHooks := &mockHooks{
-		stateProcessorFunc: func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
-			stateProcessorCalled = true
-			return nil
-		},
-		beforeQueryFunc: func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error) {
-			beforeQueryCalled = true
-			return query, args, nil
-		},
-		afterQueryFunc: func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error {
-			afterQueryCalled = true
-			return nil
-		},
+	customHooks := newMockHooks()
+	customHooks.stateProcessorFunc = func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
+		stateProcessorCalled = true
+		return nil
+	}
+	customHooks.beforeQueryFunc = func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error) {
+		beforeQueryCalled = true
+		return query, args, nil
+	}
+	customHooks.afterQueryFunc = func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error {
+		afterQueryCalled = true
+		return nil
 	}
 
 	crud := NewWithHooks[testModel](db, customHooks)
@@ -951,10 +954,9 @@ func TestCreate_HooksStateProcessorError(t *testing.T) {
 		dialect: &mockDialect{name: "postgres", supportsReturning: true},
 	}
 
-	customHooks := &mockHooks{
-		stateProcessorFunc: func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
-			return errors.New("state processor failed")
-		},
+	customHooks := newMockHooks()
+	customHooks.stateProcessorFunc = func(ctx context.Context, operation hooks.Operation, id any, model *testModel) error {
+		return errors.New("state processor failed")
 	}
 
 	crud := NewWithHooks[testModel](db, customHooks)
@@ -976,10 +978,9 @@ func TestCreate_HooksBeforeQueryError(t *testing.T) {
 		dialect: &mockDialect{name: "postgres", supportsReturning: true},
 	}
 
-	customHooks := &mockHooks{
-		beforeQueryFunc: func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error) {
-			return "", nil, errors.New("before query failed")
-		},
+	customHooks := newMockHooks()
+	customHooks.beforeQueryFunc = func(ctx context.Context, operation hooks.Operation, query string, args []any) (string, []any, error) {
+		return "", nil, errors.New("before query failed")
 	}
 
 	crud := NewWithHooks[testModel](db, customHooks)
@@ -1009,10 +1010,9 @@ func TestCreate_HooksAfterQueryError(t *testing.T) {
 		},
 	}
 
-	customHooks := &mockHooks{
-		afterQueryFunc: func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error {
-			return errors.New("after query failed")
-		},
+	customHooks := newMockHooks()
+	customHooks.afterQueryFunc = func(ctx context.Context, operation hooks.Operation, query string, args []any, result any, err error) error {
+		return errors.New("after query failed")
 	}
 
 	crud := NewWithHooks[testModel](db, customHooks)
@@ -1042,10 +1042,9 @@ func TestCreate_HooksSerializeOneError(t *testing.T) {
 		},
 	}
 
-	customHooks := &mockHooks{
-		serializeOneFunc: func(ctx context.Context, operation hooks.Operation, model *testModel) error {
-			return errors.New("serialize failed")
-		},
+	customHooks := newMockHooks()
+	customHooks.serializeOneFunc = func(ctx context.Context, operation hooks.Operation, model *testModel) error {
+		return errors.New("serialize failed")
 	}
 
 	crud := NewWithHooks[testModel](db, customHooks)

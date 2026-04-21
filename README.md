@@ -14,9 +14,9 @@
 - ⚡ Type-safe generic CRUD operations with hooks system
 - 🚀 **Processor pattern** eliminating handler boilerplate with one-liner endpoints
 - 🔧 Fluent SQL query builder with database abstraction
-- 🏷️ **Automatic API versioning** from git tags with zero configuration
-- 🔐 Role based access control and audit log ([gorest-rbac](https://github.com/nicolasbonnici/gorest-rbac))
 - 🔑 Authentication with context-aware plugins ([gorest-auth](https://github.com/nicolasbonnici/gorest-auth))
+- 🔐 RBAC Role based access control layer 
+- 🧐 Audit log
 - ✅ Security best practices, rate limiting, CORS, response compression and many more configurable core middleware
 - 🎭 Hook layer to add your business logic and override any API layer
 - 🧩 Modular plugin system that can add features, override some or all existing endpoints or even CLI commands
@@ -27,10 +27,11 @@
 - 📄 Page based pagination with Hydra collections
 - 👨🏻‍💻 DAL, migrations and fixtures with PostgreSQL, MySQL and SQLite engines support
 - 🛡️ Production grade errors and processes management
+- 🏷️ **Automatic API versioning** from git tags with zero configuration
+- 📜 OpenAPI 3 spec generation ([gorest-openapi](https://github.com/nicolasbonnici/gorest-openapi))
+- 💚 Status endpoint for health check ([gorest-status](https://github.com/nicolasbonnici/gorest-status))
 - 🐳 Docker and Kubernetes support
 - 🧪 Full test coverage with automated testing
-- 💚 Status endpoint for health check ([gorest-status](https://github.com/nicolasbonnici/gorest-status))
-- 📜 OpenAPI 3 spec generation ([gorest-openapi](https://github.com/nicolasbonnici/gorest-openapi))
 
 ---
 
