@@ -58,6 +58,8 @@ github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOF
 github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/nicolasbonnici/gorest-auth v0.1.20 h1:Td3TNO1gACFPGXb5GNnipQf/1dbOjB6W7/jDCLmNtBI=
 github.com/nicolasbonnici/gorest-auth v0.1.20/go.mod h1:QSHH8Mxg0aNq5cZABL9Gh4gUxYuQ5WMaI1i5wGSYd8k=
+github.com/nicolasbonnici/gorest-auth v0.1.21 h1:6eRQVJrBl1fuA8k/LkLxgqQ00TZs/IsR09tMqFTHZ1Q=
+github.com/nicolasbonnici/gorest-auth v0.1.21/go.mod h1:+/O7Psfitm9bY96fuWCIY5SKu018jrQTAFK5bRVqOog=
 github.com/philhofer/fwd v1.2.0 h1:e6DnBTl7vGY+Gz322/ASL4Gyp1FspeMvx1RNDoToZuM=
 github.com/philhofer/fwd v1.2.0/go.mod h1:RqIHx9QI14HlwKwm98g9Re5prTQ6LdeRQn+gXJFxsJM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
