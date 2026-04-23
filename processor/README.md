@@ -249,8 +249,15 @@ todoProcessor := processor.New(config).
 3. Convert DTO to Model
 4. Apply ContextEnrichers (user_id, tenant_id)
 5. Run custom CreateHook (if provided)
-6. Call CRUD.Create() - all hook layers execute (StateProcessor, BeforeQuery, AfterQuery, Serializer)
-7. Fetch created entity with GetByID
+6. Call CRUD.Create() - all hook layers execute:
+   - **Authorization.ValidateWrite()** - Check field-level write permissions
+   - **Authorization.CheckCreate()** - Check resource-level create permission
+   - **StateProcessor** - Validation, enrichment, business logic
+   - **SQLQueryBuilderModifier** - Query modification (if applicable)
+   - **SQLQueryListener.BeforeQuery()** - Pre-execution observation
+   - Database INSERT execution
+   - **SQLQueryListener.AfterQuery()** - Post-execution observation
+7. Fetch created entity with GetByID (includes CheckRead, FilterRead)
 8. Convert to ResponseDTO
 9. Send 201 Created with response.SendFormatted()
 
@@ -258,7 +265,14 @@ todoProcessor := processor.New(config).
 
 1. Extract ID from path params
 2. Run custom GetByIDHook (if provided)
-3. Call CRUD.GetByID() - hooks execute (ModifySelectQuery, BeforeQuery, AfterQuery, SerializeOne)
+3. Call CRUD.GetByID() - all hook layers execute:
+   - **SQLQueryBuilderModifier.ModifySelectQuery()** - Add WHERE, JOIN conditions
+   - **SQLQueryListener.BeforeQuery()** - Pre-execution observation
+   - Database SELECT execution
+   - **SQLQueryListener.AfterQuery()** - Post-execution observation
+   - **Authorization.CheckRead()** - Check resource-level read permission (returns 404 if denied)
+   - **Authorization.FilterRead()** - Remove fields user cannot read
+   - **Serializer.SerializeOne()** - Response transformation
 4. Convert to ResponseDTO
 5. Send 200 OK with response.SendFormatted()
 
@@ -268,7 +282,15 @@ todoProcessor := processor.New(config).
 2. Parse filters using filter.FilterSet (supports eq, ne, gt, gte, lt, lte, like, in, nin)
 3. Parse ordering using filter.OrderSet
 4. Run custom GetAllHook (if provided)
-5. Call CRUD.GetAllPaginated() - hooks execute
+5. Call CRUD.GetAllPaginated() - all hook layers execute:
+   - **SQLQueryBuilderModifier.ModifySelectQuery()** - Add WHERE, JOIN conditions (multi-tenancy, etc.)
+   - **SQLQueryListener.BeforeQuery()** - Pre-execution observation
+   - Database SELECT execution with pagination
+   - **SQLQueryListener.AfterQuery()** - Post-execution observation
+   - For each item:
+     - **Authorization.CheckRead()** - Check read permission (item removed from results if denied)
+     - **Authorization.FilterRead()** - Remove forbidden fields
+   - **Serializer.SerializeMany()** - Response transformation
 6. Convert models to ResponseDTOs
 7. Send paginated response using pagination.SendHydraCollection()
 
@@ -280,7 +302,14 @@ todoProcessor := processor.New(config).
 4. Convert DTO to Model
 5. Apply ContextEnrichers
 6. Run custom UpdateHook (if provided)
-7. Call CRUD.Update() - all hook layers execute
+7. Call CRUD.Update() - all hook layers execute:
+   - **Authorization.ValidateWrite()** - Check field-level write permissions
+   - **Authorization.CheckUpdate()** - Check resource-level update permission
+   - **StateProcessor** - Validation, enrichment, business logic
+   - **SQLQueryBuilderModifier.ModifyUpdateQuery()** - Query modification (tenant isolation, etc.)
+   - **SQLQueryListener.BeforeQuery()** - Pre-execution observation
+   - Database UPDATE execution
+   - **SQLQueryListener.AfterQuery()** - Post-execution observation
 8. Convert to ResponseDTO
 9. Send 200 OK with response.SendFormatted()
 
@@ -288,14 +317,20 @@ todoProcessor := processor.New(config).
 
 1. Extract ID from path params
 2. Run custom DeleteHook (if provided)
-3. Call CRUD.Delete() - hooks execute (StateProcessor, ModifyDeleteQuery, BeforeQuery, AfterQuery)
+3. Call CRUD.Delete() - all hook layers execute:
+   - **Authorization.CheckDelete()** - Check resource-level delete permission
+   - **StateProcessor** - Validation, business logic (soft delete implementation)
+   - **SQLQueryBuilderModifier.ModifyDeleteQuery()** - Query modification (soft delete, cascades)
+   - **SQLQueryListener.BeforeQuery()** - Pre-execution observation
+   - Database DELETE execution
+   - **SQLQueryListener.AfterQuery()** - Post-execution observation
 4. Send 204 No Content
 
 ## Integration with Existing Layers
 
 ### CRUD Layer
 - Processor calls CRUD.Create(), CRUD.GetByID(), etc.
-- All hook layers execute as before (StateProcessor, ModifyQuery, BeforeQuery, AfterQuery, Serializer)
+- All hook layers execute as before (Authorization, StateProcessor, ModifyQuery, BeforeQuery, AfterQuery, Serializer)
 - No changes needed to crud/ package
 
 ### Response Layer
@@ -310,12 +345,27 @@ todoProcessor := processor.New(config).
 - Converts to crud.PaginationOptions
 
 ### Hooks Layer
-- All 4 hook layers execute during CRUD operations
+- All **5 hook layers** execute during CRUD operations (in order):
+  1. **Authorization** (Layer 5) - RBAC checks (CheckCreate/Read/Update/Delete, ValidateWrite, FilterRead)
+  2. **StateProcessor** (Layer 1) - Validation, enrichment, business logic
+  3. **SQLQueryBuilderModifier** (Layer 3) - Query modification (WHERE, JOIN, etc.)
+  4. **SQLQueryListener** (Layer 2) - BeforeQuery/AfterQuery observation
+  5. **Serializer** (Layer 4) - Response transformation
 - Processor hooks (WithCreateHook, etc.) run BEFORE CRUD operations
+
+### Authorization Layer (RBAC)
+- **Mandatory** - All resources must implement `Authorization[T]` interface
+- Field-level permissions via `rbac:` struct tags (read/write roles)
+- Resource-level permissions via hook methods (CheckCreate/Read/Update/Delete)
+- Automatic field filtering with `FilterRead()` removes forbidden fields
+- Write validation with `ValidateWrite()` blocks unauthorized field changes
+- Voter system resolves role hierarchies and checks permissions
+- See [AUTHORIZATION.md](../AUTHORIZATION.md) and [RBAC.md](../RBAC.md) for details
 
 ### Auth Plugin
 - ContextEnrichers extract user_id from auth.GetAuthenticatedUser()
-- Custom hooks can add authorization checks
+- Roles stored in context via `rbac.WithRoles(ctx, roles)` by auth middleware
+- Authorization layer uses `rbac.GetRoles(ctx)` to check permissions
 
 ## Advanced Examples
 
@@ -333,6 +383,83 @@ todoProcessor := processor.New(config).
 		return nil
 	})
 ```
+
+### Role-Based Access Control (RBAC)
+
+Configure RBAC for your resources using the Authorization layer:
+
+```go
+import (
+	"github.com/nicolasbonnici/gorest/hooks"
+	"github.com/nicolasbonnici/gorest/rbac"
+)
+
+// Define model with rbac tags
+type Article struct {
+	ID        string    `json:"id" db:"id"`
+	Title     string    `json:"title" db:"title"`
+	Content   string    `json:"content" db:"content" rbac:"read:editor,admin write:admin"`
+	Draft     bool      `json:"draft" db:"draft" rbac:"read:author,editor,admin write:author,editor,admin"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	AuthorID  string    `json:"author_id" db:"author_id"`
+}
+
+// Custom hooks with Authorization
+type ArticleHooks struct {
+	*hooks.DefaultAuthorization[models.Article]
+	hooks.NoOpHooks[models.Article]
+}
+
+func NewArticleHooks(rbacConfig rbac.Config) *ArticleHooks {
+	return &ArticleHooks{
+		DefaultAuthorization: hooks.NewDefaultAuthorization[models.Article](rbacConfig),
+	}
+}
+
+// Override CheckRead for ownership-based access
+func (h *ArticleHooks) CheckRead(ctx context.Context, article *models.Article) error {
+	userID, _ := rbac.GetUserID(ctx)
+	roles, _ := rbac.GetRoles(ctx)
+
+	// Admins can read all
+	if h.GetVoter().IsSuperuser(roles) {
+		return nil
+	}
+
+	// Authors can read their own articles
+	if article.AuthorID == userID {
+		return nil
+	}
+
+	// Others need editor or admin role for published articles
+	if !article.Draft && rbac.HasAnyRole(roles, []string{"editor", "admin"}, h.GetVoter().GetConfig().RoleHierarchy) {
+		return nil
+	}
+
+	return rbac.ErrNotFound // 404 for security
+}
+
+// Create processor with RBAC-enabled hooks
+articleCRUD := crud.NewWithHooks(db, NewArticleHooks(rbacConfig))
+articleProcessor := processor.New(processor.ProcessorConfig[...]{
+	DB:   db,
+	CRUD: articleCRUD,
+	// ... other config
+})
+```
+
+**Field-level permissions:**
+- `Content` field: Readable by editors/admins, writable by admins only
+- `Draft` field: Readable/writable by authors, editors, admins
+- Fields without `rbac:` tags inherit from `DefaultFieldPolicy` config
+
+**Resource-level permissions:**
+- Ownership checks in `CheckRead/CheckUpdate/CheckDelete`
+- Role-based access in `CheckCreate`
+- Automatic field filtering via `FilterRead()`
+- Write validation via `ValidateWrite()`
+
+See [RBAC.md](../RBAC.md) for complete tag syntax and configuration options.
 
 ### Custom Validation
 
