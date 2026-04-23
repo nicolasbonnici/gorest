@@ -12,10 +12,10 @@
 ## ✨ Features
 
 - ⚡ Type-safe generic CRUD operations with hooks system
-- 🚀 **Processor pattern** eliminating handler boilerplate with one-liner endpoints
+- 🚀 **Unified processor module** eliminating handler boilerplate - handlers become one-liners with automatic RBAC, validation, pagination, filtering & serialization
 - 🔧 Fluent SQL query builder with database abstraction
 - 🔑 Authentication with context-aware plugins ([gorest-auth](https://github.com/nicolasbonnici/gorest-auth))
-- 🔐 RBAC Role based access control layer 
+- 🔐 RBAC Role based access control layer with field-level permissions and voter system
 - 🧐 Audit log
 - ✅ Security best practices, rate limiting, CORS, response compression and many more configurable core middleware
 - 🎭 Hook layer to add your business logic and override any API layer
