@@ -27,7 +27,7 @@
 - 📄 Page based pagination with Hydra collections
 - 👨🏻‍💻 DAL, migrations and fixtures with PostgreSQL, MySQL and SQLite engines support
 - 🛡️ Production grade errors and processes management
-- 🏷️ **Automatic API versioning** from git tags with zero configuration
+- 🏷️ API versioning
 - 📜 OpenAPI 3 spec generation ([gorest-openapi](https://github.com/nicolasbonnici/gorest-openapi))
 - 💚 Status endpoint for health check ([gorest-status](https://github.com/nicolasbonnici/gorest-status))
 - 🐳 Docker and Kubernetes support
