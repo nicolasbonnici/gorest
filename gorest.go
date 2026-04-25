@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
@@ -19,6 +20,7 @@ import (
 	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/middleware"
 	"github.com/nicolasbonnici/gorest/migrations"
+	coremigrations "github.com/nicolasbonnici/gorest/migrations/core"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/pluginloader"
 	"github.com/nicolasbonnici/gorest/response"
@@ -56,6 +58,16 @@ func Start(cfg Config) {
 		os.Exit(1)
 	}
 	defer db.Close()
+
+	// Initialize auth service if enabled
+	authService, err := auth.NewService(appConfig.Auth, db)
+	if err != nil {
+		logger.Log.Error("Failed to initialize auth service", "error", err)
+		os.Exit(1)
+	}
+	if authService != nil {
+		logger.Log.Info("Authentication service enabled")
+	}
 
 	app := fiber.New(fiber.Config{
 		BodyLimit:    4 * 1024 * 1024,
@@ -95,7 +107,7 @@ func Start(cfg Config) {
 		os.Exit(1)
 	}
 
-	if err := runPluginMigrations(context.Background(), db, pluginRegistry, appConfig.Plugins); err != nil {
+	if err := runMigrations(context.Background(), db, authService, pluginRegistry, appConfig.Plugins); err != nil {
 		if err != migrations.ErrNoPendingMigrations {
 			logger.Log.Error("Failed to run migrations", "error", err)
 			os.Exit(1)
@@ -139,6 +151,12 @@ func Start(cfg Config) {
 		os.Exit(1)
 	}
 
+	// Register auth routes if auth is enabled
+	if authService != nil {
+		authService.RegisterRoutes(router)
+		logger.Log.Info("Auth endpoints registered", "prefix", "/auth")
+	}
+
 	if cfg.RegisterRoutes != nil {
 		cfg.RegisterRoutes(router, db, appConfig.Pagination.DefaultLimit, appConfig.Pagination.MaxLimit, pluginRegistry)
 	} else {
@@ -179,7 +197,7 @@ func Start(cfg Config) {
 	logger.Log.Info("Server shutdown complete")
 }
 
-func runPluginMigrations(ctx context.Context, db database.Database, pluginRegistry *plugin.PluginRegistry, pluginConfigs []config.PluginConfig) error {
+func runMigrations(ctx context.Context, db database.Database, authService *auth.Service, pluginRegistry *plugin.PluginRegistry, pluginConfigs []config.PluginConfig) error {
 	configMap := make(map[string]config.PluginConfig)
 	for _, cfg := range pluginConfigs {
 		configMap[cfg.Name] = cfg
@@ -187,6 +205,13 @@ func runPluginMigrations(ctx context.Context, db database.Database, pluginRegist
 
 	var sources []migrations.MigrationSource
 	pluginToSourceName := make(map[string]string)
+
+	// Add core auth migrations if auth is enabled
+	if authService != nil {
+		authMigrations := coremigrations.GetAuthMigrations()
+		sources = append(sources, authMigrations)
+		logger.Log.Info("Registered core auth migrations", "source", authMigrations.Name())
+	}
 
 	for _, p := range pluginRegistry.GetAll() {
 		migProvider, hasMigrations := p.(plugin.MigrationProvider)
