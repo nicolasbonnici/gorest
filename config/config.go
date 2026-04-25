@@ -13,6 +13,7 @@ type Config struct {
 	Pagination PaginationConfig `yaml:"pagination"`
 	Plugins    PluginsConfig    `yaml:"plugins"`
 	RBAC       RBACConfig       `yaml:"rbac"`
+	Auth       AuthConfig       `yaml:"auth"`
 }
 
 type PluginsConfig []PluginConfig
@@ -92,23 +93,24 @@ type RBACConfig struct {
 	CacheTTL           int                 `yaml:"cache_ttl"`
 }
 
+type AuthConfig struct {
+	Enabled   bool   `yaml:"enabled"`
+	JWTSecret string `yaml:"jwt_secret"`
+	JWTTTL    int    `yaml:"jwt_ttl"`
+}
+
 func (c *Config) Validate() error {
 	if c.Database.URL == "" {
 		return fmt.Errorf("database.url is required")
 	}
 
-	for _, plugin := range c.Plugins {
-		if plugin.Name == "auth" && plugin.Enabled {
-			if jwtSecret, ok := plugin.Config["jwt_secret"].(string); ok {
-				if jwtSecret == "" {
-					return fmt.Errorf("plugins.auth.config.jwt_secret is required when auth plugin is enabled")
-				}
-				if len(jwtSecret) < 32 {
-					return fmt.Errorf("plugins.auth.config.jwt_secret must be at least 32 characters long for security")
-				}
-			} else {
-				return fmt.Errorf("plugins.auth.config.jwt_secret is required when auth plugin is enabled")
-			}
+	// Validate auth configuration
+	if c.Auth.Enabled {
+		if c.Auth.JWTSecret == "" {
+			return fmt.Errorf("auth.jwt_secret is required when auth is enabled")
+		}
+		if len(c.Auth.JWTSecret) < 32 {
+			return fmt.Errorf("auth.jwt_secret must be at least 32 characters long for security")
 		}
 	}
 
@@ -303,4 +305,10 @@ func (c *Config) SetDefaults() {
 	}
 	// CacheEnabled defaults to false unless explicitly set
 	// StrictValidation defaults to false unless explicitly set
+
+	// Auth defaults
+	if c.Auth.JWTTTL == 0 {
+		c.Auth.JWTTTL = 900 // Default 15 minutes
+	}
+	// Auth.Enabled defaults to false unless explicitly set
 }

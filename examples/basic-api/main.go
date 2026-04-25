@@ -6,7 +6,6 @@ import (
 	"github.com/nicolasbonnici/gorest"
 	"github.com/nicolasbonnici/gorest/pluginloader"
 
-	authplugin "github.com/nicolasbonnici/gorest-auth"
 	codegenPlugin "github.com/nicolasbonnici/gorest-codegen"
 	openapiplugin "github.com/nicolasbonnici/gorest-openapi"
 	statusplugin "github.com/nicolasbonnici/gorest-status"
@@ -14,7 +13,6 @@ import (
 
 func init() {
 	pluginloader.RegisterPluginFactory("status", statusplugin.NewPlugin)
-	pluginloader.RegisterPluginFactory("auth", authplugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("codegen", codegenPlugin.NewPlugin)
 	pluginloader.RegisterPluginFactory("openapi", openapiplugin.NewPlugin)
 
