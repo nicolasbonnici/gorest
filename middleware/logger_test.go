@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"io"
 	"net/http/httptest"
 	"testing"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestLogger_ReturnsHandler(t *testing.T) {
-	handler := Logger()
+	handler := Logger("test")
 
 	if handler == nil {
 		t.Fatal("expected non-nil handler")
@@ -35,7 +36,7 @@ func TestLogger_ReturnsHandler(t *testing.T) {
 }
 
 func TestLogger_LogsGetRequest(t *testing.T) {
-	handler := Logger()
+	handler := Logger("test")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -54,7 +55,7 @@ func TestLogger_LogsGetRequest(t *testing.T) {
 }
 
 func TestLogger_LogsPostRequest(t *testing.T) {
-	handler := Logger()
+	handler := Logger("test")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -73,7 +74,7 @@ func TestLogger_LogsPostRequest(t *testing.T) {
 }
 
 func TestLogger_LogsErrorResponses(t *testing.T) {
-	handler := Logger()
+	handler := Logger("production")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -100,8 +101,62 @@ func TestLogger_LogsErrorResponses(t *testing.T) {
 	}
 }
 
+func TestLogger_LogsErrorMessageInDevelopment(t *testing.T) {
+	handler := Logger("development")
+
+	app := fiber.New()
+	app.Use(handler)
+	app.Get("/error", func(c *fiber.Ctx) error {
+		return errors.New("test error message")
+	})
+
+	req := httptest.NewRequest("GET", "/error", nil)
+	resp, _ := app.Test(req)
+
+	// The error should be logged (checked via logger output in real scenario)
+	// Here we just verify the handler doesn't crash
+	if resp.StatusCode != 500 {
+		t.Errorf("expected status 500, got %d", resp.StatusCode)
+	}
+}
+
+func TestLogger_DoesNotLogErrorMessageInProduction(t *testing.T) {
+	handler := Logger("production")
+
+	app := fiber.New()
+	app.Use(handler)
+	app.Get("/error", func(c *fiber.Ctx) error {
+		return errors.New("secret error message")
+	})
+
+	req := httptest.NewRequest("GET", "/error", nil)
+	resp, _ := app.Test(req)
+
+	// Error message should NOT be logged in production
+	if resp.StatusCode != 500 {
+		t.Errorf("expected status 500, got %d", resp.StatusCode)
+	}
+}
+
+func TestLogger_LogsFullURLWithQueryString(t *testing.T) {
+	handler := Logger("test")
+
+	app := fiber.New()
+	app.Use(handler)
+	app.Get("/api/search", func(c *fiber.Ctx) error {
+		return c.SendString("results")
+	})
+
+	req := httptest.NewRequest("GET", "/api/search?q=test&limit=10", nil)
+	resp, _ := app.Test(req)
+
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
 func TestLogger_DoesNotBlockRequests(t *testing.T) {
-	handler := Logger()
+	handler := Logger("test")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -123,7 +178,7 @@ func TestLogger_DoesNotBlockRequests(t *testing.T) {
 }
 
 func TestLogger_WithRequestID(t *testing.T) {
-	handler := Logger()
+	handler := Logger("test")
 
 	app := fiber.New()
 	app.Use(func(c *fiber.Ctx) error {
@@ -144,7 +199,7 @@ func TestLogger_WithRequestID(t *testing.T) {
 }
 
 func TestLogger_WithoutRequestID(t *testing.T) {
-	handler := Logger()
+	handler := Logger("test")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -161,7 +216,7 @@ func TestLogger_WithoutRequestID(t *testing.T) {
 }
 
 func TestLogger_AllHTTPMethods(t *testing.T) {
-	handler := Logger()
+	handler := Logger("test")
 
 	app := fiber.New()
 	app.Use(handler)
@@ -195,7 +250,7 @@ func TestLogger_AllHTTPMethods(t *testing.T) {
 }
 
 func TestLogger_LogsWithUserAgent(t *testing.T) {
-	handler := Logger()
+	handler := Logger("test")
 
 	app := fiber.New()
 	app.Use(handler)

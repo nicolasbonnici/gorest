@@ -76,7 +76,7 @@ func Start(cfg Config) {
 	app.Use(middleware.Security())
 	app.Use(middleware.CORS(appConfig.Server.CORSOrigins))
 	app.Use(middleware.RequestID())
-	app.Use(middleware.Logger())
+	app.Use(middleware.Logger(appConfig.Server.Environment))
 	app.Use(middleware.ContentNegotiation())
 
 	if appConfig.Server.CompressionEnabled {
