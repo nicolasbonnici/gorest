@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/gofiber/fiber/v2"
-	auth "github.com/nicolasbonnici/gorest-auth"
+	"github.com/nicolasbonnici/gorest/auth"
 )
 
 type ContextEnricher func(c *fiber.Ctx, model interface{}) error

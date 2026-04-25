@@ -27,6 +27,10 @@ database:
 pagination:
   default_limit: 10
   max_limit: 1000
+auth:
+  enabled: true
+  jwt_secret: ${JWT_SECRET}
+  jwt_ttl: 900
 plugins:
 - name: status
   enabled: true
@@ -38,8 +42,3 @@ plugins:
   enabled: true
   config:
     message: Custom plugin is working!
-- name: auth
-  enabled: true
-  config:
-    jwt_secret: ${JWT_SECRET}
-    jwt_ttl: 900

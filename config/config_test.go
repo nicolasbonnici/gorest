@@ -135,14 +135,9 @@ func TestValidate_AuthPluginJWTSecret(t *testing.T) {
 						DTOs:      "dtos",
 					},
 				},
-				Plugins: PluginsConfig{
-					{
-						Name:    "auth",
-						Enabled: true,
-						Config: map[string]interface{}{
-							"jwt_secret": tt.secret,
-						},
-					},
+				Auth: AuthConfig{
+					Enabled:   true,
+					JWTSecret: tt.secret,
 				},
 			}
 
@@ -150,8 +145,7 @@ func TestValidate_AuthPluginJWTSecret(t *testing.T) {
 			if tt.shouldErr {
 				if err == nil {
 					t.Errorf("Expected validation error")
-				}
-				if !strings.Contains(err.Error(), tt.errMsg) {
+				} else if !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("Expected error containing %q, got %v", tt.errMsg, err)
 				}
 			} else {
@@ -175,14 +169,9 @@ func TestValidate_AuthPluginDisabled(t *testing.T) {
 				DTOs:      "dtos",
 			},
 		},
-		Plugins: PluginsConfig{
-			{
-				Name:    "auth",
-				Enabled: false,
-				Config: map[string]interface{}{
-					"jwt_secret": "short",
-				},
-			},
+		Auth: AuthConfig{
+			Enabled:   false,
+			JWTSecret: "short",
 		},
 	}
 
@@ -204,12 +193,9 @@ func TestValidate_AuthPluginMissingSecret(t *testing.T) {
 				DTOs:      "dtos",
 			},
 		},
-		Plugins: PluginsConfig{
-			{
-				Name:    "auth",
-				Enabled: true,
-				Config:  map[string]interface{}{},
-			},
+		Auth: AuthConfig{
+			Enabled:   true,
+			JWTSecret: "",
 		},
 	}
 
@@ -490,35 +476,5 @@ func TestValidate_MultipleAuthPlugins(t *testing.T) {
 	}
 }
 
-func TestValidate_AuthPluginWrongType(t *testing.T) {
-	cfg := &Config{
-		Server:     ServerConfig{Port: 8000},
-		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
-		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
-		Codegen: CodegenConfig{
-			Output: OutputConfig{
-				Models:    "models",
-				Resources: "resources",
-				DTOs:      "dtos",
-			},
-		},
-		Plugins: PluginsConfig{
-			{
-				Name:    "auth",
-				Enabled: true,
-				Config: map[string]interface{}{
-					"jwt_secret": 123,
-				},
-			},
-		},
-	}
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Expected validation error for wrong type")
-	}
-
-	if !strings.Contains(err.Error(), "jwt_secret is required") {
-		t.Errorf("Error should mention jwt_secret is required, got: %v", err)
-	}
-}
+// TestValidate_AuthPluginWrongType removed - type validation is now handled
+// by the strongly-typed AuthConfig struct, not by plugin map[string]interface{}
