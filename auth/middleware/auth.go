@@ -4,7 +4,9 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	authcontext "github.com/nicolasbonnici/gorest/auth/context"
+	"github.com/nicolasbonnici/gorest/auth/models"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/rbac"
 )
@@ -37,19 +39,22 @@ func AuthMiddleware(jwt JWTValidator, db database.Database) fiber.Handler {
 			})
 		}
 
-		var role string
-		err = db.QueryRow(c.Context(),
-			"SELECT role FROM users WHERE id = "+db.Dialect().Placeholder(1),
-			userID,
-		).Scan(&role)
+		userUUID, err := uuid.Parse(userID)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "failed to fetch user role",
+				"error": "invalid user ID format",
 			})
 		}
 
-		c.SetUserContext(rbac.WithUser(c.Context(), userID, []string{role}))
+		user := &models.User{ID: userUUID}
+		roles, err := user.GetRoles(c.Context(), db)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "failed to fetch user roles",
+			})
+		}
 
+		c.SetUserContext(rbac.WithUser(c.Context(), userID, roles))
 		authcontext.SetUserID(c, userID)
 
 		return c.Next()
@@ -74,10 +79,15 @@ func OptionalAuthMiddleware(jwt JWTValidator, db database.Database) fiber.Handle
 			return c.Next()
 		}
 
-		var role string
-		err = db.QueryRow(c.Context(), "SELECT role FROM users WHERE id = "+db.Dialect().Placeholder(1), userID).Scan(&role)
+		userUUID, err := uuid.Parse(userID)
+		if err != nil {
+			return c.Next()
+		}
+
+		user := &models.User{ID: userUUID}
+		roles, err := user.GetRoles(c.Context(), db)
 		if err == nil {
-			c.SetUserContext(rbac.WithUser(c.Context(), userID, []string{role}))
+			c.SetUserContext(rbac.WithUser(c.Context(), userID, roles))
 			authcontext.SetUserID(c, userID)
 		}
 
