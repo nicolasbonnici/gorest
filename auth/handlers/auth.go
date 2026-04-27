@@ -7,6 +7,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/nicolasbonnici/gorest/auth/converters"
+	"github.com/nicolasbonnici/gorest/auth/dtos"
 	"github.com/nicolasbonnici/gorest/auth/jwt"
 	"github.com/nicolasbonnici/gorest/auth/models"
 	"github.com/nicolasbonnici/gorest/crud"
@@ -28,8 +30,8 @@ type RegisterRequest struct {
 }
 
 type AuthResponse struct {
-	Token string       `json:"token"`
-	User  *models.User `json:"user"`
+	Token string                `json:"token"`
+	User  *dtos.UserResponseDTO `json:"user"`
 }
 
 func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *jwt.Service) {
@@ -61,7 +63,6 @@ func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtS
 			Password:  &password,
 			Firstname: req.Firstname,
 			Lastname:  req.Lastname,
-			Role:      "user",
 			CreatedAt: time.Now(),
 		}
 
@@ -78,9 +79,15 @@ func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtS
 			return response.SendError(c, fiber.StatusInternalServerError, "failed to generate token")
 		}
 
+		roles, _ := user.GetRoles(ctx, db)
+
+		converter := &converters.UserConverter{}
+		userDTO := converter.ModelToResponseDTO(user)
+		userDTO.Roles = roles
+
 		return response.SendCreated(c, AuthResponse{
 			Token: token,
-			User:  &user,
+			User:  &userDTO,
 		})
 	}
 }
@@ -108,9 +115,15 @@ func handleLogin(db database.Database, jwtService *jwt.Service) fiber.Handler {
 			return response.SendError(c, fiber.StatusInternalServerError, "failed to generate token")
 		}
 
+		roles, _ := user.GetRoles(ctx, db)
+
+		converter := &converters.UserConverter{}
+		userDTO := converter.ModelToResponseDTO(*user)
+		userDTO.Roles = roles
+
 		return response.SendFormatted(c, fiber.StatusOK, AuthResponse{
 			Token: token,
-			User:  user,
+			User:  &userDTO,
 		})
 	}
 }
@@ -169,7 +182,7 @@ func checkEmailExists(ctx stdcontext.Context, db database.Database, email string
 
 func getUserByEmail(ctx stdcontext.Context, db database.Database, email string) (*models.User, error) {
 	qb := query.New(db.Dialect()).
-		Select("id", "firstname", "lastname", "email", "password", "role", "created_at", "updated_at").
+		Select("id", "firstname", "lastname", "email", "password", "created_at", "updated_at").
 		From("users").
 		Where(query.Eq("email", email))
 
@@ -182,7 +195,7 @@ func getUserByEmail(ctx stdcontext.Context, db database.Database, email string) 
 	var password *string
 	var updatedAt *time.Time
 	err = db.QueryRow(ctx, queryStr, args...).
-		Scan(&user.ID, &user.Firstname, &user.Lastname, &user.Email, &password, &user.Role, &user.CreatedAt, &updatedAt)
+		Scan(&user.ID, &user.Firstname, &user.Lastname, &user.Email, &password, &user.CreatedAt, &updatedAt)
 	if crud.IsNotFoundError(err) {
 		return nil, fmt.Errorf("invalid email or password")
 	}
