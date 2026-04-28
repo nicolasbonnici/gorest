@@ -8,6 +8,11 @@ import (
 // validateWriteFields validates that all non-zero fields in the resource can be written by the user.
 // If config.StrictValidation is true, ALL fields (including zero values) are validated.
 func validateWriteFields(resource interface{}, userRoles []string, config Config) error {
+	// If DefaultPolicy is AllowAll, skip validation entirely
+	if config.DefaultPolicy == AllowAll {
+		return nil
+	}
+
 	val := reflect.ValueOf(resource)
 	typ := reflect.TypeOf(resource)
 

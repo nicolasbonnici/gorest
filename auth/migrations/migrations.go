@@ -70,30 +70,5 @@ func GetMigrations() migrations.MigrationSource {
 		},
 	)
 
-	builder.Add(
-		"20250122000001000",
-		"add_role_column_to_users",
-		func(ctx context.Context, db database.Database) error {
-			if err := migrations.SQL(ctx, db, migrations.DialectSQL{
-				Postgres: `ALTER TABLE users ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'user'`,
-				MySQL:    `ALTER TABLE users ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'user'`,
-				SQLite:   `ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'`,
-			}); err != nil {
-				return err
-			}
-
-			return migrations.CreateIndex(ctx, db, "idx_user_role", "users", "role")
-		},
-		func(ctx context.Context, db database.Database) error {
-			_ = migrations.DropIndex(ctx, db, "idx_user_role", "users")
-
-			return migrations.SQL(ctx, db, migrations.DialectSQL{
-				Postgres: `ALTER TABLE users DROP COLUMN IF EXISTS role`,
-				MySQL:    `ALTER TABLE users DROP COLUMN role`,
-				SQLite:   `ALTER TABLE users DROP COLUMN role`,
-			})
-		},
-	)
-
 	return builder.Build()
 }
