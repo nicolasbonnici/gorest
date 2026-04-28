@@ -1,9 +1,11 @@
 package models
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nicolasbonnici/gorest/database"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -13,7 +15,6 @@ type User struct {
 	Lastname  string     `json:"lastname" db:"lastname" gorm:"not null" rbac:"read:*;write:any"`
 	Email     string     `json:"email" db:"email" gorm:"uniqueIndex;not null" rbac:"read:*;write:any"`
 	Password  *string    `json:"-" db:"password" rbac:"read:none;write:any"`
-	Role      string     `json:"role" db:"role" gorm:"not null;default:'user'" rbac:"read:*;write:admin"`
 	CreatedAt time.Time  `json:"created_at" db:"created_at" rbac:"read:*;write:none"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty" db:"updated_at" rbac:"read:*;write:none"`
 }
@@ -43,4 +44,33 @@ func (u *User) CheckPassword(password string) bool {
 	}
 	err := bcrypt.CompareHashAndPassword([]byte(*u.Password), []byte(password))
 	return err == nil
+}
+
+func (u *User) GetRoles(ctx context.Context, db database.Database) ([]string, error) {
+	query := `
+		SELECT r.name
+		FROM user_roles ur
+		INNER JOIN roles r ON ur.role_id = r.id
+		WHERE ur.user_id = ` + db.Dialect().Placeholder(1)
+
+	rows, err := db.Query(ctx, query, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roles []string
+	for rows.Next() {
+		var roleName string
+		if err := rows.Scan(&roleName); err != nil {
+			return nil, err
+		}
+		roles = append(roles, roleName)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return roles, nil
 }
