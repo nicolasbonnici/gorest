@@ -14,7 +14,7 @@
 - ⚡ Type-safe generic CRUD operations with hooks system
 - 🚀 **Unified processor module** eliminating handler boilerplate - handlers become one-liners with automatic RBAC, validation, pagination, filtering & serialization
 - 🔧 Fluent SQL query builder with database abstraction
-- 🔑 Authentication with context-aware plugins ([gorest-auth](https://github.com/nicolasbonnici/gorest-auth))
+- 🔑 **Built-in JWT authentication** with user management, registration, login, and token refresh
 - 🔐 RBAC Role based access control layer with field-level permissions and voter system
 - 🧐 Audit log
 - ✅ Security best practices, rate limiting, CORS, response compression and many more configurable core middleware
@@ -262,7 +262,7 @@ import (
     "github.com/gofiber/fiber/v2"
     "github.com/nicolasbonnici/gorest/database"
     "github.com/nicolasbonnici/gorest/crud"
-    auth "github.com/nicolasbonnici/gorest-auth"
+    authpkg "github.com/nicolasbonnici/gorest/auth"
 )
 
 type User struct {

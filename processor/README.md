@@ -135,7 +135,7 @@ FieldMap: map[string]string{
 Built-in enrichers:
 ```go
 ContextEnrichers: []processor.ContextEnricher{
-	processor.UserIDEnricher("UserId"),      // Auto-populate from gorest-auth
+	processor.UserIDEnricher("UserId"),      // Auto-populate from built-in auth
 	processor.TenantIDEnricher("TenantId"),  // Auto-populate from context
 }
 ```
