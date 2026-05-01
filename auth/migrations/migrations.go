@@ -8,7 +8,7 @@ import (
 )
 
 func GetMigrations() migrations.MigrationSource {
-	builder := migrations.NewMigrationBuilder("gorest-auth")
+	builder := migrations.NewMigrationBuilder("auth")
 
 	builder.Add(
 		"20250121000001000",

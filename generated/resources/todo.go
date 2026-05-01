@@ -9,7 +9,7 @@ import (
 	"github.com/nicolasbonnici/gorest/generated/models"
 
 	"github.com/gofiber/fiber/v2"
-	auth "github.com/nicolasbonnici/gorest-auth"
+	authpkg "github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/filter"
@@ -113,7 +113,7 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 		}
 	}
 
-	result, err := r.CRUD.GetAllPaginated(auth.Context(c), crud.PaginationOptions{
+	result, err := r.CRUD.GetAllPaginated(authpkg.Context(c), crud.PaginationOptions{
 		Limit:        limit,
 		Offset:       offset,
 		IncludeCount: includeCount,
@@ -141,7 +141,7 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 // @Router /todos/{id} [get]
 func (r *TodoResource) Get(c *fiber.Ctx) error {
 	id := c.Params("id")
-	item, err := r.CRUD.GetByID(auth.Context(c), id)
+	item, err := r.CRUD.GetByID(authpkg.Context(c), id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Not found"})
 	}
@@ -168,11 +168,11 @@ func (r *TodoResource) Create(c *fiber.Ctx) error {
 	item := todoCreateDTOToModel(createDTO)
 
 	// Auto-populate user_id from authenticated user
-	if user := auth.GetAuthenticatedUser(c); user != nil {
+	if user := authpkg.GetAuthenticatedUser(c); user != nil {
 		item.UserId = &user.UserID
 	}
 
-	ctx := auth.Context(c)
+	ctx := authpkg.Context(c)
 	if err := r.CRUD.Create(ctx, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -206,11 +206,11 @@ func (r *TodoResource) Update(c *fiber.Ctx) error {
 	item := todoUpdateDTOToModel(updateDTO)
 
 	// Auto-populate user_id from authenticated user
-	if user := auth.GetAuthenticatedUser(c); user != nil {
+	if user := authpkg.GetAuthenticatedUser(c); user != nil {
 		item.UserId = &user.UserID
 	}
 
-	if err := r.CRUD.Update(auth.Context(c), id, item); err != nil {
+	if err := r.CRUD.Update(authpkg.Context(c), id, item); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -226,7 +226,7 @@ func (r *TodoResource) Update(c *fiber.Ctx) error {
 // @Router /todos/{id} [delete]
 func (r *TodoResource) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
-	if err := r.CRUD.Delete(auth.Context(c), id); err != nil {
+	if err := r.CRUD.Delete(authpkg.Context(c), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(204)
