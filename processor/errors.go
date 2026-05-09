@@ -17,8 +17,12 @@ func (h *DefaultErrorHandler) HandleError(c *fiber.Ctx, err error, operation str
 		return response.SendError(c, fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	if _, ok := err.(*fiber.Error); ok {
-		return response.SendError(c, fiber.StatusBadRequest, "Invalid request body")
+	if ferr, ok := err.(*fiber.Error); ok {
+		msg := ferr.Message
+		if ferr.Code >= 500 {
+			msg = "Internal server error"
+		}
+		return response.SendError(c, ferr.Code, msg)
 	}
 
 	if crud.IsInvalidIDError(err) {
