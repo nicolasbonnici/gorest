@@ -64,7 +64,7 @@ export SERVER_SCHEME="https"         # default: http
 export SERVER_HOST="api.example.com" # default: localhost
 export SERVER_PORT="8080"            # default: 8000
 export JWT_SECRET=$(openssl rand -base64 32)
-export CORS_ORIGIN="localhost:3000"  # default: *
+export CORS_ORIGINS="localhost:3000"  # default: *
 export PAGINATION_DEFAULT_LIMIT="20" # default: 10
 export PAGINATION_MAX_LIMIT="5000"   # default: 1000
 ```
@@ -77,7 +77,7 @@ SERVER_SCHEME=https
 SERVER_HOST=api.example.com
 SERVER_PORT=8080
 JWT_SECRET=your-secret-key-minimum-32-characters-long
-CORS_ORIGIN="example.com"
+CORS_ORIGINS="https://example.com,https://anotherhost.net"
 PAGINATION_DEFAULT_LIMIT=20
 PAGINATION_MAX_LIMIT=5000
 ```

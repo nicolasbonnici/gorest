@@ -22,7 +22,6 @@ func GetAuthMigrations() migrations.MigrationSource {
 					lastname TEXT NOT NULL,
 					email TEXT UNIQUE NOT NULL,
 					password TEXT,
-					role VARCHAR(50) NOT NULL DEFAULT 'user',
 					updated_at TIMESTAMP(0) WITH TIME ZONE,
 					created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 				)`,
@@ -32,11 +31,9 @@ func GetAuthMigrations() migrations.MigrationSource {
 					lastname TEXT NOT NULL,
 					email VARCHAR(255) UNIQUE NOT NULL,
 					password TEXT,
-					role VARCHAR(50) NOT NULL DEFAULT 'user',
 					updated_at TIMESTAMP NULL,
 					created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-					INDEX idx_user_email (email),
-					INDEX idx_user_role (role)
+					INDEX idx_user_email (email)
 				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 				SQLite: `CREATE TABLE IF NOT EXISTS users (
 					id TEXT PRIMARY KEY,
@@ -44,7 +41,6 @@ func GetAuthMigrations() migrations.MigrationSource {
 					lastname TEXT NOT NULL,
 					email TEXT UNIQUE NOT NULL,
 					password TEXT,
-					role TEXT NOT NULL DEFAULT 'user',
 					updated_at TEXT,
 					created_at TEXT NOT NULL DEFAULT (datetime('now'))
 				)`,
@@ -53,17 +49,11 @@ func GetAuthMigrations() migrations.MigrationSource {
 			}
 
 			if db.DriverName() == "postgres" {
-				if err := migrations.CreateIndex(ctx, db, "idx_user_email", "users", "email"); err != nil {
-					return err
-				}
-				return migrations.CreateIndex(ctx, db, "idx_user_role", "users", "role")
+				return migrations.CreateIndex(ctx, db, "idx_user_email", "users", "email")
 			}
 
 			if db.DriverName() == "sqlite" {
-				if err := migrations.CreateIndex(ctx, db, "idx_user_email", "users", "email"); err != nil {
-					return err
-				}
-				return migrations.CreateIndex(ctx, db, "idx_user_role", "users", "role")
+				return migrations.CreateIndex(ctx, db, "idx_user_email", "users", "email")
 			}
 
 			return nil
@@ -71,12 +61,10 @@ func GetAuthMigrations() migrations.MigrationSource {
 		func(ctx context.Context, db database.Database) error {
 			if db.DriverName() == "postgres" {
 				_ = migrations.DropIndex(ctx, db, "idx_user_email", "users")
-				_ = migrations.DropIndex(ctx, db, "idx_user_role", "users")
 			}
 
 			if db.DriverName() == "sqlite" {
 				_ = migrations.DropIndex(ctx, db, "idx_user_email", "users")
-				_ = migrations.DropIndex(ctx, db, "idx_user_role", "users")
 			}
 
 			return migrations.DropTableIfExists(ctx, db, "users")
