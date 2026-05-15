@@ -23,15 +23,19 @@ func NewRepository(db database.Database) *Repository {
 // ListUsers returns all users with their assigned roles.
 // Users without roles are included with an empty Roles slice.
 func (r *Repository) ListUsers(ctx context.Context) ([]UserRoles, error) {
-	const listSQL = `
-		SELECT u.id, u.email, r.name, ur.assigned_at
-		FROM users u
-		LEFT JOIN user_roles ur ON u.id = ur.user_id
-		LEFT JOIN roles r ON ur.role_id = r.id
-		ORDER BY u.id, r.name
-	`
+	listSQL, args, err := query.New(r.db.Dialect()).
+		Select("u.id", "u.email", "r.name", "ur.assigned_at").
+		From("users").As("u").
+		LeftJoinAs("user_roles", "ur", query.ColEq("u.id", "ur.user_id")).
+		LeftJoinAs("roles", "r", query.ColEq("ur.role_id", "r.id")).
+		OrderBy("u.id", query.ASC).
+		OrderBy("r.name", query.ASC).
+		Build()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build query: %w", err)
+	}
 
-	rows, err := r.db.Query(ctx, listSQL)
+	rows, err := r.db.Query(ctx, listSQL, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
@@ -123,16 +127,15 @@ func (r *Repository) AssignRole(ctx context.Context, userID, roleName, assignedB
 		return fmt.Errorf("failed to find role: %w", err)
 	}
 
-	insertQb := query.New(r.db.Dialect()).
+	insertSQL, insertArgs, err := query.New(r.db.Dialect()).
 		Insert("user_roles").
 		Columns("user_id", "role_id", "assigned_by", "assigned_at").
-		Values(userID, roleID, assignedBy, time.Now())
-
-	insertSQL, insertArgs, err := insertQb.Build()
+		Values(userID, roleID, assignedBy, time.Now()).
+		OnConflictDoNothing("user_id", "role_id").
+		Build()
 	if err != nil {
 		return fmt.Errorf("failed to build insert: %w", err)
 	}
-	insertSQL += " ON CONFLICT (user_id, role_id) DO NOTHING"
 
 	if _, err := r.db.Exec(ctx, insertSQL, insertArgs...); err != nil {
 		_ = r.logAudit(ctx, userID, "promote", roleName, assignedBy, false, err.Error())
