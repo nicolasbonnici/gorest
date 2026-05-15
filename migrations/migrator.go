@@ -326,6 +326,40 @@ func (m *migrator) Force(ctx context.Context, version, source string) error {
 	return m.tracker.ForceMigration(ctx, migration)
 }
 
+func (m *migrator) RunOne(ctx context.Context, version, source string, direction Direction) error {
+	if err := ValidateTimestamp(version); err != nil {
+		return err
+	}
+
+	migration, err := m.findMigration(version, source)
+	if err != nil {
+		return err
+	}
+
+	if err := m.tracker.CreateTrackingTable(ctx); err != nil {
+		return err
+	}
+
+	if err := m.lock.Acquire(ctx); err != nil {
+		return err
+	}
+	defer m.lock.Release(ctx)
+
+	if direction == DirectionDown {
+		return m.executeDown(ctx, migration)
+	}
+
+	return m.executeMigration(ctx, migration)
+}
+
+func (m *migrator) Retry(ctx context.Context, version, source string) error {
+	if err := m.tracker.CreateTrackingTable(ctx); err != nil {
+		return err
+	}
+
+	return m.tracker.RemoveMigration(ctx, version, source)
+}
+
 func (m *migrator) UpSource(ctx context.Context, sourceName string) error {
 	pending, err := m.Pending(ctx)
 	if err != nil {
