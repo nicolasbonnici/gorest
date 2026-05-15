@@ -307,6 +307,7 @@ func main() {
 - **[Relation Expansion →](serializer/EXPAND_USAGE.md)** - Expand IRI references to full nested objects
 - **[Serializer →](serializer/README.md)** - Flexible resource serializer with JSON-LD support
 - **[Database Migrations →](migrations/README.md)** - Migration system with multi-database support
+- **[Migration CLI →](migrations/CLI.md)** - `migrate` CLI for running, rolling back, and repairing migrations
 - **[Fixtures →](fixtures/README.md)** - Test fixture management
 
 ### Business Logic

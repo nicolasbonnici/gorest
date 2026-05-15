@@ -129,6 +129,14 @@ type MigrationOptions struct {
 	StopOnError   bool
 }
 
+// Direction indicates whether to run a migration up or down
+type Direction string
+
+const (
+	DirectionUp   Direction = "up"
+	DirectionDown Direction = "down"
+)
+
 // Migrator executes migrations against a database
 type Migrator interface {
 	Up(ctx context.Context) error
@@ -142,6 +150,8 @@ type Migrator interface {
 	Validate(ctx context.Context) error
 	DryRun(ctx context.Context) ([]Migration, error)
 	Force(ctx context.Context, version, source string) error
+	RunOne(ctx context.Context, version, source string, direction Direction) error
+	Retry(ctx context.Context, version, source string) error
 	UpSource(ctx context.Context, sourceName string) error
 	DownSource(ctx context.Context, sourceName string) error
 	SetSourceDependencies(source string, dependencies []string)
