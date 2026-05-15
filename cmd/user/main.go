@@ -295,13 +295,17 @@ func cmdUserPassword(ctx context.Context, db database.Database, identifier strin
 	}
 
 	now := time.Now()
-	d := db.Dialect()
-	updateSQL := fmt.Sprintf(
-		"UPDATE users SET password = %s, updated_at = %s WHERE id = %s",
-		d.Placeholder(1), d.Placeholder(2), d.Placeholder(3),
-	)
+	updateSQL, updateArgs, err := query.New(db.Dialect()).
+		Update("users").
+		Set("password", string(hashed)).
+		Set("updated_at", now).
+		Where(query.Eq("id", userID)).
+		Build()
+	if err != nil {
+		return fmt.Errorf("failed to build query: %w", err)
+	}
 
-	result, err := db.Exec(ctx, updateSQL, string(hashed), now, userID)
+	result, err := db.Exec(ctx, updateSQL, updateArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
