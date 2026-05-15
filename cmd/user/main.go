@@ -1,19 +1,24 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
+	"github.com/nicolasbonnici/gorest/query"
 	"github.com/nicolasbonnici/gorest/rbac"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -77,12 +82,12 @@ func main() {
 	repo := rbac.NewRepository(db)
 	ctx := context.Background()
 
-	if err := dispatch(ctx, repo, rest, outputFmt, actor); err != nil {
+	if err := dispatch(ctx, db, repo, rest, outputFmt, actor); err != nil {
 		fatalf("%v", err)
 	}
 }
 
-func dispatch(ctx context.Context, repo *rbac.Repository, args []string, format, actor string) error {
+func dispatch(ctx context.Context, db database.Database, repo *rbac.Repository, args []string, format, actor string) error {
 	switch args[0] {
 	case "list":
 		return cmdUserList(ctx, repo, format)
@@ -91,6 +96,13 @@ func dispatch(ctx context.Context, repo *rbac.Repository, args []string, format,
 			return fmt.Errorf("usage: user show <user-id>")
 		}
 		return cmdUserShow(ctx, repo, args[1], format)
+	case "create":
+		return cmdUserCreate(ctx, db)
+	case "password":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: user password <user-id-or-email>")
+		}
+		return cmdUserPassword(ctx, db, args[1])
 	case "promote":
 		if len(args) < 3 {
 			return fmt.Errorf("usage: user promote <user-id> <role>")
@@ -181,6 +193,127 @@ func cmdUserShow(ctx context.Context, repo *rbac.Repository, userID, format stri
 	return nil
 }
 
+// ── user create ───────────────────────────────────────────────────────────────
+
+func cmdUserCreate(ctx context.Context, db database.Database) error {
+	fmt.Println("Create new user")
+	fmt.Println(strings.Repeat("-", 30))
+
+	firstname, err := prompt("First name: ")
+	if err != nil {
+		return err
+	}
+	lastname, err := prompt("Last name: ")
+	if err != nil {
+		return err
+	}
+	email, err := prompt("Email: ")
+	if err != nil {
+		return err
+	}
+	password, err := promptPassword("Password: ")
+	if err != nil {
+		return err
+	}
+	confirm, err := promptPassword("Confirm password: ")
+	if err != nil {
+		return err
+	}
+
+	if password != confirm {
+		return fmt.Errorf("passwords do not match")
+	}
+	if len(password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	userID := uuid.New()
+	now := time.Now()
+
+	qb := query.New(db.Dialect()).
+		Insert("users").
+		Columns("id", "firstname", "lastname", "email", "password", "created_at").
+		Values(userID.String(), firstname, lastname, email, string(hashed), now)
+
+	insertSQL, args, err := qb.Build()
+	if err != nil {
+		return fmt.Errorf("failed to build query: %w", err)
+	}
+
+	if _, err := db.Exec(ctx, insertSQL, args...); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	fmt.Printf("\nUser created: %s (%s %s)\n", userID, firstname, lastname)
+	return nil
+}
+
+// ── user password ─────────────────────────────────────────────────────────────
+
+func cmdUserPassword(ctx context.Context, db database.Database, identifier string) error {
+	// Accept UUID or email.
+	userID := identifier
+	if _, err := uuid.Parse(identifier); err != nil {
+		qb := query.New(db.Dialect()).
+			Select("id").From("users").Where(query.Eq("email", identifier))
+		queryStr, args, err := qb.Build()
+		if err != nil {
+			return fmt.Errorf("failed to build query: %w", err)
+		}
+		if err := db.QueryRow(ctx, queryStr, args...).Scan(&userID); err != nil {
+			return fmt.Errorf("user not found: %s", identifier)
+		}
+	}
+
+	fmt.Printf("Reset password for user %s\n", userID)
+	fmt.Println(strings.Repeat("-", 30))
+
+	password, err := promptPassword("New password: ")
+	if err != nil {
+		return err
+	}
+	confirm, err := promptPassword("Confirm password: ")
+	if err != nil {
+		return err
+	}
+
+	if password != confirm {
+		return fmt.Errorf("passwords do not match")
+	}
+	if len(password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	now := time.Now()
+	d := db.Dialect()
+	updateSQL := fmt.Sprintf(
+		"UPDATE users SET password = %s, updated_at = %s WHERE id = %s",
+		d.Placeholder(1), d.Placeholder(2), d.Placeholder(3),
+	)
+
+	result, err := db.Exec(ctx, updateSQL, string(hashed), now, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	if n, _ := result.RowsAffected(); n == 0 {
+		return fmt.Errorf("user not found: %s", identifier)
+	}
+
+	fmt.Println("\nPassword updated.")
+	return nil
+}
+
 // ── user promote / demote ─────────────────────────────────────────────────────
 
 func cmdUserPromote(ctx context.Context, repo *rbac.Repository, userID, role, actor string) error {
@@ -247,7 +380,6 @@ func cmdRolesHierarchy(ctx context.Context, repo *rbac.Repository, format string
 		return nil
 	}
 
-	// Find roots: parents that are not children of any other role.
 	allChildren := map[string]bool{}
 	for _, children := range hierarchy {
 		for _, c := range children {
@@ -261,7 +393,6 @@ func cmdRolesHierarchy(ctx context.Context, repo *rbac.Repository, format string
 			printTree(parent, hierarchy, "", visited)
 		}
 	}
-	// Catch any remaining unvisited nodes (orphaned subtrees).
 	for parent := range hierarchy {
 		if !visited[parent] {
 			printTree(parent, hierarchy, "", visited)
@@ -291,6 +422,39 @@ func printTree(role string, hierarchy map[string][]string, prefix string, visite
 	}
 }
 
+// ── interactive input ─────────────────────────────────────────────────────────
+
+func prompt(label string) (string, error) {
+	fmt.Print(label)
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(input, "\r\n"), nil
+}
+
+func promptPassword(label string) (string, error) {
+	fmt.Print(label)
+
+	off := exec.Command("stty", "-echo")
+	off.Stdin = os.Stdin
+	_ = off.Run()
+
+	reader := bufio.NewReader(os.Stdin)
+	password, err := reader.ReadString('\n')
+
+	on := exec.Command("stty", "echo")
+	on.Stdin = os.Stdin
+	_ = on.Run()
+	fmt.Println()
+
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(password, "\r\n"), nil
+}
+
 // ── output helpers ────────────────────────────────────────────────────────────
 
 func printJSON(v any) error {
@@ -305,7 +469,6 @@ func printTable(headers []string, fill func(row func(...string))) {
 		widths[i] = len(h)
 	}
 
-	// Two-pass: first measure, then print.
 	var rows [][]string
 	fill(func(cols ...string) {
 		for i, c := range cols {
@@ -336,7 +499,6 @@ func printTable(headers []string, fill func(row func(...string))) {
 		sep[i] = strings.Repeat("-", w)
 	}
 	fmtRow(sep)
-
 	for _, r := range rows {
 		fmtRow(r)
 	}
@@ -356,6 +518,8 @@ Usage:
 User commands:
   user list                        List all users and their roles
   user show <user-id>              Show roles for a specific user
+  user create                      Interactive prompt to create a new user
+  user password <user-id|email>    Interactive prompt to reset a password
   user promote <user-id> <role>    Assign a role to a user
   user demote  <user-id> <role>    Remove a role from a user
 
@@ -371,7 +535,9 @@ Global flags:
 
 Examples:
   user list --config /var/apps/myapi
-  user show 8f47cdb6-9f7e-214d-3fc7-83cfefaff433
+  user create --dsn postgres://user:pass@host/db
+  user password nicolas@example.com
+  user password 8f47cdb6-9f7e-214d-3fc7-83cfefaff433
   user promote 8f47cdb6-9f7e-214d-3fc7-83cfefaff433 admin --actor ops-team
   user demote  8f47cdb6-9f7e-214d-3fc7-83cfefaff433 admin
   user roles hierarchy --output json

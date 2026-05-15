@@ -308,6 +308,7 @@ func main() {
 - **[Serializer →](serializer/README.md)** - Flexible resource serializer with JSON-LD support
 - **[Database Migrations →](migrations/README.md)** - Migration system with multi-database support
 - **[Migration CLI →](migrations/CLI.md)** - `migrate` CLI for running, rolling back, and repairing migrations
+- **[User & Role CLI →](cmd/user/CLI.md)** - `user` CLI for managing users, assigning roles, and viewing role hierarchy
 - **[Fixtures →](fixtures/README.md)** - Test fixture management
 
 ### Business Logic
