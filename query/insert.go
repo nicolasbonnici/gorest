@@ -9,12 +9,24 @@ import (
 
 // InsertBuilder builds INSERT queries with support for batch inserts and RETURNING clauses.
 type InsertBuilder struct {
-	dialect   database.Dialect
-	table     string
-	columns   []string
-	values    [][]any
-	returning []string
-	err       error
+	dialect         database.Dialect
+	table           string
+	columns         []string
+	values          [][]any
+	returning       []string
+	conflictColumns []string
+	conflictAction  string
+	err             error
+}
+
+// OnConflictDoNothing silently ignores rows that violate a unique constraint.
+// Provide the conflict columns (e.g. the primary key columns).
+// On MySQL, this emits INSERT IGNORE INTO; on PostgreSQL/SQLite it emits
+// ON CONFLICT (cols) DO NOTHING.
+func (i *InsertBuilder) OnConflictDoNothing(columns ...string) *InsertBuilder {
+	i.conflictColumns = columns
+	i.conflictAction = "DO NOTHING"
+	return i
 }
 
 // Columns specifies the columns for the INSERT statement.
@@ -71,7 +83,18 @@ func (i *InsertBuilder) Build() (query string, args []any, err error) {
 	var parts []string
 	var allArgs []any
 
-	parts = append(parts, "INSERT INTO", i.dialect.QuoteIdentifier(i.table))
+	// MySQL uses INSERT IGNORE for "do nothing on conflict"; other dialects
+	// handle it with an ON CONFLICT clause appended after VALUES.
+	insertKeyword := "INSERT INTO"
+	conflictClause := ""
+	if i.conflictAction == "DO NOTHING" && len(i.conflictColumns) > 0 {
+		conflictClause = i.dialect.OnConflictClause(i.conflictColumns, i.conflictAction)
+		if conflictClause == "" {
+			insertKeyword = "INSERT IGNORE INTO"
+		}
+	}
+
+	parts = append(parts, insertKeyword, i.dialect.QuoteIdentifier(i.table))
 
 	// Validate column names
 	for _, col := range i.columns {
@@ -98,6 +121,10 @@ func (i *InsertBuilder) Build() (query string, args []any, err error) {
 		allArgs = append(allArgs, row...)
 	}
 	parts = append(parts, "VALUES", strings.Join(valueClauses, ", "))
+
+	if conflictClause != "" {
+		parts = append(parts, conflictClause)
+	}
 
 	if len(i.returning) > 0 && i.dialect.SupportsReturning() {
 		parts = append(parts, i.dialect.ReturningClause(i.returning...))
