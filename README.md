@@ -76,12 +76,17 @@ pagination:
   default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
   max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
 
+auth:
+  enabled: true
+  jwt_secret: "${JWT_SECRET}"
+  jwt_ttl: 900
+
 plugins:
-  - name: auth
+  - name: openapi
     enabled: true
     config:
-      jwt_secret: "${JWT_SECRET}"
-      jwt_ttl: 900
+      title: "My API"
+      version: "1.0.0"
 ```
 
 Set required environment variables:
@@ -139,11 +144,9 @@ pagination:
   default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
   max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
 
-plugins:
-  - name: auth
-    config:
-      # Empty default
-      jwt_secret: "${JWT_SECRET:-}"
+auth:
+  # Empty default
+  jwt_secret: "${JWT_SECRET:-}"
 ```
 
 **Behavior:**
@@ -457,6 +460,7 @@ my-api/
 ```
 gorest/
 ├── processor/               # Unified API processor
+├── auth/                    # Built-in authentication layer
 ├── crud/                    # Generic CRUD
 ├── database/                # Multi-DB abstraction
 │   ├── postgres/
