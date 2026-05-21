@@ -248,8 +248,8 @@ func TestInterpolateEnvVars_PluginConfig(t *testing.T) {
 }
 
 func TestInterpolateEnvVars_GlobalPluginConfig(t *testing.T) {
-	os.Setenv("CORS_ORIGIN", "https://example.com")
-	defer os.Unsetenv("CORS_ORIGIN")
+	os.Setenv("CORS_ORIGINS", "https://example.com")
+	defer os.Unsetenv("CORS_ORIGINS")
 
 	cfg := &Config{
 		Database: DatabaseConfig{URL: "postgres://localhost/db"},
@@ -258,7 +258,7 @@ func TestInterpolateEnvVars_GlobalPluginConfig(t *testing.T) {
 				Name:    "cors",
 				Enabled: true,
 				Config: map[string]interface{}{
-					"origins": "${CORS_ORIGIN}",
+					"origins": "${CORS_ORIGINS}",
 				},
 			},
 		},
