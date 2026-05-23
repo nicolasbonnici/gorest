@@ -1,15 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:base"],
-  "schedule": ["before 6am on monday"],
+  "extends": [
+    "config:base"
+  ],
   "packageRules": [
     {
-      "groupName": "go shared deps",
-      "matchManagers": ["gomod"],
-      "matchPackagePatterns": [
-        "github.com/gofiber/fiber",
-        "github.com/google/uuid",
-        "golang.org/x/.*"
+      "groupName": "all go deps",
+      "matchManagers": [
+        "gomod"
       ]
     }
   ]
