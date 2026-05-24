@@ -68,12 +68,20 @@ func (m Migration) FullName() string {
 
 func (m Migration) CalculateChecksum() string {
 	if m.Executor != nil {
-		return m.Executor.Checksum()
+		if cs := m.Executor.Checksum(); cs != "" {
+			return cs
+		}
 	}
-	// Legacy SQL-based checksum
+	if m.UpSQL != "" || m.DownSQL != "" {
+		h := sha256.New()
+		h.Write([]byte(m.UpSQL))
+		h.Write([]byte(m.DownSQL))
+		return hex.EncodeToString(h.Sum(nil))
+	}
+	// Executor returned "" and no SQL — fall back to version+name metadata
 	h := sha256.New()
-	h.Write([]byte(m.UpSQL))
-	h.Write([]byte(m.DownSQL))
+	h.Write([]byte(m.Version))
+	h.Write([]byte(m.Name))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
