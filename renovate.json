@@ -1,14 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
+    "config:recommended"
   ],
+  "automerge": true,
+  "automergeType": "pr",
   "packageRules": [
     {
       "groupName": "all go deps",
       "matchManagers": [
         "gomod"
-      ]
+      ],
+      "automerge": true
     }
   ]
 }
