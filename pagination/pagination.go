@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/response"
 	"github.com/nicolasbonnici/gorest/serializer"
 )
@@ -30,7 +30,7 @@ type HydraCollection struct {
 	View       *HydraView  `json:"hydra:view"`
 }
 
-func ParseIntQuery(c *fiber.Ctx, key string, defaultValue, maxValue int) int {
+func ParseIntQuery(c fiber.Ctx, key string, defaultValue, maxValue int) int {
 	valueStr := c.Query(key)
 	if valueStr == "" {
 		return defaultValue
@@ -74,9 +74,9 @@ func buildPaginationURL(basePath string, params url.Values, limit, page, default
 	return basePath
 }
 
-func SendHydraCollectionWithExpanded(c *fiber.Ctx, expandedItems []interface{}, total *int, limit, page, defaultLimit int) error {
+func SendHydraCollectionWithExpanded(c fiber.Ctx, expandedItems []interface{}, total *int, limit, page, defaultLimit int) error {
 	basePath := c.Path()
-	queryParams := c.Context().QueryArgs()
+	queryParams := c.Request().URI().QueryArgs()
 	parsedParams := make(url.Values)
 	for key, value := range queryParams.All() {
 		parsedParams.Add(string(key), string(value))
@@ -139,9 +139,9 @@ func SendHydraCollectionWithExpanded(c *fiber.Ctx, expandedItems []interface{}, 
 	return response.SendJSON(c, fiber.StatusOK, collection)
 }
 
-func SendHydraCollection(c *fiber.Ctx, items interface{}, total *int, limit, page, defaultLimit int) error {
+func SendHydraCollection(c fiber.Ctx, items interface{}, total *int, limit, page, defaultLimit int) error {
 	basePath := c.Path()
-	queryParams := c.Context().QueryArgs()
+	queryParams := c.Request().URI().QueryArgs()
 	parsedParams := make(url.Values)
 	for key, value := range queryParams.All() {
 		parsedParams.Add(string(key), string(value))
@@ -216,7 +216,7 @@ func formatItems(items interface{}, path string, format string, expand []string)
 	return formattedItems
 }
 
-func SendPaginatedError(c *fiber.Ctx, statusCode int, message string) error {
+func SendPaginatedError(c fiber.Ctx, statusCode int, message string) error {
 	response.SetCommonHeaders(c)
 	return c.Status(statusCode).JSON(fiber.Map{
 		"@context":          "http://www.w3.org/ns/hydra/context.jsonld",

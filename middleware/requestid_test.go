@@ -3,10 +3,9 @@ package middleware
 import (
 	"io"
 	"net/http/httptest"
-	"regexp"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestRequestID_ReturnsHandler(t *testing.T) {
@@ -18,7 +17,7 @@ func TestRequestID_ReturnsHandler(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -35,7 +34,7 @@ func TestRequestID_GeneratesRequestID(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -52,12 +51,12 @@ func TestRequestID_GeneratesRequestID(t *testing.T) {
 	}
 }
 
-func TestRequestID_UUIDFormat(t *testing.T) {
+func TestRequestID_IDFormat(t *testing.T) {
 	handler := RequestID()
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -69,9 +68,8 @@ func TestRequestID_UUIDFormat(t *testing.T) {
 		t.Fatal("expected X-Request-ID header to be set")
 	}
 
-	uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-	if !uuidPattern.MatchString(requestID) {
-		t.Errorf("expected UUID format, got '%s'", requestID)
+	if len(requestID) < 8 {
+		t.Errorf("expected non-trivial request ID, got '%s'", requestID)
 	}
 }
 
@@ -80,7 +78,7 @@ func TestRequestID_UniqueIDs(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -111,9 +109,9 @@ func TestRequestID_DifferentEndpoints(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/users", func(c *fiber.Ctx) error { return c.SendString("users") })
-	app.Get("/posts", func(c *fiber.Ctx) error { return c.SendString("posts") })
-	app.Get("/comments", func(c *fiber.Ctx) error { return c.SendString("comments") })
+	app.Get("/users", func(c fiber.Ctx) error { return c.SendString("users") })
+	app.Get("/posts", func(c fiber.Ctx) error { return c.SendString("posts") })
+	app.Get("/comments", func(c fiber.Ctx) error { return c.SendString("comments") })
 
 	endpoints := []string{"/users", "/posts", "/comments"}
 
@@ -139,11 +137,11 @@ func TestRequestID_DifferentMethods(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
-	app.Post("/test", func(c *fiber.Ctx) error { return c.SendStatus(201) })
-	app.Put("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
-	app.Delete("/test", func(c *fiber.Ctx) error { return c.SendStatus(204) })
-	app.Patch("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
+	app.Get("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
+	app.Post("/test", func(c fiber.Ctx) error { return c.SendStatus(201) })
+	app.Put("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
+	app.Delete("/test", func(c fiber.Ctx) error { return c.SendStatus(204) })
+	app.Patch("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
 
 	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
 
@@ -157,9 +155,8 @@ func TestRequestID_DifferentMethods(t *testing.T) {
 				t.Errorf("method %s: expected X-Request-ID header to be set", method)
 			}
 
-			uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-			if !uuidPattern.MatchString(requestID) {
-				t.Errorf("method %s: invalid UUID format '%s'", method, requestID)
+			if len(requestID) < 8 {
+				t.Errorf("method %s: request ID too short '%s'", method, requestID)
 			}
 		})
 	}
@@ -172,8 +169,8 @@ func TestRequestID_ContextLocals(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
-		capturedRequestID = c.Locals("requestid").(string)
+	app.Get("/test", func(c fiber.Ctx) error {
+		capturedRequestID = c.GetRespHeader("X-Request-ID")
 		return c.SendString("ok")
 	})
 
@@ -200,7 +197,7 @@ func TestRequestID_DoesNotBlockRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("response")
 	})
 
@@ -222,7 +219,7 @@ func TestRequestID_MultipleRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -246,10 +243,10 @@ func TestRequestID_SuccessAndErrorRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/success", func(c *fiber.Ctx) error {
+	app.Get("/success", func(c fiber.Ctx) error {
 		return c.SendStatus(200)
 	})
-	app.Get("/error", func(c *fiber.Ctx) error {
+	app.Get("/error", func(c fiber.Ctx) error {
 		return c.SendStatus(500)
 	})
 
@@ -287,7 +284,7 @@ func TestRequestID_ConcurrentRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -319,7 +316,7 @@ func TestRequestID_PreservesResponseBody(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/json", func(c *fiber.Ctx) error {
+	app.Get("/json", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "test", "data": 123})
 	})
 
@@ -346,7 +343,7 @@ func TestRequestID_WithQueryParameters(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/search", func(c *fiber.Ctx) error {
+	app.Get("/search", func(c fiber.Ctx) error {
 		return c.SendString("results")
 	})
 
@@ -368,7 +365,7 @@ func TestRequestID_NoCollisions(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 

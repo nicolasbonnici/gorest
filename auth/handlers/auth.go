@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/nicolasbonnici/gorest/auth/converters"
 	"github.com/nicolasbonnici/gorest/auth/dtos"
@@ -44,9 +44,9 @@ func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *j
 }
 
 func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtService *jwt.Service) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		var req RegisterRequest
-		if err := c.BodyParser(&req); err != nil {
+		if err := c.Bind().Body(&req); err != nil {
 			return response.SendError(c, fiber.StatusBadRequest, "invalid request body")
 		}
 
@@ -93,9 +93,9 @@ func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtS
 }
 
 func handleLogin(db database.Database, jwtService *jwt.Service) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		var req LoginRequest
-		if err := c.BodyParser(&req); err != nil {
+		if err := c.Bind().Body(&req); err != nil {
 			return response.SendError(c, fiber.StatusBadRequest, "invalid request body")
 		}
 
@@ -129,13 +129,13 @@ func handleLogin(db database.Database, jwtService *jwt.Service) fiber.Handler {
 }
 
 func handleRefresh(jwtService *jwt.Service) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		type RefreshRequest struct {
 			Token string `json:"token" validate:"required"`
 		}
 
 		var req RefreshRequest
-		if err := c.BodyParser(&req); err != nil {
+		if err := c.Bind().Body(&req); err != nil {
 			return response.SendError(c, fiber.StatusBadRequest, "invalid request body")
 		}
 

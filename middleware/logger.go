@@ -3,14 +3,15 @@ package middleware
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/nicolasbonnici/gorest/logger"
 )
 
 func Logger(environment string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		start := time.Now()
-		requestID := c.Locals("requestid")
+		requestID := requestid.FromContext(c)
 
 		err := c.Next()
 

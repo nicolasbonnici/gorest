@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestSecurity(t *testing.T) {
@@ -20,7 +20,7 @@ func TestSecurity_AllHeaders(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -53,7 +53,7 @@ func TestSecurity_XContentTypeOptions(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -71,7 +71,7 @@ func TestSecurity_XFrameOptions(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -89,7 +89,7 @@ func TestSecurity_XXSSProtection(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -107,7 +107,7 @@ func TestSecurity_StrictTransportSecurity(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -126,7 +126,7 @@ func TestSecurity_ReferrerPolicy(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -144,7 +144,7 @@ func TestSecurity_PermissionsPolicy(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -163,7 +163,7 @@ func TestSecurity_MultipleRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -187,10 +187,10 @@ func TestSecurity_DifferentMethods(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error { return c.SendString("get") })
-	app.Post("/test", func(c *fiber.Ctx) error { return c.SendString("post") })
-	app.Put("/test", func(c *fiber.Ctx) error { return c.SendString("put") })
-	app.Delete("/test", func(c *fiber.Ctx) error { return c.SendString("delete") })
+	app.Get("/test", func(c fiber.Ctx) error { return c.SendString("get") })
+	app.Post("/test", func(c fiber.Ctx) error { return c.SendString("post") })
+	app.Put("/test", func(c fiber.Ctx) error { return c.SendString("put") })
+	app.Delete("/test", func(c fiber.Ctx) error { return c.SendString("delete") })
 
 	methods := []string{"GET", "POST", "PUT", "DELETE"}
 
@@ -221,13 +221,13 @@ func TestSecurity_MultipleEndpoints(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/api/users", func(c *fiber.Ctx) error {
+	app.Get("/api/users", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"users": []string{"alice"}})
 	})
-	app.Get("/api/posts", func(c *fiber.Ctx) error {
+	app.Get("/api/posts", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"posts": []string{"post1"}})
 	})
-	app.Get("/health", func(c *fiber.Ctx) error {
+	app.Get("/health", func(c fiber.Ctx) error {
 		return c.SendString("healthy")
 	})
 
@@ -255,7 +255,7 @@ func TestSecurity_HeadersPresent(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -284,7 +284,7 @@ func TestSecurity_BlocksTRACEMethod(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -306,7 +306,7 @@ func TestSecurity_BlocksTRACEMethod(t *testing.T) {
 func TestSecurity_IntegrationWithFiber(t *testing.T) {
 	app := fiber.New()
 	app.Use(Security())
-	app.Get("/secure", func(c *fiber.Ctx) error {
+	app.Get("/secure", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "secure"})
 	})
 
@@ -328,7 +328,7 @@ func TestSecurity_DoesNotBlockRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("content")
 	})
 

@@ -3,7 +3,7 @@ package plugin
 import (
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type mockPlugin struct {
@@ -43,7 +43,7 @@ func TestRegister_Single(t *testing.T) {
 	registry := NewPluginRegistry()
 	plugin := &mockPlugin{
 		name: "test-plugin",
-		handler: func(c *fiber.Ctx) error {
+		handler: func(c fiber.Ctx) error {
 			return c.Next()
 		},
 	}
@@ -68,19 +68,19 @@ func TestRegister_Multiple(t *testing.T) {
 	registry := NewPluginRegistry()
 	plugin1 := &mockPlugin{
 		name: "plugin1",
-		handler: func(c *fiber.Ctx) error {
+		handler: func(c fiber.Ctx) error {
 			return c.Next()
 		},
 	}
 	plugin2 := &mockPlugin{
 		name: "plugin2",
-		handler: func(c *fiber.Ctx) error {
+		handler: func(c fiber.Ctx) error {
 			return c.Next()
 		},
 	}
 	plugin3 := &mockPlugin{
 		name: "plugin3",
-		handler: func(c *fiber.Ctx) error {
+		handler: func(c fiber.Ctx) error {
 			return c.Next()
 		},
 	}
@@ -106,8 +106,8 @@ func TestRegister_Multiple(t *testing.T) {
 
 func TestRegister_Overwrite(t *testing.T) {
 	registry := NewPluginRegistry()
-	plugin1 := &mockPlugin{name: "test", handler: func(c *fiber.Ctx) error { return c.Next() }}
-	plugin2 := &mockPlugin{name: "test", handler: func(c *fiber.Ctx) error { return c.SendStatus(200) }}
+	plugin1 := &mockPlugin{name: "test", handler: func(c fiber.Ctx) error { return c.Next() }}
+	plugin2 := &mockPlugin{name: "test", handler: func(c fiber.Ctx) error { return c.SendStatus(200) }}
 
 	registry.Register(plugin1)
 	registry.Register(plugin2)
@@ -128,7 +128,7 @@ func TestRegister_Overwrite(t *testing.T) {
 
 func TestGet_Exists(t *testing.T) {
 	registry := NewPluginRegistry()
-	plugin := &mockPlugin{name: "test-plugin", handler: func(c *fiber.Ctx) error { return c.Next() }}
+	plugin := &mockPlugin{name: "test-plugin", handler: func(c fiber.Ctx) error { return c.Next() }}
 
 	registry.Register(plugin)
 
@@ -163,9 +163,9 @@ func TestGet_NotExists(t *testing.T) {
 
 func TestGet_MultiplePlugins(t *testing.T) {
 	registry := NewPluginRegistry()
-	registry.Register(&mockPlugin{name: "plugin1", handler: func(c *fiber.Ctx) error { return c.Next() }})
-	registry.Register(&mockPlugin{name: "plugin2", handler: func(c *fiber.Ctx) error { return c.Next() }})
-	registry.Register(&mockPlugin{name: "plugin3", handler: func(c *fiber.Ctx) error { return c.Next() }})
+	registry.Register(&mockPlugin{name: "plugin1", handler: func(c fiber.Ctx) error { return c.Next() }})
+	registry.Register(&mockPlugin{name: "plugin2", handler: func(c fiber.Ctx) error { return c.Next() }})
+	registry.Register(&mockPlugin{name: "plugin3", handler: func(c fiber.Ctx) error { return c.Next() }})
 
 	tests := []struct {
 		name   string
@@ -206,8 +206,8 @@ func TestGetAll_Empty(t *testing.T) {
 
 func TestGetAll_WithPlugins(t *testing.T) {
 	registry := NewPluginRegistry()
-	plugin1 := &mockPlugin{name: "plugin1", handler: func(c *fiber.Ctx) error { return c.Next() }}
-	plugin2 := &mockPlugin{name: "plugin2", handler: func(c *fiber.Ctx) error { return c.Next() }}
+	plugin1 := &mockPlugin{name: "plugin1", handler: func(c fiber.Ctx) error { return c.Next() }}
+	plugin2 := &mockPlugin{name: "plugin2", handler: func(c fiber.Ctx) error { return c.Next() }}
 
 	registry.Register(plugin1)
 	registry.Register(plugin2)
@@ -231,19 +231,19 @@ func TestPluginRegistry_IntegrationScenario(t *testing.T) {
 
 	logger := &mockPlugin{
 		name:    "logger",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
+		handler: func(c fiber.Ctx) error { return c.Next() },
 	}
 	cors := &mockPlugin{
 		name:    "cors",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
+		handler: func(c fiber.Ctx) error { return c.Next() },
 	}
 	auth := &mockPlugin{
 		name:    "auth",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
+		handler: func(c fiber.Ctx) error { return c.Next() },
 	}
 	ratelimit := &mockPlugin{
 		name:    "ratelimit",
-		handler: func(c *fiber.Ctx) error { return c.Next() },
+		handler: func(c fiber.Ctx) error { return c.Next() },
 	}
 
 	registry.Register(logger)

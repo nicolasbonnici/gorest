@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/response"
 )
 
@@ -30,7 +30,7 @@ func TestParseIntQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := fiber.New()
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				result := ParseIntQuery(c, "limit", tt.defaultValue, tt.maxValue)
 				return c.SendString(string(rune(result)))
 			})
@@ -43,10 +43,7 @@ func TestParseIntQuery(t *testing.T) {
 			defer resp.Body.Close()
 
 			app2 := fiber.New()
-			app2.Get("/verify", func(c *fiber.Ctx) error {
-				c.QueryParser(&struct {
-					Limit string `query:"limit"`
-				}{})
+			app2.Get("/verify", func(c fiber.Ctx) error {
 				result := ParseIntQuery(c, "limit", tt.defaultValue, tt.maxValue)
 				if result != tt.expected {
 					t.Errorf("Expected %d, got %d", tt.expected, result)
@@ -63,7 +60,7 @@ func TestParseIntQuery(t *testing.T) {
 func TestSendHydraCollection(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []map[string]string{
 			{"id": "1", "name": "Item 1"},
 			{"id": "2", "name": "Item 2"},
@@ -116,7 +113,7 @@ func TestSendHydraCollection(t *testing.T) {
 func TestSendHydraCollectionWithoutCount(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []string{"item1", "item2"}
 		return SendHydraCollection(c, items, nil, 2, 1, 2)
 	})
@@ -145,7 +142,7 @@ func TestSendHydraCollectionWithoutCount(t *testing.T) {
 func TestSendHydraCollectionPagination(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []int{3, 4}
 		total := 10
 		return SendHydraCollection(c, items, &total, 2, 2, 2)
@@ -175,7 +172,7 @@ func TestSendHydraCollectionPagination(t *testing.T) {
 func TestSendPaginatedError(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/error", func(c *fiber.Ctx) error {
+	app.Get("/error", func(c fiber.Ctx) error {
 		return SendPaginatedError(c, 500, "Test error")
 	})
 
@@ -213,7 +210,7 @@ func TestPaginationXPoweredByHeader(t *testing.T) {
 	}{
 		{
 			name: "SendHydraCollection",
-			handler: func(c *fiber.Ctx) error {
+			handler: func(c fiber.Ctx) error {
 				items := []string{"item1"}
 				total := 1
 				return SendHydraCollection(c, items, &total, 1, 1, 1)
@@ -221,7 +218,7 @@ func TestPaginationXPoweredByHeader(t *testing.T) {
 		},
 		{
 			name: "SendPaginatedError",
-			handler: func(c *fiber.Ctx) error {
+			handler: func(c fiber.Ctx) error {
 				return SendPaginatedError(c, 400, "test error")
 			},
 		},
@@ -250,7 +247,7 @@ func TestPaginationXPoweredByHeader(t *testing.T) {
 func TestSendHydraCollectionWithExpanded(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		expandedItems := []interface{}{
 			map[string]interface{}{
 				"id":   "1",
@@ -309,7 +306,7 @@ func TestSendHydraCollectionWithExpanded(t *testing.T) {
 func TestSendHydraCollectionWithExpanded_WithNonMapItems(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		expandedItems := []interface{}{
 			"string-item-1",
 			"string-item-2",
@@ -347,7 +344,7 @@ func TestSendHydraCollectionWithExpanded_WithNonMapItems(t *testing.T) {
 func TestSendHydraCollectionWithExpanded_JSONLDFormat(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		expandedItems := []interface{}{
 			map[string]interface{}{
 				"id":   "1",
@@ -374,7 +371,7 @@ func TestSendHydraCollectionWithExpanded_JSONLDFormat(t *testing.T) {
 func TestSendHydraCollectionWithExpanded_WithExpand(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		expandedItems := []interface{}{
 			map[string]interface{}{
 				"id":     "1",
@@ -401,7 +398,7 @@ func TestSendHydraCollectionWithExpanded_WithExpand(t *testing.T) {
 func TestSendHydraCollectionWithExpanded_NoTotal(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		expandedItems := []interface{}{
 			map[string]interface{}{"id": "1", "name": "Item 1"},
 		}
@@ -436,7 +433,7 @@ func TestSendHydraCollectionWithExpanded_NoTotal(t *testing.T) {
 func TestSendHydraCollectionWithExpanded_Pagination(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		expandedItems := []interface{}{
 			map[string]interface{}{"id": "3", "name": "Item 3"},
 			map[string]interface{}{"id": "4", "name": "Item 4"},
@@ -473,7 +470,7 @@ func TestSendHydraCollectionWithExpanded_Pagination(t *testing.T) {
 func TestBuildPaginationURL_WithQueryParams(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []string{"item1", "item2"}
 		total := 10
 		return SendHydraCollection(c, items, &total, 2, 1, 2)
@@ -507,7 +504,7 @@ func TestBuildPaginationURL_WithQueryParams(t *testing.T) {
 func TestBuildPaginationURL_EmptyQueryParams(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []string{"item1"}
 		total := 1
 		return SendHydraCollection(c, items, &total, 1, 1, 1)
@@ -533,7 +530,7 @@ func TestBuildPaginationURL_EmptyQueryParams(t *testing.T) {
 func TestBuildPaginationURL_NonDefaultLimit(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []string{"item1", "item2", "item3"}
 		total := 10
 		return SendHydraCollection(c, items, &total, 3, 1, 5)
@@ -559,7 +556,7 @@ func TestBuildPaginationURL_NonDefaultLimit(t *testing.T) {
 func TestSendHydraCollection_JSONLDFormat(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []map[string]string{
 			{"id": "1", "name": "Item 1"},
 		}
@@ -583,7 +580,7 @@ func TestSendHydraCollection_JSONLDFormat(t *testing.T) {
 func TestSendHydraCollection_LastPage(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []int{9, 10}
 		total := 10
 		return SendHydraCollection(c, items, &total, 2, 5, 2)
@@ -613,7 +610,7 @@ func TestSendHydraCollection_LastPage(t *testing.T) {
 func TestFormatItems_NonSlice(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/item", func(c *fiber.Ctx) error {
+	app.Get("/item", func(c fiber.Ctx) error {
 		item := "single-item"
 		total := 1
 		return SendHydraCollection(c, item, &total, 1, 1, 1)
@@ -654,7 +651,7 @@ func TestParseIntQuery_BoundaryValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := fiber.New()
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				result := ParseIntQuery(c, "limit", tt.defaultValue, tt.maxValue)
 				if result != tt.expected {
 					t.Errorf("Expected %d, got %d", tt.expected, result)
@@ -685,7 +682,7 @@ func TestSendPaginatedError_DifferentStatusCodes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			app := fiber.New()
 
-			app.Get("/error", func(c *fiber.Ctx) error {
+			app.Get("/error", func(c fiber.Ctx) error {
 				return SendPaginatedError(c, tt.statusCode, tt.message)
 			})
 
@@ -724,7 +721,7 @@ func TestSendPaginatedError_DifferentStatusCodes(t *testing.T) {
 func TestSendHydraCollection_WithExpandQuery(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/items", func(c *fiber.Ctx) error {
+	app.Get("/items", func(c fiber.Ctx) error {
 		items := []map[string]interface{}{
 			{"id": "1", "name": "Item 1", "author": map[string]string{"id": "author1"}},
 		}

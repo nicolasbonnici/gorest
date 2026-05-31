@@ -3,13 +3,13 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // ContentNegotiation validates Content-Type for mutation requests (POST, PUT, PATCH).
 // Requires application/json for all mutation operations.
 func ContentNegotiation() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		method := c.Method()
 		if method == "POST" || method == "PUT" || method == "PATCH" {
 			contentType := c.Get("Content-Type")

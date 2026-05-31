@@ -1,18 +1,18 @@
 package processor
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/response"
 )
 
 type ErrorHandler interface {
-	HandleError(c *fiber.Ctx, err error, operation string) error
+	HandleError(c fiber.Ctx, err error, operation string) error
 }
 
 type DefaultErrorHandler struct{}
 
-func (h *DefaultErrorHandler) HandleError(c *fiber.Ctx, err error, operation string) error {
+func (h *DefaultErrorHandler) HandleError(c fiber.Ctx, err error, operation string) error {
 	if operation == "parse" || operation == "parseFilters" || operation == "parseOrdering" {
 		return response.SendError(c, fiber.StatusBadRequest, "Invalid request body")
 	}

@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestCORS_DefaultWildcard(t *testing.T) {
@@ -13,7 +13,7 @@ func TestCORS_DefaultWildcard(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -42,7 +42,7 @@ func TestCORS_ExplicitWildcard(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -67,7 +67,7 @@ func TestCORS_SpecificOrigin(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -96,7 +96,7 @@ func TestCORS_MultipleOrigins(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -152,7 +152,7 @@ func TestCORS_PreflightRequest(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -173,13 +173,13 @@ func TestCORS_PreflightRequest(t *testing.T) {
 	}
 
 	allowMethods := resp.Header.Get("Access-Control-Allow-Methods")
-	if allowMethods != "GET,POST,PUT,DELETE,OPTIONS" {
-		t.Errorf("expected Access-Control-Allow-Methods 'GET,POST,PUT,DELETE,OPTIONS', got '%s'", allowMethods)
+	if allowMethods != "GET, POST, PUT, DELETE, OPTIONS" {
+		t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS', got '%s'", allowMethods)
 	}
 
 	allowHeaders := resp.Header.Get("Access-Control-Allow-Headers")
-	if allowHeaders != "Origin,Content-Type,Accept,Authorization" {
-		t.Errorf("expected Access-Control-Allow-Headers 'Origin,Content-Type,Accept,Authorization', got '%s'", allowHeaders)
+	if allowHeaders != "Origin, Content-Type, Accept, Authorization" {
+		t.Errorf("expected Access-Control-Allow-Headers 'Origin, Content-Type, Accept, Authorization', got '%s'", allowHeaders)
 	}
 
 	maxAge := resp.Header.Get("Access-Control-Max-Age")
@@ -193,10 +193,10 @@ func TestCORS_AllowedMethods(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error { return c.SendString("get") })
-	app.Post("/test", func(c *fiber.Ctx) error { return c.SendString("post") })
-	app.Put("/test", func(c *fiber.Ctx) error { return c.SendString("put") })
-	app.Delete("/test", func(c *fiber.Ctx) error { return c.SendString("delete") })
+	app.Get("/test", func(c fiber.Ctx) error { return c.SendString("get") })
+	app.Post("/test", func(c fiber.Ctx) error { return c.SendString("post") })
+	app.Put("/test", func(c fiber.Ctx) error { return c.SendString("put") })
+	app.Delete("/test", func(c fiber.Ctx) error { return c.SendString("delete") })
 
 	methods := []string{"GET", "POST", "PUT", "DELETE"}
 
@@ -224,7 +224,7 @@ func TestCORS_WithoutOriginHeader(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -247,7 +247,7 @@ func TestCORS_CustomHeaders(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Post("/test", func(c *fiber.Ctx) error {
+	app.Post("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -297,7 +297,7 @@ func TestCORS_CredentialsOnlyWithSpecificOrigin(t *testing.T) {
 
 			app := fiber.New()
 			app.Use(handler)
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				return c.SendString("ok")
 			})
 

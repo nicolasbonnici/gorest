@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/plugin"
 )
@@ -23,7 +23,7 @@ func (m *mockPluginWithDeps) Initialize(cfg map[string]interface{}) error {
 }
 
 func (m *mockPluginWithDeps) Handler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		return c.Next()
 	}
 }
@@ -344,7 +344,7 @@ func (s *simpleMockPlugin) Initialize(cfg map[string]interface{}) error {
 }
 
 func (s *simpleMockPlugin) Handler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		return c.Next()
 	}
 }

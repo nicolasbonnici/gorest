@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestCompress_WithGzipEncoding(t *testing.T) {
@@ -17,7 +17,7 @@ func TestCompress_WithGzipEncoding(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		// Use a larger response to ensure compression is applied
 		return c.SendString(testContent)
 	})
@@ -61,7 +61,7 @@ func TestCompress_WithoutAcceptEncoding(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("uncompressed response")
 	})
 
@@ -112,7 +112,7 @@ func TestCompress_DifferentLevels(t *testing.T) {
 
 			app := fiber.New()
 			app.Use(handler)
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				return c.SendString(testContent)
 			})
 
@@ -157,7 +157,7 @@ func TestCompress_MultipleEncodings(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		// Use a larger response to ensure compression is applied
 		return c.SendString(strings.Repeat("test response ", 100))
 	})
@@ -183,7 +183,7 @@ func TestCompress_JSONResponse(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		// Use a larger JSON response to ensure compression is applied
 		data := make([]int, 200)
 		for i := range data {

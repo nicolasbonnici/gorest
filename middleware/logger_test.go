@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestLogger_ReturnsHandler(t *testing.T) {
@@ -18,7 +18,7 @@ func TestLogger_ReturnsHandler(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -40,7 +40,7 @@ func TestLogger_LogsGetRequest(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/api/users", func(c *fiber.Ctx) error {
+	app.Get("/api/users", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"users": []string{"alice"}})
 	})
 
@@ -59,7 +59,7 @@ func TestLogger_LogsPostRequest(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Post("/api/users", func(c *fiber.Ctx) error {
+	app.Post("/api/users", func(c fiber.Ctx) error {
 		return c.Status(201).JSON(fiber.Map{"created": true})
 	})
 
@@ -78,9 +78,9 @@ func TestLogger_LogsErrorResponses(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/error400", func(c *fiber.Ctx) error { return c.SendStatus(400) })
-	app.Get("/error404", func(c *fiber.Ctx) error { return c.SendStatus(404) })
-	app.Get("/error500", func(c *fiber.Ctx) error { return c.SendStatus(500) })
+	app.Get("/error400", func(c fiber.Ctx) error { return c.SendStatus(400) })
+	app.Get("/error404", func(c fiber.Ctx) error { return c.SendStatus(404) })
+	app.Get("/error500", func(c fiber.Ctx) error { return c.SendStatus(500) })
 
 	testCases := []struct {
 		path           string
@@ -106,7 +106,7 @@ func TestLogger_LogsErrorMessageInDevelopment(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/error", func(c *fiber.Ctx) error {
+	app.Get("/error", func(c fiber.Ctx) error {
 		return errors.New("test error message")
 	})
 
@@ -125,7 +125,7 @@ func TestLogger_DoesNotLogErrorMessageInProduction(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/error", func(c *fiber.Ctx) error {
+	app.Get("/error", func(c fiber.Ctx) error {
 		return errors.New("secret error message")
 	})
 
@@ -143,7 +143,7 @@ func TestLogger_LogsFullURLWithQueryString(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/api/search", func(c *fiber.Ctx) error {
+	app.Get("/api/search", func(c fiber.Ctx) error {
 		return c.SendString("results")
 	})
 
@@ -160,7 +160,7 @@ func TestLogger_DoesNotBlockRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("response")
 	})
 
@@ -181,12 +181,12 @@ func TestLogger_WithRequestID(t *testing.T) {
 	handler := Logger("test")
 
 	app := fiber.New()
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		c.Locals("requestid", "test-request-id-123")
 		return c.Next()
 	})
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -203,7 +203,7 @@ func TestLogger_WithoutRequestID(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -220,11 +220,11 @@ func TestLogger_AllHTTPMethods(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
-	app.Post("/test", func(c *fiber.Ctx) error { return c.SendStatus(201) })
-	app.Put("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
-	app.Delete("/test", func(c *fiber.Ctx) error { return c.SendStatus(204) })
-	app.Patch("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
+	app.Get("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
+	app.Post("/test", func(c fiber.Ctx) error { return c.SendStatus(201) })
+	app.Put("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
+	app.Delete("/test", func(c fiber.Ctx) error { return c.SendStatus(204) })
+	app.Patch("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
 
 	tests := []struct {
 		method         string
@@ -254,7 +254,7 @@ func TestLogger_LogsWithUserAgent(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 

@@ -8,7 +8,7 @@ import (
 	"github.com/nicolasbonnici/gorest/generated/dtos"
 	"github.com/nicolasbonnici/gorest/generated/models"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	authpkg "github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
@@ -74,7 +74,7 @@ func todoUpdateDTOToModel(dto dtos.TodoUpdateDTO) models.Todo {
 // @Produce json,application/ld+json
 // @Success 200 {object} pagination.HydraCollection
 // @Router /todos [get]
-func (r *TodoResource) List(c *fiber.Ctx) error {
+func (r *TodoResource) List(c fiber.Ctx) error {
 	limit := pagination.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
 	page := pagination.ParseIntQuery(c, "page", 1, 10000)
 	if page < 1 {
@@ -86,7 +86,7 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 	allowedFields := []string{"id", "user_id", "title", "content", "updated_at", "created_at"}
 
 	queryParams := make(url.Values)
-	for key, value := range c.Context().QueryArgs().All() {
+	for key, value := range c.Request().URI().QueryArgs().All() {
 		queryParams.Add(string(key), string(value))
 	}
 
@@ -139,7 +139,7 @@ func (r *TodoResource) List(c *fiber.Ctx) error {
 // @Param id path int true "ID"
 // @Success 200 {object} dtos.TodoDTO
 // @Router /todos/{id} [get]
-func (r *TodoResource) Get(c *fiber.Ctx) error {
+func (r *TodoResource) Get(c fiber.Ctx) error {
 	id := c.Params("id")
 	item, err := r.CRUD.GetByID(authpkg.Context(c), id)
 	if err != nil {
@@ -158,9 +158,9 @@ func (r *TodoResource) Get(c *fiber.Ctx) error {
 // @Param input body dtos.TodoCreateDTO true "New Todo"
 // @Success 201 {object} dtos.TodoDTO
 // @Router /todos [post]
-func (r *TodoResource) Create(c *fiber.Ctx) error {
+func (r *TodoResource) Create(c fiber.Ctx) error {
 	var createDTO dtos.TodoCreateDTO
-	if err := c.BodyParser(&createDTO); err != nil {
+	if err := c.Bind().Body(&createDTO); err != nil {
 		logger.Log.Error("Failed to parse request body", "error", err, "path", c.Path())
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
@@ -196,10 +196,10 @@ func (r *TodoResource) Create(c *fiber.Ctx) error {
 // @Param input body dtos.TodoUpdateDTO true "Updated Todo"
 // @Success 200 {object} dtos.TodoDTO
 // @Router /todos/{id} [put]
-func (r *TodoResource) Update(c *fiber.Ctx) error {
+func (r *TodoResource) Update(c fiber.Ctx) error {
 	id := c.Params("id")
 	var updateDTO dtos.TodoUpdateDTO
-	if err := c.BodyParser(&updateDTO); err != nil {
+	if err := c.Bind().Body(&updateDTO); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
@@ -224,7 +224,7 @@ func (r *TodoResource) Update(c *fiber.Ctx) error {
 // @Param id path int true "ID"
 // @Success 204
 // @Router /todos/{id} [delete]
-func (r *TodoResource) Delete(c *fiber.Ctx) error {
+func (r *TodoResource) Delete(c fiber.Ctx) error {
 	id := c.Params("id")
 	if err := r.CRUD.Delete(authpkg.Context(c), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})

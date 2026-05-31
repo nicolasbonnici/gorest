@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestContentNegotiation_ReturnsHandler(t *testing.T) {
@@ -19,7 +19,7 @@ func TestContentNegotiation_ReturnsHandler(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -36,7 +36,7 @@ func TestContentNegotiation_AllowsGETRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -53,7 +53,7 @@ func TestContentNegotiation_RequiresJSONForPOST(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Post("/test", func(c *fiber.Ctx) error {
+	app.Post("/test", func(c fiber.Ctx) error {
 		return c.SendStatus(201)
 	})
 
@@ -110,7 +110,7 @@ func TestContentNegotiation_RequiresJSONForPUT(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Put("/test", func(c *fiber.Ctx) error {
+	app.Put("/test", func(c fiber.Ctx) error {
 		return c.SendStatus(200)
 	})
 
@@ -135,7 +135,7 @@ func TestContentNegotiation_RequiresJSONForPATCH(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Patch("/test", func(c *fiber.Ctx) error {
+	app.Patch("/test", func(c fiber.Ctx) error {
 		return c.SendStatus(200)
 	})
 
@@ -160,7 +160,7 @@ func TestContentNegotiation_AllowsDELETEWithoutContentType(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Delete("/test", func(c *fiber.Ctx) error {
+	app.Delete("/test", func(c fiber.Ctx) error {
 		return c.SendStatus(204)
 	})
 
@@ -177,11 +177,11 @@ func TestContentNegotiation_AllMethodsIntegration(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
-	app.Post("/test", func(c *fiber.Ctx) error { return c.SendStatus(201) })
-	app.Put("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
-	app.Delete("/test", func(c *fiber.Ctx) error { return c.SendStatus(204) })
-	app.Patch("/test", func(c *fiber.Ctx) error { return c.SendStatus(200) })
+	app.Get("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
+	app.Post("/test", func(c fiber.Ctx) error { return c.SendStatus(201) })
+	app.Put("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
+	app.Delete("/test", func(c fiber.Ctx) error { return c.SendStatus(204) })
+	app.Patch("/test", func(c fiber.Ctx) error { return c.SendStatus(200) })
 
 	tests := []struct {
 		method         string
@@ -221,7 +221,7 @@ func TestContentNegotiation_ErrorMessage(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Post("/test", func(c *fiber.Ctx) error {
+	app.Post("/test", func(c fiber.Ctx) error {
 		return c.SendStatus(201)
 	})
 

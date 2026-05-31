@@ -8,7 +8,7 @@ import (
 	"github.com/nicolasbonnici/gorest/generated/dtos"
 	"github.com/nicolasbonnici/gorest/generated/models"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/filter"
@@ -76,7 +76,7 @@ func userUpdateDTOToModel(dto dtos.UserUpdateDTO) models.User {
 // @Produce json,application/ld+json
 // @Success 200 {object} pagination.HydraCollection
 // @Router /users [get]
-func (r *UserResource) List(c *fiber.Ctx) error {
+func (r *UserResource) List(c fiber.Ctx) error {
 	limit := pagination.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
 	page := pagination.ParseIntQuery(c, "page", 1, 10000)
 	if page < 1 {
@@ -88,7 +88,7 @@ func (r *UserResource) List(c *fiber.Ctx) error {
 	allowedFields := []string{"id", "firstname", "lastname", "email", "updated_at", "created_at"}
 
 	queryParams := make(url.Values)
-	for key, value := range c.Context().QueryArgs().All() {
+	for key, value := range c.Request().URI().QueryArgs().All() {
 		queryParams.Add(string(key), string(value))
 	}
 
@@ -141,7 +141,7 @@ func (r *UserResource) List(c *fiber.Ctx) error {
 // @Param id path int true "ID"
 // @Success 200 {object} dtos.UserDTO
 // @Router /users/{id} [get]
-func (r *UserResource) Get(c *fiber.Ctx) error {
+func (r *UserResource) Get(c fiber.Ctx) error {
 	id := c.Params("id")
 	item, err := r.CRUD.GetByID(c.Context(), id)
 	if err != nil {
@@ -160,9 +160,9 @@ func (r *UserResource) Get(c *fiber.Ctx) error {
 // @Param input body dtos.UserCreateDTO true "New User"
 // @Success 201 {object} dtos.UserDTO
 // @Router /users [post]
-func (r *UserResource) Create(c *fiber.Ctx) error {
+func (r *UserResource) Create(c fiber.Ctx) error {
 	var createDTO dtos.UserCreateDTO
-	if err := c.BodyParser(&createDTO); err != nil {
+	if err := c.Bind().Body(&createDTO); err != nil {
 		logger.Log.Error("Failed to parse request body", "error", err, "path", c.Path())
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
@@ -193,10 +193,10 @@ func (r *UserResource) Create(c *fiber.Ctx) error {
 // @Param input body dtos.UserUpdateDTO true "Updated User"
 // @Success 200 {object} dtos.UserDTO
 // @Router /users/{id} [put]
-func (r *UserResource) Update(c *fiber.Ctx) error {
+func (r *UserResource) Update(c fiber.Ctx) error {
 	id := c.Params("id")
 	var updateDTO dtos.UserUpdateDTO
-	if err := c.BodyParser(&updateDTO); err != nil {
+	if err := c.Bind().Body(&updateDTO); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
@@ -216,7 +216,7 @@ func (r *UserResource) Update(c *fiber.Ctx) error {
 // @Param id path int true "ID"
 // @Success 204
 // @Router /users/{id} [delete]
-func (r *UserResource) Delete(c *fiber.Ctx) error {
+func (r *UserResource) Delete(c fiber.Ctx) error {
 	id := c.Params("id")
 	if err := r.CRUD.Delete(c.Context(), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})

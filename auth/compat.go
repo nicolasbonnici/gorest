@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	authcontext "github.com/nicolasbonnici/gorest/auth/context"
 )
 
@@ -12,12 +12,12 @@ type AuthenticatedUser struct {
 }
 
 // Context is a compatibility function that returns the user context
-func Context(c *fiber.Ctx) context.Context {
-	return c.UserContext()
+func Context(c fiber.Ctx) context.Context {
+	return c.Context()
 }
 
 // GetAuthenticatedUser is a compatibility function that returns the authenticated user
-func GetAuthenticatedUser(c *fiber.Ctx) *AuthenticatedUser {
+func GetAuthenticatedUser(c fiber.Ctx) *AuthenticatedUser {
 	userID, ok := authcontext.GetUserID(c)
 	if !ok {
 		return nil

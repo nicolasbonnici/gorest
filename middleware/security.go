@@ -1,11 +1,11 @@
 package middleware
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func Security() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		if c.Method() == "TRACE" {
 			return c.Status(fiber.StatusMethodNotAllowed).JSON(fiber.Map{
 				"error": "Method not allowed",

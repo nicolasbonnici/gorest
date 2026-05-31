@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
@@ -30,7 +30,7 @@ func (p *TimingPlugin) Initialize(config map[string]interface{}) error {
 }
 
 func (p *TimingPlugin) Handler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		if !p.enabled {
 			return c.Next()
 		}
