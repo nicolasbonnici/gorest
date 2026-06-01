@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestResponseXPoweredByHeader(t *testing.T) {
@@ -14,22 +14,22 @@ func TestResponseXPoweredByHeader(t *testing.T) {
 	app := fiber.New()
 
 	// Test SendFormatted
-	app.Get("/formatted", func(c *fiber.Ctx) error {
+	app.Get("/formatted", func(c fiber.Ctx) error {
 		return SendFormatted(c, 200, map[string]string{"test": "data"})
 	})
 
 	// Test SendError
-	app.Get("/error", func(c *fiber.Ctx) error {
+	app.Get("/error", func(c fiber.Ctx) error {
 		return SendError(c, 400, "test error")
 	})
 
 	// Test SendSuccess
-	app.Get("/success", func(c *fiber.Ctx) error {
+	app.Get("/success", func(c fiber.Ctx) error {
 		return SendSuccess(c, map[string]string{"test": "success"})
 	})
 
 	// Test SendCreated
-	app.Get("/created", func(c *fiber.Ctx) error {
+	app.Get("/created", func(c fiber.Ctx) error {
 		return SendCreated(c, map[string]string{"test": "created"})
 	})
 

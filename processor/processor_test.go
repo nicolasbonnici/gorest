@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite" // Register SQLite driver
@@ -237,7 +237,7 @@ func TestCreateWithCustomHook(t *testing.T) {
 			UpdateToModel: testUpdateDTOToModel,
 			ModelToDTO:    testModelToDTO,
 		},
-	}).WithCreateHook(func(c *fiber.Ctx, dto TestCreateDTO, model *TestModel) error {
+	}).WithCreateHook(func(c fiber.Ctx, dto TestCreateDTO, model *TestModel) error {
 		hookCalled = true
 		// Modify model in hook
 		model.Email = "modified@example.com"
@@ -386,7 +386,7 @@ func TestGetAllWithCustomHook(t *testing.T) {
 			UpdateToModel: testUpdateDTOToModel,
 			ModelToDTO:    testModelToDTO,
 		},
-	}).WithGetAllHook(func(c *fiber.Ctx, conditions *[]query.Condition, orderBy *[]crud.OrderByClause) error {
+	}).WithGetAllHook(func(c fiber.Ctx, conditions *[]query.Condition, orderBy *[]crud.OrderByClause) error {
 		hookCalled = true
 		// Add custom condition
 		*conditions = append(*conditions, query.Eq("name", "Test"))
@@ -414,7 +414,7 @@ func TestContextEnrichers(t *testing.T) {
 	testCRUD := crud.New[TestModel](db)
 
 	// Custom enricher for testing
-	testEnricher := func(c *fiber.Ctx, model interface{}) error {
+	testEnricher := func(c fiber.Ctx, model interface{}) error {
 		testModel := model.(*TestModel)
 		userID := "test-user-123"
 		testModel.UserID = &userID
@@ -521,7 +521,7 @@ func TestDefaultErrorHandler(t *testing.T) {
 
 	// Test parse error
 	app := fiber.New()
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return handler.HandleError(c, fmt.Errorf("parse error"), "parse")
 	})
 
@@ -552,19 +552,19 @@ func TestHookChaining(t *testing.T) {
 			ModelToDTO:    testModelToDTO,
 		},
 	}).
-		WithCreateHook(func(c *fiber.Ctx, dto TestCreateDTO, model *TestModel) error {
+		WithCreateHook(func(c fiber.Ctx, dto TestCreateDTO, model *TestModel) error {
 			return nil
 		}).
-		WithUpdateHook(func(c *fiber.Ctx, dto TestUpdateDTO, model *TestModel) error {
+		WithUpdateHook(func(c fiber.Ctx, dto TestUpdateDTO, model *TestModel) error {
 			return nil
 		}).
-		WithDeleteHook(func(c *fiber.Ctx, id any) error {
+		WithDeleteHook(func(c fiber.Ctx, id any) error {
 			return nil
 		}).
-		WithGetByIDHook(func(c *fiber.Ctx, id any) error {
+		WithGetByIDHook(func(c fiber.Ctx, id any) error {
 			return nil
 		}).
-		WithGetAllHook(func(c *fiber.Ctx, conditions *[]query.Condition, orderBy *[]crud.OrderByClause) error {
+		WithGetAllHook(func(c fiber.Ctx, conditions *[]query.Condition, orderBy *[]crud.OrderByClause) error {
 			return nil
 		})
 

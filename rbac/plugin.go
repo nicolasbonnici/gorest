@@ -3,7 +3,7 @@ package rbac
 import (
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/rbac/migrations"
@@ -83,7 +83,7 @@ func (p *Plugin) SetupEndpoints(router fiber.Router) error {
 
 // Handler returns the RBAC middleware (currently a pass-through)
 func (p *Plugin) Handler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		return c.Next()
 	}
 }

@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/auth"
 )
 
-type ContextEnricher func(c *fiber.Ctx, model interface{}) error
+type ContextEnricher func(c fiber.Ctx, model interface{}) error
 
 func UserIDEnricher(field string) ContextEnricher {
-	return func(c *fiber.Ctx, model interface{}) error {
+	return func(c fiber.Ctx, model interface{}) error {
 		user := auth.GetAuthenticatedUser(c)
 		if user == nil {
 			return nil
@@ -54,7 +54,7 @@ func UserIDEnricher(field string) ContextEnricher {
 }
 
 func TenantIDEnricher(field string) ContextEnricher {
-	return func(c *fiber.Ctx, model interface{}) error {
+	return func(c fiber.Ctx, model interface{}) error {
 		tenantID := c.Locals("tenant_id")
 		if tenantID == nil {
 			return nil

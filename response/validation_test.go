@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestValidateStruct_Valid(t *testing.T) {
@@ -213,7 +213,7 @@ func TestValidateStruct_CustomStruct(t *testing.T) {
 func TestValidateAndRespond_Valid(t *testing.T) {
 	app := fiber.New()
 
-	app.Post("/test", func(c *fiber.Ctx) error {
+	app.Post("/test", func(c fiber.Ctx) error {
 		input := ValidationExample{
 			Email:    "user@example.com",
 			Password: "securepass123",
@@ -238,7 +238,7 @@ func TestValidateAndRespond_Valid(t *testing.T) {
 func TestValidateAndRespond_Invalid(t *testing.T) {
 	app := fiber.New()
 
-	app.Post("/test", func(c *fiber.Ctx) error {
+	app.Post("/test", func(c fiber.Ctx) error {
 		input := ValidationExample{
 			Email:    "invalid-email",
 			Password: "short",
@@ -266,7 +266,7 @@ func TestValidateAndRespond_Invalid(t *testing.T) {
 func TestValidateAndRespond_ErrorMessage(t *testing.T) {
 	app := fiber.New()
 
-	app.Post("/test", func(c *fiber.Ctx) error {
+	app.Post("/test", func(c fiber.Ctx) error {
 		input := ValidationExample{
 			Email:    "invalid",
 			Password: "validpassword",
@@ -294,7 +294,7 @@ func TestValidateAndRespond_ErrorMessage(t *testing.T) {
 func TestValidateAndRespond_MultipleErrors(t *testing.T) {
 	app := fiber.New()
 
-	app.Post("/test", func(c *fiber.Ctx) error {
+	app.Post("/test", func(c fiber.Ctx) error {
 		input := ValidationExample{
 			Email:    "bad",
 			Password: "bad",
@@ -352,7 +352,7 @@ func TestValidateStruct_EmptyStruct(t *testing.T) {
 func TestValidateAndRespond_WithDifferentInputs(t *testing.T) {
 	t.Run("valid input", func(t *testing.T) {
 		app := fiber.New()
-		app.Post("/test", func(c *fiber.Ctx) error {
+		app.Post("/test", func(c fiber.Ctx) error {
 			input := ValidationExample{
 				Email:    "valid@example.com",
 				Password: "validpass",
@@ -374,7 +374,7 @@ func TestValidateAndRespond_WithDifferentInputs(t *testing.T) {
 
 	t.Run("invalid email", func(t *testing.T) {
 		app := fiber.New()
-		app.Post("/test", func(c *fiber.Ctx) error {
+		app.Post("/test", func(c fiber.Ctx) error {
 			input := ValidationExample{
 				Email:    "invalid",
 				Password: "validpass",
@@ -393,7 +393,7 @@ func TestValidateAndRespond_WithDifferentInputs(t *testing.T) {
 
 	t.Run("invalid password", func(t *testing.T) {
 		app := fiber.New()
-		app.Post("/test", func(c *fiber.Ctx) error {
+		app.Post("/test", func(c fiber.Ctx) error {
 			input := ValidationExample{
 				Email:    "valid@example.com",
 				Password: "short",
@@ -412,7 +412,7 @@ func TestValidateAndRespond_WithDifferentInputs(t *testing.T) {
 
 	t.Run("invalid age", func(t *testing.T) {
 		app := fiber.New()
-		app.Post("/test", func(c *fiber.Ctx) error {
+		app.Post("/test", func(c fiber.Ctx) error {
 			input := ValidationExample{
 				Email:    "valid@example.com",
 				Password: "validpass",

@@ -8,7 +8,7 @@ import (
 	"github.com/nicolasbonnici/gorest/generated/dtos"
 	"github.com/nicolasbonnici/gorest/generated/models"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/filter"
@@ -72,7 +72,7 @@ func benchmarkitemUpdateDTOToModel(dto dtos.BenchmarkItemUpdateDTO) models.Bench
 // @Produce json,application/ld+json
 // @Success 200 {object} pagination.HydraCollection
 // @Router /benchmarkitems [get]
-func (r *BenchmarkItemResource) List(c *fiber.Ctx) error {
+func (r *BenchmarkItemResource) List(c fiber.Ctx) error {
 	limit := pagination.ParseIntQuery(c, "limit", r.PaginationLimit, r.PaginationMaxLimit)
 	page := pagination.ParseIntQuery(c, "page", 1, 10000)
 	if page < 1 {
@@ -84,7 +84,7 @@ func (r *BenchmarkItemResource) List(c *fiber.Ctx) error {
 	allowedFields := []string{"id", "name", "value", "description", "created_at"}
 
 	queryParams := make(url.Values)
-	for key, value := range c.Context().QueryArgs().All() {
+	for key, value := range c.Request().URI().QueryArgs().All() {
 		queryParams.Add(string(key), string(value))
 	}
 
@@ -137,7 +137,7 @@ func (r *BenchmarkItemResource) List(c *fiber.Ctx) error {
 // @Param id path int true "ID"
 // @Success 200 {object} dtos.BenchmarkItemDTO
 // @Router /benchmarkitems/{id} [get]
-func (r *BenchmarkItemResource) Get(c *fiber.Ctx) error {
+func (r *BenchmarkItemResource) Get(c fiber.Ctx) error {
 	id := c.Params("id")
 	item, err := r.CRUD.GetByID(c.Context(), id)
 	if err != nil {
@@ -156,9 +156,9 @@ func (r *BenchmarkItemResource) Get(c *fiber.Ctx) error {
 // @Param input body dtos.BenchmarkItemCreateDTO true "New BenchmarkItem"
 // @Success 201 {object} dtos.BenchmarkItemDTO
 // @Router /benchmarkitems [post]
-func (r *BenchmarkItemResource) Create(c *fiber.Ctx) error {
+func (r *BenchmarkItemResource) Create(c fiber.Ctx) error {
 	var createDTO dtos.BenchmarkItemCreateDTO
-	if err := c.BodyParser(&createDTO); err != nil {
+	if err := c.Bind().Body(&createDTO); err != nil {
 		logger.Log.Error("Failed to parse request body", "error", err, "path", c.Path())
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
@@ -189,10 +189,10 @@ func (r *BenchmarkItemResource) Create(c *fiber.Ctx) error {
 // @Param input body dtos.BenchmarkItemUpdateDTO true "Updated BenchmarkItem"
 // @Success 200 {object} dtos.BenchmarkItemDTO
 // @Router /benchmarkitems/{id} [put]
-func (r *BenchmarkItemResource) Update(c *fiber.Ctx) error {
+func (r *BenchmarkItemResource) Update(c fiber.Ctx) error {
 	id := c.Params("id")
 	var updateDTO dtos.BenchmarkItemUpdateDTO
-	if err := c.BodyParser(&updateDTO); err != nil {
+	if err := c.Bind().Body(&updateDTO); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
@@ -212,7 +212,7 @@ func (r *BenchmarkItemResource) Update(c *fiber.Ctx) error {
 // @Param id path int true "ID"
 // @Success 204
 // @Router /benchmarkitems/{id} [delete]
-func (r *BenchmarkItemResource) Delete(c *fiber.Ctx) error {
+func (r *BenchmarkItemResource) Delete(c fiber.Ctx) error {
 	id := c.Params("id")
 	if err := r.CRUD.Delete(c.Context(), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})

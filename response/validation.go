@@ -2,7 +2,7 @@ package response
 
 import (
 	"github.com/go-playground/validator/v10"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 var validate *validator.Validate
@@ -21,7 +21,7 @@ func ValidateStruct(s interface{}) error {
 	return validate.Struct(s)
 }
 
-func ValidateAndRespond(c *fiber.Ctx, s interface{}) error {
+func ValidateAndRespond(c fiber.Ctx, s interface{}) error {
 	if err := validate.Struct(s); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			return SendError(c, fiber.StatusBadRequest, validationErrors.Error())

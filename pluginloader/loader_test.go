@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/plugin"
@@ -33,7 +33,7 @@ func (m *mockPlugin) Handler() fiber.Handler {
 	if m.handlerFunc != nil {
 		return m.handlerFunc
 	}
-	return func(c *fiber.Ctx) error { return c.Next() }
+	return func(c fiber.Ctx) error { return c.Next() }
 }
 
 type mockDatabase struct{}
@@ -77,7 +77,7 @@ func TestLoadPlugins_Success(t *testing.T) {
 	RegisterPluginFactory("test-plugin1", func() plugin.Plugin {
 		return &mockPlugin{
 			name:        "test-plugin1",
-			handlerFunc: func(c *fiber.Ctx) error { return c.Next() },
+			handlerFunc: func(c fiber.Ctx) error { return c.Next() },
 		}
 	})
 
@@ -419,7 +419,7 @@ func TestApplyGlobalMiddleware_WithMiddlewarePlugins(t *testing.T) {
 	RegisterPluginFactory("requestid", func() plugin.Plugin {
 		return &mockPlugin{
 			name: "requestid",
-			handlerFunc: func(c *fiber.Ctx) error {
+			handlerFunc: func(c fiber.Ctx) error {
 				middlewareCalled["requestid"] = true
 				return c.Next()
 			},
@@ -429,7 +429,7 @@ func TestApplyGlobalMiddleware_WithMiddlewarePlugins(t *testing.T) {
 	RegisterPluginFactory("logger", func() plugin.Plugin {
 		return &mockPlugin{
 			name: "logger",
-			handlerFunc: func(c *fiber.Ctx) error {
+			handlerFunc: func(c fiber.Ctx) error {
 				middlewareCalled["logger"] = true
 				return c.Next()
 			},
@@ -439,7 +439,7 @@ func TestApplyGlobalMiddleware_WithMiddlewarePlugins(t *testing.T) {
 	RegisterPluginFactory("cors", func() plugin.Plugin {
 		return &mockPlugin{
 			name: "cors",
-			handlerFunc: func(c *fiber.Ctx) error {
+			handlerFunc: func(c fiber.Ctx) error {
 				middlewareCalled["cors"] = true
 				return c.Next()
 			},
@@ -460,7 +460,7 @@ func TestApplyGlobalMiddleware_WithMiddlewarePlugins(t *testing.T) {
 	app := fiber.New()
 	ApplyGlobalMiddleware(registry, app)
 
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("OK")
 	})
 
@@ -487,7 +487,7 @@ func TestApplyGlobalMiddleware_PartialPluginsPresent(t *testing.T) {
 	RegisterPluginFactory("requestid", func() plugin.Plugin {
 		return &mockPlugin{
 			name: "requestid",
-			handlerFunc: func(c *fiber.Ctx) error {
+			handlerFunc: func(c fiber.Ctx) error {
 				return c.Next()
 			},
 		}

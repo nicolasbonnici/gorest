@@ -3,7 +3,7 @@ package response
 import (
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/serializer"
 )
 
@@ -13,11 +13,11 @@ func Initialize(v string) {
 	version = v
 }
 
-func SetCommonHeaders(c *fiber.Ctx) {
+func SetCommonHeaders(c fiber.Ctx) {
 	c.Set("X-Powered-By", "GoREST/"+version)
 }
 
-func SetContentTypeHeader(c *fiber.Ctx, format string) {
+func SetContentTypeHeader(c fiber.Ctx, format string) {
 	if format == "jsonld" {
 		c.Set("Content-Type", "application/ld+json")
 	} else {
@@ -25,7 +25,7 @@ func SetContentTypeHeader(c *fiber.Ctx, format string) {
 	}
 }
 
-func SendFormatted(c *fiber.Ctx, statusCode int, data interface{}) error {
+func SendFormatted(c fiber.Ctx, statusCode int, data interface{}) error {
 	format := DetermineFormat(c)
 	s := serializer.GetSerializer(format)
 
@@ -48,9 +48,9 @@ func SendFormatted(c *fiber.Ctx, statusCode int, data interface{}) error {
 	return c.Status(statusCode).Send(formatted)
 }
 
-func ParseExpandQuery(c *fiber.Ctx) []string {
+func ParseExpandQuery(c fiber.Ctx) []string {
 	var expand []string
-	for key, value := range c.Context().QueryArgs().All() {
+	for key, value := range c.Request().URI().QueryArgs().All() {
 		keyStr := string(key)
 		if keyStr == "expand[]" {
 			expand = append(expand, string(value))
@@ -59,7 +59,7 @@ func ParseExpandQuery(c *fiber.Ctx) []string {
 	return expand
 }
 
-func DetermineFormat(c *fiber.Ctx) string {
+func DetermineFormat(c fiber.Ctx) string {
 	accept := c.Get("Accept", "")
 	contentTypes := parseAcceptHeader(accept)
 
@@ -97,7 +97,7 @@ func parseAcceptHeader(accept string) []string {
 	return contentTypes
 }
 
-func SendError(c *fiber.Ctx, statusCode int, message string) error {
+func SendError(c fiber.Ctx, statusCode int, message string) error {
 	c.Set("X-Powered-By", "GoREST/"+version)
 	return c.Status(statusCode).JSON(fiber.Map{
 		"error": message,
@@ -105,17 +105,17 @@ func SendError(c *fiber.Ctx, statusCode int, message string) error {
 }
 
 // TODO refactor to more flexible Send method with status code
-func SendSuccess(c *fiber.Ctx, data interface{}) error {
+func SendSuccess(c fiber.Ctx, data interface{}) error {
 	c.Set("X-Powered-By", "GoREST/"+version)
 	return c.Status(fiber.StatusOK).JSON(data)
 }
 
-func SendCreated(c *fiber.Ctx, data interface{}) error {
+func SendCreated(c fiber.Ctx, data interface{}) error {
 	c.Set("X-Powered-By", "GoREST/"+version)
 	return c.Status(fiber.StatusCreated).JSON(data)
 }
 
-func SendJSON(c *fiber.Ctx, statusCode int, data interface{}) error {
+func SendJSON(c fiber.Ctx, statusCode int, data interface{}) error {
 	c.Set("X-Powered-By", "GoREST/"+version)
 	format := DetermineFormat(c)
 	SetContentTypeHeader(c, format)

@@ -3,7 +3,7 @@ package auth
 import (
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/auth/handlers"
 	authjwt "github.com/nicolasbonnici/gorest/auth/jwt"
 	"github.com/nicolasbonnici/gorest/auth/middleware"
@@ -65,7 +65,7 @@ func (p *Plugin) SetupEndpoints(router fiber.Router) error {
 // Handler returns the authentication middleware
 func (p *Plugin) Handler() fiber.Handler {
 	if p.jwt == nil || p.db == nil {
-		return func(c *fiber.Ctx) error {
+		return func(c fiber.Ctx) error {
 			return c.Next()
 		}
 	}

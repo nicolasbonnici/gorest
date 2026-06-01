@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestRateLimit_ReturnsHandler(t *testing.T) {
@@ -19,7 +19,7 @@ func TestRateLimit_ReturnsHandler(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -36,7 +36,7 @@ func TestRateLimit_AllowsRequestsUnderLimit(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -60,7 +60,7 @@ func TestRateLimit_BlocksExcessiveRequests(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -100,7 +100,7 @@ func TestRateLimit_ErrorMessageFormat(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -129,7 +129,7 @@ func TestRateLimit_DifferentIPsGetSeparateLimits(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -160,7 +160,7 @@ func TestRateLimit_RespectsConfiguredLimits(t *testing.T) {
 
 			app := fiber.New()
 			app.Use(handler)
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				return c.SendString("ok")
 			})
 
@@ -179,7 +179,7 @@ func TestRateLimit_DoesNotBlockNormalUsage(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -198,7 +198,7 @@ func TestRateLimit_RecoverAfterExpiration(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("ok")
 	})
 
@@ -222,7 +222,7 @@ func TestRateLimit_PreservesResponseBody(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(handler)
-	app.Get("/json", func(c *fiber.Ctx) error {
+	app.Get("/json", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "test", "data": 123})
 	})
 

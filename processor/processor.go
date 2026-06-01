@@ -3,7 +3,7 @@ package processor
 import (
 	"net/url"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/filter"
@@ -14,11 +14,11 @@ import (
 )
 
 type Processor[TModel crud.Model, TCreateDTO any, TUpdateDTO any, TResponseDTO any] interface {
-	Create(c *fiber.Ctx) error
-	GetByID(c *fiber.Ctx) error
-	GetAll(c *fiber.Ctx) error
-	Update(c *fiber.Ctx) error
-	Delete(c *fiber.Ctx) error
+	Create(c fiber.Ctx) error
+	GetByID(c fiber.Ctx) error
+	GetAll(c fiber.Ctx) error
+	Update(c fiber.Ctx) error
+	Delete(c fiber.Ctx) error
 
 	WithCreateHook(hook CreateHookFunc[TModel, TCreateDTO]) Processor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]
 	WithUpdateHook(hook UpdateHookFunc[TModel, TUpdateDTO]) Processor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]
@@ -37,9 +37,9 @@ type StandardProcessor[TModel crud.Model, TCreateDTO any, TUpdateDTO any, TRespo
 	getAllHook  GetAllHookFunc[TModel]
 }
 
-func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Create(c *fiber.Ctx) error {
+func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Create(c fiber.Ctx) error {
 	var createDTO TCreateDTO
-	if err := c.BodyParser(&createDTO); err != nil {
+	if err := c.Bind().Body(&createDTO); err != nil {
 		logger.Log.Error("Failed to parse request body", "error", err, "path", c.Path())
 		return p.config.ErrorHandler.HandleError(c, err, "parse")
 	}
@@ -85,7 +85,7 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Create
 	return response.SendFormatted(c, fiber.StatusCreated, dto)
 }
 
-func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetByID(c *fiber.Ctx) error {
+func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetByID(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	if p.getByIDHook != nil {
@@ -104,7 +104,7 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetByI
 	return response.SendFormatted(c, fiber.StatusOK, dto)
 }
 
-func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetAll(c *fiber.Ctx) error {
+func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetAll(c fiber.Ctx) error {
 	limit := pagination.ParseIntQuery(c, "limit", p.config.PaginationLimit, p.config.PaginationMaxLimit)
 	page := pagination.ParseIntQuery(c, "page", 1, 10000)
 	if page < 1 {
@@ -114,7 +114,7 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetAll
 	includeCount := c.Query("count", "true") != "false"
 
 	queryParams := make(url.Values)
-	for key, value := range c.Context().QueryArgs().All() {
+	for key, value := range c.Request().URI().QueryArgs().All() {
 		queryParams.Add(string(key), string(value))
 	}
 
@@ -178,11 +178,11 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetAll
 	return pagination.SendHydraCollection(c, dtoItems, result.Total, limit, page, p.config.PaginationLimit)
 }
 
-func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Update(c *fiber.Ctx) error {
+func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Update(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	var updateDTO TUpdateDTO
-	if err := c.BodyParser(&updateDTO); err != nil {
+	if err := c.Bind().Body(&updateDTO); err != nil {
 		return p.config.ErrorHandler.HandleError(c, err, "parse")
 	}
 
@@ -215,7 +215,7 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Update
 	return response.SendFormatted(c, fiber.StatusOK, dto)
 }
 
-func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Delete(c *fiber.Ctx) error {
+func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Delete(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	if p.deleteHook != nil {

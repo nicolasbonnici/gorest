@@ -1,7 +1,7 @@
 package customplugin
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
@@ -27,7 +27,7 @@ func (p *APIKeyPlugin) Initialize(config map[string]interface{}) error {
 }
 
 func (p *APIKeyPlugin) Handler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		// Check for API key in header
 		key := c.Get("X-API-Key")
 

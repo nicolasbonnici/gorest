@@ -3,7 +3,7 @@ package auth
 import (
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/auth/handlers"
 	"github.com/nicolasbonnici/gorest/auth/jwt"
 	"github.com/nicolasbonnici/gorest/auth/middleware"

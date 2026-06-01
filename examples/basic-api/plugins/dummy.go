@@ -3,7 +3,7 @@ package plugins
 import (
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
@@ -30,7 +30,7 @@ func (p *DummyPlugin) Initialize(config map[string]interface{}) error {
 }
 
 func (p *DummyPlugin) Handler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		// Add custom header
 		c.Set("X-Dummy-Plugin", p.message)
 

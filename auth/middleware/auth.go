@@ -3,7 +3,7 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	authcontext "github.com/nicolasbonnici/gorest/auth/context"
 	"github.com/nicolasbonnici/gorest/auth/models"
@@ -16,7 +16,7 @@ type JWTValidator interface {
 }
 
 func AuthMiddleware(jwt JWTValidator, db database.Database) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -54,7 +54,7 @@ func AuthMiddleware(jwt JWTValidator, db database.Database) fiber.Handler {
 			})
 		}
 
-		c.SetUserContext(rbac.WithUser(c.Context(), userID, roles))
+		c.SetContext(rbac.WithUser(c.Context(), userID, roles))
 		authcontext.SetUserID(c, userID)
 
 		return c.Next()
@@ -62,7 +62,7 @@ func AuthMiddleware(jwt JWTValidator, db database.Database) fiber.Handler {
 }
 
 func OptionalAuthMiddleware(jwt JWTValidator, db database.Database) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
 			return c.Next()
@@ -87,7 +87,7 @@ func OptionalAuthMiddleware(jwt JWTValidator, db database.Database) fiber.Handle
 		user := &models.User{ID: userUUID}
 		roles, err := user.GetRoles(c.Context(), db)
 		if err == nil {
-			c.SetUserContext(rbac.WithUser(c.Context(), userID, roles))
+			c.SetContext(rbac.WithUser(c.Context(), userID, roles))
 			authcontext.SetUserID(c, userID)
 		}
 

@@ -3,15 +3,16 @@ package response
 import (
 	"encoding/json"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestSetCommonHeaders(t *testing.T) {
 	app := fiber.New()
 
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		SetCommonHeaders(c)
 		return c.SendStatus(200)
 	})
@@ -43,7 +44,7 @@ func TestSetContentTypeHeader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := fiber.New()
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				SetContentTypeHeader(c, tt.format)
 				return c.SendStatus(200)
 			})
@@ -89,7 +90,7 @@ func TestSendJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := fiber.New()
-			app.Post("/test", func(c *fiber.Ctx) error {
+			app.Post("/test", func(c fiber.Ctx) error {
 				return SendJSON(c, tt.status, tt.data)
 			})
 
@@ -105,8 +106,8 @@ func TestSendJSON(t *testing.T) {
 
 			// Fiber's .JSON() always sets Content-Type to application/json
 			contentType := resp.Header.Get("Content-Type")
-			if contentType != "application/json" {
-				t.Errorf("Expected Content-Type 'application/json', got '%s'", contentType)
+			if !strings.HasPrefix(contentType, "application/json") {
+				t.Errorf("Expected Content-Type starting with 'application/json', got '%s'", contentType)
 			}
 
 			poweredBy := resp.Header.Get("X-Powered-By")
@@ -150,7 +151,7 @@ func TestParseExpandQuery(t *testing.T) {
 			app := fiber.New()
 			var result []string
 
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				result = ParseExpandQuery(c)
 				return c.SendStatus(200)
 			})
@@ -270,7 +271,7 @@ func TestDetermineFormat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := fiber.New()
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				format := DetermineFormat(c)
 				return c.SendString(format)
 			})
@@ -336,7 +337,7 @@ func TestSendFormatted(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := fiber.New()
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				return SendFormatted(c, tt.expectedStatus, testData)
 			})
 
@@ -375,7 +376,7 @@ func TestSendFormattedWithArray(t *testing.T) {
 		{"id": "2", "title": "Todo 2"},
 	}
 
-	app.Get("/test", func(c *fiber.Ctx) error {
+	app.Get("/test", func(c fiber.Ctx) error {
 		return SendFormatted(c, 200, testData)
 	})
 

@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestVersionedRouting_WithVersion(t *testing.T) {
@@ -21,7 +21,7 @@ func TestVersionedRouting_WithVersion(t *testing.T) {
 	}
 	versionedRouter := app.Group("/" + apiVersion)
 
-	versionedRouter.Get("/test", func(c *fiber.Ctx) error {
+	versionedRouter.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("OK")
 	})
 
@@ -58,7 +58,7 @@ func TestVersionedRouting_DevModeFallback(t *testing.T) {
 	}
 	versionedRouter := app.Group("/" + apiVersion)
 
-	versionedRouter.Get("/test", func(c *fiber.Ctx) error {
+	versionedRouter.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("OK")
 	})
 
@@ -104,7 +104,7 @@ func TestVersionedRouting_EmptyVersionFallback(t *testing.T) {
 	}
 	versionedRouter := app.Group("/" + apiVersion)
 
-	versionedRouter.Get("/test", func(c *fiber.Ctx) error {
+	versionedRouter.Get("/test", func(c fiber.Ctx) error {
 		return c.SendString("OK")
 	})
 
@@ -141,11 +141,11 @@ func TestVersionedRouting_PluginEndpoints(t *testing.T) {
 	}
 	versionedRouter := app.Group("/" + apiVersion)
 
-	versionedRouter.Get("/health", func(c *fiber.Ctx) error {
+	versionedRouter.Get("/health", func(c fiber.Ctx) error {
 		return c.SendString("healthy")
 	})
 
-	versionedRouter.Post("/login", func(c *fiber.Ctx) error {
+	versionedRouter.Post("/login", func(c fiber.Ctx) error {
 		return c.SendString("logged in")
 	})
 
@@ -200,11 +200,11 @@ func TestVersionedRouting_PluginEndpointsWithFallback(t *testing.T) {
 	}
 	versionedRouter := app.Group("/" + apiVersion)
 
-	versionedRouter.Get("/health", func(c *fiber.Ctx) error {
+	versionedRouter.Get("/health", func(c fiber.Ctx) error {
 		return c.SendString("healthy")
 	})
 
-	versionedRouter.Post("/login", func(c *fiber.Ctx) error {
+	versionedRouter.Post("/login", func(c fiber.Ctx) error {
 		return c.SendString("logged in")
 	})
 
