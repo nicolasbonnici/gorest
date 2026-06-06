@@ -107,7 +107,7 @@ func Start(cfg Config) {
 		os.Exit(1)
 	}
 
-	if err := runMigrations(context.Background(), db, authService, pluginRegistry, appConfig.Plugins); err != nil {
+	if err := runMigrations(context.Background(), db, authService, appConfig.RBAC.Enabled, pluginRegistry, appConfig.Plugins); err != nil {
 		if err != migrations.ErrNoPendingMigrations {
 			logger.Log.Error("Failed to run migrations", "error", err)
 			os.Exit(1)
@@ -197,7 +197,7 @@ func Start(cfg Config) {
 	logger.Log.Info("Server shutdown complete")
 }
 
-func runMigrations(ctx context.Context, db database.Database, authService *auth.Service, pluginRegistry *plugin.PluginRegistry, pluginConfigs []config.PluginConfig) error {
+func runMigrations(ctx context.Context, db database.Database, authService *auth.Service, rbacEnabled bool, pluginRegistry *plugin.PluginRegistry, pluginConfigs []config.PluginConfig) error {
 	configMap := make(map[string]config.PluginConfig)
 	for _, cfg := range pluginConfigs {
 		configMap[cfg.Name] = cfg
@@ -211,6 +211,12 @@ func runMigrations(ctx context.Context, db database.Database, authService *auth.
 		authMigrations := coremigrations.GetAuthMigrations()
 		sources = append(sources, authMigrations)
 		logger.Log.Info("Registered core auth migrations", "source", authMigrations.Name())
+	}
+
+	if rbacEnabled {
+		rbacMigrations := coremigrations.GetRBACMigrations()
+		sources = append(sources, rbacMigrations)
+		logger.Log.Info("Registered core rbac migrations", "source", rbacMigrations.Name())
 	}
 
 	for _, p := range pluginRegistry.GetAll() {

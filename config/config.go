@@ -84,6 +84,7 @@ type PaginationConfig struct {
 }
 
 type RBACConfig struct {
+	Enabled            bool                `yaml:"enabled"`
 	DefaultPolicy      string              `yaml:"default_policy"`
 	SuperuserRole      string              `yaml:"superuser_role"`
 	RoleHierarchy      map[string][]string `yaml:"role_hierarchy"`
