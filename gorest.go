@@ -99,6 +99,11 @@ func Start(cfg Config) {
 		app.Use(middleware.RateLimit(appConfig.Server.RateLimitRPS, appConfig.Server.RateLimitBurst))
 	}
 
+	if authService != nil {
+		app.Use(authService.OptionalMiddleware())
+		logger.Log.Info("Auth optional middleware registered")
+	}
+
 	enrichedConfigs := pluginloader.InjectSharedConfig(appConfig.Plugins, db, appConfig, nil)
 
 	pluginRegistry, err := pluginloader.LoadPlugins(enrichedConfigs, Version)
