@@ -81,12 +81,21 @@ type OpenAPIProvider interface {
 }
 
 type OpenAPIResource struct {
-	Name          string
-	PluralName    string
-	BasePath      string
-	Tags          []string
-	ResponseModel any
-	CreateModel   any
-	UpdateModel   any
-	Description   string
+	Name            string
+	PluralName      string
+	BasePath        string
+	Tags            []string
+	ResponseModel   any
+	CreateModel     any
+	UpdateModel     any
+	Description     string
+	ListQueryParams []QueryParam
+}
+
+// QueryParam describes a single query parameter for OpenAPI documentation.
+type QueryParam struct {
+	Name        string
+	Description string
+	Required    bool
+	Type        string // "string", "integer", "boolean"
 }
