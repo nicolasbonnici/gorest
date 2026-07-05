@@ -85,41 +85,27 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 	}
 
 	v := reflect.ValueOf(m)
-	t := reflect.TypeOf(m)
+	meta := getFieldMeta(v.Type())
 
 	qb := query.New(c.DB.Dialect()).Insert(m.TableName())
 
 	var cols []string
 	var values []any
+	idPreSet := false
 
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("db")
-		if tag == "" || tag == "-" || tag == "created_at" || tag == "updated_at" {
-			continue
-		}
-
+	for j, idx := range meta.insertIndices {
+		tag := meta.insertCols[j]
 		if tag == "id" {
-			fieldValue := v.Field(i)
-			if fieldValue.IsZero() {
+			if v.Field(idx).IsZero() {
 				continue
 			}
+			idPreSet = true
 		}
-
 		cols = append(cols, tag)
-		values = append(values, v.Field(i).Interface())
+		values = append(values, v.Field(idx).Interface())
 	}
 
 	qb = qb.Columns(cols...).Values(values...)
-
-	idPreSet := false
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		if field.Tag.Get("db") == "id" && !v.Field(i).IsZero() {
-			idPreSet = true
-			break
-		}
-	}
 
 	if c.DB.Dialect().SupportsReturning() && !idPreSet {
 		qb = qb.Returning("id")
@@ -162,56 +148,47 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 		}
 	}
 
-	if execErr == nil && createdID != nil && !idPreSet {
-		v := reflect.ValueOf(&m).Elem()
-		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get("db")
-			if tag == "id" {
-				fieldValue := v.Field(i)
-				if fieldValue.CanSet() {
-					switch fieldValue.Kind() {
-					case reflect.String:
-						if s, ok := createdID.(string); ok {
-							fieldValue.SetString(s)
-						} else if byteArr, ok := createdID.([16]byte); ok {
-							// PostgreSQL UUID returned as [16]byte
-							u, err := uuid.FromBytes(byteArr[:])
-							if err == nil {
-								fieldValue.SetString(u.String())
-							} else {
-								log.Printf("warning: failed to convert [16]byte to UUID: %v", err)
-							}
-						} else if byteSlice, ok := createdID.([]byte); ok {
-							// PostgreSQL UUID returned as []byte
-							if len(byteSlice) == 16 {
-								u, err := uuid.FromBytes(byteSlice)
-								if err == nil {
-									fieldValue.SetString(u.String())
-								} else {
-									log.Printf("warning: failed to convert []byte to UUID: %v", err)
-								}
-							} else {
-								// Might be a string stored as bytes
-								fieldValue.SetString(string(byteSlice))
-							}
-						} else {
-							log.Printf("warning: failed to cast ID to string, got type %T", createdID)
-						}
-					case reflect.Int, reflect.Int64:
-						if n, ok := createdID.(int64); ok {
-							fieldValue.SetInt(n)
-						} else if n, ok := createdID.(int); ok {
-							fieldValue.SetInt(int64(n))
-						} else {
-							log.Printf("warning: failed to cast ID to int64, got type %T", createdID)
-						}
-					default:
-						log.Printf("warning: unsupported ID field type: %v", fieldValue.Kind())
+	if execErr == nil && createdID != nil && !idPreSet && meta.idFieldIndex >= 0 {
+		rv := reflect.ValueOf(&m).Elem()
+		fieldValue := rv.Field(meta.idFieldIndex)
+		if fieldValue.CanSet() {
+			switch fieldValue.Kind() {
+			case reflect.String:
+				if s, ok := createdID.(string); ok {
+					fieldValue.SetString(s)
+				} else if byteArr, ok := createdID.([16]byte); ok {
+					// PostgreSQL UUID returned as [16]byte
+					u, err := uuid.FromBytes(byteArr[:])
+					if err == nil {
+						fieldValue.SetString(u.String())
+					} else {
+						log.Printf("warning: failed to convert [16]byte to UUID: %v", err)
 					}
+				} else if byteSlice, ok := createdID.([]byte); ok {
+					// PostgreSQL UUID returned as []byte
+					if len(byteSlice) == 16 {
+						u, err := uuid.FromBytes(byteSlice)
+						if err == nil {
+							fieldValue.SetString(u.String())
+						} else {
+							log.Printf("warning: failed to convert []byte to UUID: %v", err)
+						}
+					} else {
+						fieldValue.SetString(string(byteSlice))
+					}
+				} else {
+					log.Printf("warning: failed to cast ID to string, got type %T", createdID)
 				}
-				break
+			case reflect.Int, reflect.Int64:
+				if n, ok := createdID.(int64); ok {
+					fieldValue.SetInt(n)
+				} else if n, ok := createdID.(int); ok {
+					fieldValue.SetInt(int64(n))
+				} else {
+					log.Printf("warning: failed to cast ID to int64, got type %T", createdID)
+				}
+			default:
+				log.Printf("warning: unsupported ID field type: %v", fieldValue.Kind())
 			}
 		}
 	}
@@ -233,20 +210,9 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 
 func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	var zero T
-	t := reflect.TypeOf(zero)
+	meta := getFieldMeta(reflect.TypeOf(zero))
 
-	var cols []string
-	var fieldIndices []int
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("db")
-		if tag != "" && tag != "-" {
-			cols = append(cols, tag)
-			fieldIndices = append(fieldIndices, i)
-		}
-	}
-
-	qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
+	qb := query.New(c.DB.Dialect()).Select(meta.allCols...).From(zero.TableName())
 	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
 	if modified {
 		qb = modifiedBuilder
@@ -272,14 +238,10 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	var results []T
 	for rows.Next() {
 		var item T
-		v := reflect.ValueOf(&item).Elem()
-
-		fields := make([]interface{}, len(fieldIndices))
-		for i, idx := range fieldIndices {
-			fields[i] = v.Field(idx).Addr().Interface()
-		}
-
-		if err := rows.Scan(fields...); err != nil {
+		sp := meta.acquireScanTargets(reflect.ValueOf(&item).Elem())
+		err := rows.Scan(*sp...)
+		meta.releaseScanTargets(sp)
+		if err != nil {
 			return nil, err
 		}
 
@@ -314,21 +276,10 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 
 func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (*PaginationResult[T], error) {
 	var zero T
-	t := reflect.TypeOf(zero)
-
-	var cols []string
-	var fieldIndices []int
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("db")
-		if tag != "" && tag != "-" {
-			cols = append(cols, tag)
-			fieldIndices = append(fieldIndices, i)
-		}
-	}
+	meta := getFieldMeta(reflect.TypeOf(zero))
 
 	// Build select query using query builder
-	qb := query.New(c.DB.Dialect()).Select(cols...).From(zero.TableName())
+	qb := query.New(c.DB.Dialect()).Select(meta.allCols...).From(zero.TableName())
 
 	// Apply hook modifications
 	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
@@ -391,14 +342,10 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 	var results []T
 	for rows.Next() {
 		var item T
-		v := reflect.ValueOf(&item).Elem()
-
-		fields := make([]interface{}, len(fieldIndices))
-		for i, idx := range fieldIndices {
-			fields[i] = v.Field(idx).Addr().Interface()
-		}
-
-		if err := rows.Scan(fields...); err != nil {
+		sp := meta.acquireScanTargets(reflect.ValueOf(&item).Elem())
+		err := rows.Scan(*sp...)
+		meta.releaseScanTargets(sp)
+		if err != nil {
 			return nil, err
 		}
 
@@ -436,20 +383,9 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 
 func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 	var item T
-	t := reflect.TypeOf(item)
+	meta := getFieldMeta(reflect.TypeOf(item))
 
-	var cols []string
-	var fieldIndices []int
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("db")
-		if tag != "" && tag != "-" {
-			cols = append(cols, tag)
-			fieldIndices = append(fieldIndices, i)
-		}
-	}
-
-	qb := query.New(c.DB.Dialect()).Select(cols...).From(item.TableName()).Where(query.Eq("id", id))
+	qb := query.New(c.DB.Dialect()).Select(meta.allCols...).From(item.TableName()).Where(query.Eq("id", id))
 	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetByID, qb)
 	if modified {
 		qb = modifiedBuilder
@@ -467,14 +403,9 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 
 	row := c.DB.QueryRow(ctx, finalQuery, finalArgs...)
 
-	v := reflect.ValueOf(&item).Elem()
-
-	fields := make([]interface{}, len(fieldIndices))
-	for i, idx := range fieldIndices {
-		fields[i] = v.Field(idx).Addr().Interface()
-	}
-
-	execErr := row.Scan(fields...)
+	sp := meta.acquireScanTargets(reflect.ValueOf(&item).Elem())
+	execErr := row.Scan(*sp...)
+	meta.releaseScanTargets(sp)
 
 	if err := c.Hooks.AfterQuery(ctx, hooks.OperationGetByID, finalQuery, finalArgs, &item, execErr); err != nil {
 		return nil, err
@@ -508,32 +439,21 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 	}
 
 	var zero T
-	t := reflect.TypeOf(zero)
-
-	var cols []string
-	var fieldIndices []int
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("db")
-		if tag != "" && tag != "-" {
-			cols = append(cols, tag)
-			fieldIndices = append(fieldIndices, i)
-		}
-	}
+	meta := getFieldMeta(reflect.TypeOf(zero))
 
 	placeholders := make([]string, len(ids))
 	for i := range ids {
 		placeholders[i] = c.DB.Dialect().Placeholder(i + 1)
 	}
 
-	query := fmt.Sprintf(
+	rawQuery := fmt.Sprintf(
 		"SELECT %s FROM %s WHERE id IN (%s)",
-		strings.Join(cols, ", "),
+		strings.Join(meta.allCols, ", "),
 		zero.TableName(),
 		strings.Join(placeholders, ", "),
 	)
 
-	rows, err := c.DB.Query(ctx, query, ids...)
+	rows, err := c.DB.Query(ctx, rawQuery, ids...)
 	if err != nil {
 		return nil, err
 	}
@@ -542,14 +462,10 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 	var items []T
 	for rows.Next() {
 		var item T
-		v := reflect.ValueOf(&item).Elem()
-
-		fields := make([]interface{}, len(fieldIndices))
-		for i, idx := range fieldIndices {
-			fields[i] = v.Field(idx).Addr().Interface()
-		}
-
-		if err := rows.Scan(fields...); err != nil {
+		sp := meta.acquireScanTargets(reflect.ValueOf(&item).Elem())
+		err := rows.Scan(*sp...)
+		meta.releaseScanTargets(sp)
+		if err != nil {
 			return nil, err
 		}
 
@@ -587,19 +503,12 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 	}
 
 	v := reflect.ValueOf(m)
-	t := reflect.TypeOf(m)
+	meta := getFieldMeta(v.Type())
 
 	qb := query.New(c.DB.Dialect()).Update(m.TableName())
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("db")
-		if tag == "" || tag == "-" || tag == "id" || tag == "created_at" {
-			continue
-		}
-		qb = qb.Set(tag, v.Field(i).Interface())
+	for j, idx := range meta.updateIndices {
+		qb = qb.Set(meta.updateCols[j], v.Field(idx).Interface())
 	}
-
 	qb = qb.Where(query.Eq("id", id))
 
 	modifiedBuilder, modified := c.Hooks.ModifyUpdateQuery(ctx, hooks.OperationUpdate, id, &m, qb)

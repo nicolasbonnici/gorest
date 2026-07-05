@@ -13,6 +13,7 @@ type PostgresDriver struct {
 	pool         *pgxpool.Pool
 	dialect      *PostgresDialect
 	introspector *PostgresIntrospector
+	poolCfg      database.PoolConfig
 }
 
 func init() {
@@ -23,8 +24,30 @@ func init() {
 	})
 }
 
+func (d *PostgresDriver) ConfigurePool(cfg database.PoolConfig) {
+	d.poolCfg = cfg
+}
+
 func (d *PostgresDriver) Connect(ctx context.Context, dsn string) error {
-	pool, err := pgxpool.New(ctx, dsn)
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return err
+	}
+
+	if d.poolCfg.MaxOpen > 0 {
+		cfg.MaxConns = int32(d.poolCfg.MaxOpen)
+	}
+	if d.poolCfg.MaxIdle > 0 {
+		cfg.MinConns = int32(d.poolCfg.MaxIdle)
+	}
+	if d.poolCfg.ConnMaxLifetime > 0 {
+		cfg.MaxConnLifetime = d.poolCfg.ConnMaxLifetime
+	}
+	if d.poolCfg.ConnMaxIdleTime > 0 {
+		cfg.MaxConnIdleTime = d.poolCfg.ConnMaxIdleTime
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return err
 	}

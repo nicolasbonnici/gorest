@@ -12,6 +12,7 @@ type SQLiteDriver struct {
 	db           *sql.DB
 	dialect      *SQLiteDialect
 	introspector *SQLiteIntrospector
+	poolCfg      database.PoolConfig
 }
 
 func init() {
@@ -22,10 +23,27 @@ func init() {
 	})
 }
 
+func (d *SQLiteDriver) ConfigurePool(cfg database.PoolConfig) {
+	d.poolCfg = cfg
+}
+
 func (d *SQLiteDriver) Connect(ctx context.Context, dsn string) error {
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return err
+	}
+
+	if d.poolCfg.MaxOpen > 0 {
+		db.SetMaxOpenConns(d.poolCfg.MaxOpen)
+	}
+	if d.poolCfg.MaxIdle > 0 {
+		db.SetMaxIdleConns(d.poolCfg.MaxIdle)
+	}
+	if d.poolCfg.ConnMaxLifetime > 0 {
+		db.SetConnMaxLifetime(d.poolCfg.ConnMaxLifetime)
+	}
+	if d.poolCfg.ConnMaxIdleTime > 0 {
+		db.SetConnMaxIdleTime(d.poolCfg.ConnMaxIdleTime)
 	}
 
 	if err := db.PingContext(ctx); err != nil {
