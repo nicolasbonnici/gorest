@@ -6,7 +6,109 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 )
+
+// structField caches json tag metadata for a single exported field.
+type structField struct {
+	jsonKey   string
+	index     int
+	omitempty bool
+}
+
+type structMeta struct {
+	fields []structField
+}
+
+var structCache sync.Map // map[reflect.Type]*structMeta
+
+var marshalerType = reflect.TypeFor[json.Marshaler]()
+
+// hasCustomJSON reports whether t (or its pointer) implements json.Marshaler.
+// Such types (e.g. time.Time) must be left intact so their MarshalJSON runs,
+// rather than being decomposed field-by-field into a map.
+func hasCustomJSON(t reflect.Type) bool {
+	return t.Implements(marshalerType) || reflect.PointerTo(t).Implements(marshalerType)
+}
+
+func getStructMeta(t reflect.Type) *structMeta {
+	if v, ok := structCache.Load(t); ok {
+		return v.(*structMeta)
+	}
+	meta := &structMeta{}
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if !f.IsExported() {
+			continue
+		}
+		tag := f.Tag.Get("json")
+		if tag == "-" {
+			continue
+		}
+		key := f.Name
+		omitempty := false
+		if tag != "" {
+			parts := strings.SplitN(tag, ",", 2)
+			if parts[0] != "" {
+				key = parts[0]
+			}
+			if len(parts) > 1 && strings.Contains(parts[1], "omitempty") {
+				omitempty = true
+			}
+		}
+		meta.fields = append(meta.fields, structField{jsonKey: key, index: i, omitempty: omitempty})
+	}
+	structCache.Store(t, meta)
+	return meta
+}
+
+// structToMap converts a struct to map[string]interface{} using json tags,
+// avoiding a json.Marshal/Unmarshal round-trip.
+func structToMap(data interface{}) map[string]interface{} {
+	val := reflect.ValueOf(data)
+	for val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return nil
+		}
+		val = val.Elem()
+	}
+	if m, ok := data.(map[string]interface{}); ok {
+		return m
+	}
+	if val.Kind() != reflect.Struct {
+		// Fallback for uncommon types (slices, maps with non-string keys, etc.)
+		b, _ := json.Marshal(data)
+		var m map[string]interface{}
+		_ = json.Unmarshal(b, &m)
+		return m
+	}
+
+	meta := getStructMeta(val.Type())
+	result := make(map[string]interface{}, len(meta.fields))
+	for _, f := range meta.fields {
+		fv := val.Field(f.index)
+		if f.omitempty && fv.IsZero() {
+			continue
+		}
+		switch fv.Kind() {
+		case reflect.Struct:
+			if hasCustomJSON(fv.Type()) {
+				result[f.jsonKey] = fv.Interface()
+			} else {
+				result[f.jsonKey] = structToMap(fv.Interface())
+			}
+		case reflect.Ptr:
+			if !fv.IsNil() && fv.Elem().Kind() == reflect.Struct && !hasCustomJSON(fv.Elem().Type()) {
+				result[f.jsonKey] = structToMap(fv.Interface())
+			} else {
+				result[f.jsonKey] = fv.Interface()
+			}
+		default:
+			result[f.jsonKey] = fv.Interface()
+		}
+	}
+	return result
+}
 
 type ResponseSerializer interface {
 	Serialize(data interface{}, path string) ([]byte, error)
@@ -91,11 +193,13 @@ func (s *JSONLDSerializer) addTypeToItem(data interface{}, path string) map[stri
 }
 
 func (s *JSONLDSerializer) addTypeToItemExpand(data interface{}, path string, expand []string) map[string]interface{} {
-	jsonBytes, _ := json.Marshal(data)
-	var itemMap map[string]interface{}
-	json.Unmarshal(jsonBytes, &itemMap)
-
-	if itemMap == nil {
+	raw := structToMap(data)
+	// Work on a copy so we don't mutate caller-owned maps.
+	itemMap := make(map[string]interface{}, len(raw))
+	for k, v := range raw {
+		itemMap[k] = v
+	}
+	if len(itemMap) == 0 {
 		itemMap = make(map[string]interface{})
 	}
 
