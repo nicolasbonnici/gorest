@@ -278,29 +278,23 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 	var zero T
 	meta := getFieldMeta(reflect.TypeOf(zero))
 
-	// Build select query using query builder
 	qb := query.New(c.DB.Dialect()).Select(meta.allCols...).From(zero.TableName())
 
-	// Apply hook modifications
 	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, qb)
 	if modified {
 		qb = modifiedBuilder
 	}
 
-	// Apply filter conditions
 	for _, cond := range opts.Conditions {
 		qb = qb.Where(cond)
 	}
 
-	// Apply ordering
 	for _, order := range opts.OrderBy {
 		qb = qb.OrderBy(order.Column, order.Direction)
 	}
 
-	// Apply pagination
 	qb = qb.Limit(opts.Limit).Offset(opts.Offset)
 
-	// Count query (if needed)
 	var total *int
 	if opts.IncludeCount {
 		countBuilder := query.New(c.DB.Dialect()).Select("COUNT(*)").From(zero.TableName())
@@ -321,7 +315,6 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 		total = &count
 	}
 
-	// Build and execute main query
 	queryStr, args, buildErr := qb.Build()
 	if buildErr != nil {
 		return nil, fmt.Errorf("query build failed: %w", buildErr)
