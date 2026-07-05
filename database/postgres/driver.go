@@ -37,9 +37,8 @@ func (d *PostgresDriver) Connect(ctx context.Context, dsn string) error {
 	if d.poolCfg.MaxOpen > 0 {
 		cfg.MaxConns = int32(d.poolCfg.MaxOpen)
 	}
-	if d.poolCfg.MaxIdle > 0 {
-		cfg.MinConns = int32(d.poolCfg.MaxIdle)
-	}
+	// pgxpool has no max-idle knob; MaxIdle is intentionally not mapped
+	// to MinConns (which is a floor, not a ceiling) to avoid the opposite effect.
 	if d.poolCfg.ConnMaxLifetime > 0 {
 		cfg.MaxConnLifetime = d.poolCfg.ConnMaxLifetime
 	}

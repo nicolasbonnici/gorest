@@ -84,5 +84,9 @@ func (m *fieldMeta) acquireScanTargets(v reflect.Value) *[]interface{} {
 }
 
 func (m *fieldMeta) releaseScanTargets(sp *[]interface{}) {
+	s := *sp
+	for i := range s {
+		s[i] = nil
+	}
 	m.scanPool.Put(sp)
 }
