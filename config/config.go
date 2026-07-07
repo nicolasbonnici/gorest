@@ -75,7 +75,18 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	URL string `yaml:"url"`
+	URL  string       `yaml:"url"`
+	Pool DBPoolConfig `yaml:"pool"`
+}
+
+// DBPoolConfig exposes connection-pool tuning. Zero values fall back to the
+// framework defaults applied in gorest.go (see database.PoolConfig for the
+// low-level knobs the driver consumes).
+type DBPoolConfig struct {
+	// MaxOpen caps concurrent open connections. 0 uses the GoREST default.
+	MaxOpen int `yaml:"max_open"`
+	// MaxIdle caps idle connections kept warm. 0 uses the driver default.
+	MaxIdle int `yaml:"max_idle"`
 }
 
 type PaginationConfig struct {

@@ -52,7 +52,18 @@ func Start(cfg Config) {
 	// Initialize response package with version
 	response.Initialize(Version)
 
-	db, err := database.Open("", appConfig.Database.URL)
+	// API handlers are I/O-bound (they wait on the database), so the pool
+	// should allow well above GOMAXPROCS concurrent connections. pgx's default
+	// (max(4, NumCPU)) throttles throughput under load; default to 25 and let
+	// operators tune it via database.pool in the config.
+	poolCfg := database.PoolConfig{
+		MaxOpen: appConfig.Database.Pool.MaxOpen,
+		MaxIdle: appConfig.Database.Pool.MaxIdle,
+	}
+	if poolCfg.MaxOpen <= 0 {
+		poolCfg.MaxOpen = 25
+	}
+	db, err := database.OpenWithPool("", appConfig.Database.URL, poolCfg)
 	if err != nil {
 		logger.Log.Error("DB connection failed", "error", err)
 		os.Exit(1)
