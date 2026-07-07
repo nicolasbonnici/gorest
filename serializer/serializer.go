@@ -150,6 +150,13 @@ func (s *JSONLDSerializer) Serialize(data interface{}, path string) ([]byte, err
 }
 
 func (s *JSONLDSerializer) SerializeWithExpand(data interface{}, path string, expand []string) ([]byte, error) {
+	// Fast streaming path for the common case (no relation expansion). Falls
+	// back to the map path for anything it can't faithfully reproduce.
+	if len(expand) == 0 {
+		if out, ok := fastSerializeLD(data, path); ok {
+			return out, nil
+		}
+	}
 	wrapped := s.wrapWithContextExpand(data, path, expand)
 	return json.Marshal(wrapped)
 }
