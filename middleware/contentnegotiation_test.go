@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -101,6 +103,24 @@ func TestContentNegotiation_RequiresJSONForPOST(t *testing.T) {
 
 		if resp.StatusCode != 415 {
 			t.Errorf("expected status 415 for non-JSON content, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("with multipart/form-data allows file uploads", func(t *testing.T) {
+		var buf bytes.Buffer
+		w := multipart.NewWriter(&buf)
+		fw, _ := w.CreateFormFile("file", "f.txt")
+		_, _ = fw.Write([]byte("data"))
+		_ = w.Close()
+
+		req := httptest.NewRequest("POST", "/test", &buf)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("app.Test: %v", err)
+		}
+		if resp.StatusCode == 415 {
+			t.Error("multipart/form-data must be accepted for file uploads")
 		}
 	})
 }
