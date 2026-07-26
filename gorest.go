@@ -63,6 +63,12 @@ func Start(cfg Config) {
 	if poolCfg.MaxOpen <= 0 {
 		poolCfg.MaxOpen = 25
 	}
+	// database/sql keeps only 2 idle connections, so without this MySQL and
+	// SQLite open and immediately discard one per concurrent request. pgx has
+	// no idle ceiling and ignores it.
+	if poolCfg.MaxIdle <= 0 {
+		poolCfg.MaxIdle = poolCfg.MaxOpen
+	}
 	db, err := database.OpenWithPool("", appConfig.Database.URL, poolCfg)
 	if err != nil {
 		logger.Log.Error("DB connection failed", "error", err)

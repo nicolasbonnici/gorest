@@ -28,10 +28,12 @@ type OrderSet struct {
 }
 
 func NewOrderSet(allowedFields []string) *OrderSet {
-	allowed := make(map[string]bool)
-	for _, field := range allowedFields {
-		allowed[field] = true
-	}
+	return NewOrderSetWithAllowedSet(AllowedSet(allowedFields))
+}
+
+// NewOrderSetWithAllowedSet lets a caller with a fixed field list build the set
+// once (see AllowedSet) instead of paying for a map per request.
+func NewOrderSetWithAllowedSet(allowed map[string]bool) *OrderSet {
 	return &OrderSet{
 		Orders:        []Order{},
 		AllowedFields: allowed,

@@ -39,10 +39,12 @@ type FilterSet struct {
 }
 
 func NewFilterSet(allowedFields []string, dialect database.Dialect) *FilterSet {
-	allowed := make(map[string]bool)
-	for _, field := range allowedFields {
-		allowed[field] = true
-	}
+	return NewFilterSetWithAllowedSet(AllowedSet(allowedFields), dialect)
+}
+
+// NewFilterSetWithAllowedSet lets a caller with a fixed field list build the
+// set once (see AllowedSet) instead of paying for a map per request.
+func NewFilterSetWithAllowedSet(allowed map[string]bool, dialect database.Dialect) *FilterSet {
 	return &FilterSet{
 		Filters:       []Filter{},
 		AllowedFields: allowed,
@@ -50,6 +52,16 @@ func NewFilterSet(allowedFields []string, dialect database.Dialect) *FilterSet {
 		paramIndex:    1,
 		dialect:       dialect,
 	}
+}
+
+// AllowedSet builds the lookup set FilterSet and OrderSet use. Once shared, the
+// result must not be mutated.
+func AllowedSet(allowedFields []string) map[string]bool {
+	allowed := make(map[string]bool, len(allowedFields))
+	for _, field := range allowedFields {
+		allowed[field] = true
+	}
+	return allowed
 }
 
 // NewFilterSetWithMapping creates a FilterSet with field name mapping from JSON to DB columns.

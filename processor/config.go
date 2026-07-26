@@ -3,6 +3,7 @@ package processor
 import (
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
+	"github.com/nicolasbonnici/gorest/filter"
 )
 
 type ProcessorConfig[TModel crud.Model, TCreateDTO any, TUpdateDTO any, TResponseDTO any] struct {
@@ -38,5 +39,7 @@ func New[TModel crud.Model, TCreateDTO any, TUpdateDTO any, TResponseDTO any](
 
 	return &StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]{
 		config: config,
+		// Built once here rather than twice (filters + ordering) per request.
+		allowedSet: filter.AllowedSet(config.AllowedFields),
 	}
 }
