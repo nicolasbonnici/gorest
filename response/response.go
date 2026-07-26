@@ -9,12 +9,16 @@ import (
 
 var version = "dev"
 
+// Precomputed: every response sets this header.
+var poweredBy = "GoREST/" + version
+
 func Initialize(v string) {
 	version = v
+	poweredBy = "GoREST/" + version
 }
 
 func SetCommonHeaders(c fiber.Ctx) {
-	c.Set("X-Powered-By", "GoREST/"+version)
+	c.Set("X-Powered-By", poweredBy)
 }
 
 func SetContentTypeHeader(c fiber.Ctx, format string) {
@@ -43,7 +47,7 @@ func SendFormatted(c fiber.Ctx, statusCode int, data interface{}) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to serialize response"})
 	}
 
-	c.Set("X-Powered-By", "GoREST/"+version)
+	c.Set("X-Powered-By", poweredBy)
 	c.Set("Content-Type", s.ContentType())
 	return c.Status(statusCode).Send(formatted)
 }
@@ -60,14 +64,25 @@ func ParseExpandQuery(c fiber.Ctx) []string {
 }
 
 func DetermineFormat(c fiber.Ctx) string {
+	// Walked in place; splitting would allocate on a path every response takes.
 	accept := c.Get("Accept", "")
-	contentTypes := parseAcceptHeader(accept)
 
-	for _, ct := range contentTypes {
+	for rest := accept; rest != ""; {
+		var part string
+		part, rest, _ = strings.Cut(rest, ",")
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		mediaType, _, _ := strings.Cut(part, ";")
+		if mediaType == "" {
+			continue
+		}
+
 		switch {
-		case strings.Contains(ct, "application/json") && !strings.Contains(ct, "application/ld+json"):
+		case strings.Contains(mediaType, "application/json") && !strings.Contains(mediaType, "application/ld+json"):
 			return "json"
-		case strings.Contains(ct, "application/ld+json"):
+		case strings.Contains(mediaType, "application/ld+json"):
 			return "jsonld"
 		}
 	}
@@ -75,30 +90,8 @@ func DetermineFormat(c fiber.Ctx) string {
 	return "jsonld"
 }
 
-func parseAcceptHeader(accept string) []string {
-	if accept == "" {
-		return []string{}
-	}
-
-	parts := strings.Split(accept, ",")
-	contentTypes := make([]string, 0, len(parts))
-
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		mediaTypeParts := strings.Split(trimmed, ";")
-		if len(mediaTypeParts) > 0 && mediaTypeParts[0] != "" {
-			contentTypes = append(contentTypes, mediaTypeParts[0])
-		}
-	}
-
-	return contentTypes
-}
-
 func SendError(c fiber.Ctx, statusCode int, message string) error {
-	c.Set("X-Powered-By", "GoREST/"+version)
+	c.Set("X-Powered-By", poweredBy)
 	return c.Status(statusCode).JSON(fiber.Map{
 		"error": message,
 	})
@@ -106,17 +99,17 @@ func SendError(c fiber.Ctx, statusCode int, message string) error {
 
 // TODO refactor to more flexible Send method with status code
 func SendSuccess(c fiber.Ctx, data interface{}) error {
-	c.Set("X-Powered-By", "GoREST/"+version)
+	c.Set("X-Powered-By", poweredBy)
 	return c.Status(fiber.StatusOK).JSON(data)
 }
 
 func SendCreated(c fiber.Ctx, data interface{}) error {
-	c.Set("X-Powered-By", "GoREST/"+version)
+	c.Set("X-Powered-By", poweredBy)
 	return c.Status(fiber.StatusCreated).JSON(data)
 }
 
 func SendJSON(c fiber.Ctx, statusCode int, data interface{}) error {
-	c.Set("X-Powered-By", "GoREST/"+version)
+	c.Set("X-Powered-By", poweredBy)
 	format := DetermineFormat(c)
 	SetContentTypeHeader(c, format)
 	SetCommonHeaders(c)

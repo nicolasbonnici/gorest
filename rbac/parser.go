@@ -19,6 +19,12 @@ func ParseAnnotations(resource interface{}) (PermissionSet, error) {
 		t = t.Elem()
 	}
 
+	return parseAnnotationsForType(t)
+}
+
+// Type-keyed core of ParseAnnotations, so a caller holding only a reflect.Type
+// need not materialize a value to reach the cache.
+func parseAnnotationsForType(t reflect.Type) (PermissionSet, error) {
 	if t.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("resource must be a struct, got %s", t.Kind())
 	}

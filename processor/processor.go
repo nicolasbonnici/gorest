@@ -35,6 +35,9 @@ type StandardProcessor[TModel crud.Model, TCreateDTO any, TUpdateDTO any, TRespo
 	deleteHook  DeleteHookFunc
 	getByIDHook GetByIDHookFunc[TModel]
 	getAllHook  GetAllHookFunc[TModel]
+
+	// Read-only after New.
+	allowedSet map[string]bool
 }
 
 func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) Create(c fiber.Ctx) error {
@@ -124,7 +127,7 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetAll
 		if p.config.FieldMap != nil {
 			filters = filter.NewFilterSetWithMapping(p.config.FieldMap, p.config.DB.Dialect())
 		} else {
-			filters = filter.NewFilterSet(p.config.AllowedFields, p.config.DB.Dialect())
+			filters = filter.NewFilterSetWithAllowedSet(p.allowedSet, p.config.DB.Dialect())
 		}
 
 		if err := filters.ParseFromQuery(queryParams); err != nil {
@@ -139,7 +142,7 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetAll
 		if p.config.FieldMap != nil {
 			ordering = filter.NewOrderSetWithMapping(p.config.FieldMap)
 		} else {
-			ordering = filter.NewOrderSet(p.config.AllowedFields)
+			ordering = filter.NewOrderSetWithAllowedSet(p.allowedSet)
 		}
 
 		if err := ordering.ParseFromQuery(queryParams); err != nil {

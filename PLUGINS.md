@@ -48,7 +48,7 @@ Soon there will be a repository avaailable
 
 | Plugin | Description | Command | Repository |
 |--------|-------------|---------|------------|
-| `benchmark` | API performance benchmarking | `make benchmark` | [gorest-benchmark](https://github.com/nicolasbonnici/gorest-benchmark) |
+| `benchmark` | API performance benchmarking | `go run cmd/main.go` | [gorest-benchmark](https://github.com/nicolasbonnici/gorest-benchmark) |
 
 ## Plugin Interfaces
 

@@ -198,19 +198,23 @@ func writeLDBody(buf *bytes.Buffer, val reflect.Value, path string, plan *ldPlan
 		writeJSONString(buf, plan.typeName)
 	}
 
-	// @id derived from the "id" field, matching the map path's rules.
+	// @id derived from the "id" field, matching the map path's rules. Renders
+	// into a stack array, not buf.AvailableBuffer, which the writes below would
+	// overwrite.
 	if plan.idFieldIndex >= 0 {
-		if idStr, ok := stringifyID(val.Field(plan.idFieldIndex)); ok && idStr != "" {
+		var idScratch [64]byte
+		idBytes, ok := appendIDText(idScratch[:0], val.Field(plan.idFieldIndex))
+		if ok && len(idBytes) > 0 {
 			cleanPath := strings.TrimSuffix(path, "/")
-			var id string
-			if strings.HasSuffix(cleanPath, idStr) {
-				id = cleanPath
-			} else {
-				id = cleanPath + "/" + idStr
-			}
 			sep()
 			buf.WriteString(`"@id":`)
-			writeJSONString(buf, id)
+			buf.WriteByte('"')
+			writeJSONStringBody(buf, cleanPath)
+			if !hasSuffixBytes(cleanPath, idBytes) {
+				buf.WriteByte('/')
+				writeJSONStringBodyBytes(buf, idBytes)
+			}
+			buf.WriteByte('"')
 		}
 	}
 
@@ -260,10 +264,17 @@ func writeJSONValue(buf *bytes.Buffer, fv reflect.Value) bool {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		buf.Write(strconv.AppendUint(buf.AvailableBuffer(), fv.Uint(), 10))
 	default:
-		// Fast paths for the two leaf types that appear on nearly every row.
+		// Both are wider than a pointer, so fv.Interface() heap-allocates a copy
+		// per field. Addressable values (any slice element, i.e. the list path)
+		// go through a *T, which boxes into the interface word for free.
 		switch fv.Type() {
 		case timeType:
-			tv := fv.Interface().(time.Time)
+			var tv time.Time
+			if fv.CanAddr() {
+				tv = *fv.Addr().Interface().(*time.Time)
+			} else {
+				tv = fv.Interface().(time.Time)
+			}
 			if y := tv.Year(); y >= 0 && y <= 9999 {
 				// Matches time.Time.MarshalJSON (RFC3339Nano, quoted).
 				buf.WriteByte('"')
@@ -274,7 +285,12 @@ func writeJSONValue(buf *bytes.Buffer, fv reflect.Value) bool {
 		case uuidType:
 			// Matches uuid's MarshalText: canonical lower-case, quoted.
 			buf.WriteByte('"')
-			buf.WriteString(fv.Interface().(uuid.UUID).String())
+			if fv.CanAddr() {
+				buf.Write(appendUUID(buf.AvailableBuffer(), fv.Addr().Interface().(*uuid.UUID)))
+			} else {
+				u := fv.Interface().(uuid.UUID)
+				buf.Write(appendUUID(buf.AvailableBuffer(), &u))
+			}
 			buf.WriteByte('"')
 			return true
 		}
@@ -292,25 +308,59 @@ var (
 	uuidType = reflect.TypeOf(uuid.UUID{})
 )
 
-// stringifyID renders an id field the way fmt.Sprintf("%v") did in the map path
-// (strings as-is, otherwise Stringer/%v), without forcing every id through fmt.
-func stringifyID(fv reflect.Value) (string, bool) {
-	if fv.Kind() == reflect.String {
-		return fv.String(), true
-	}
-	if fv.CanInterface() {
-		if s, ok := fv.Interface().(fmt.Stringer); ok {
-			return s.String(), true
+// appendUUID matches uuid.UUID.String() without its string allocation.
+func appendUUID(dst []byte, u *uuid.UUID) []byte {
+	for i, b := range u {
+		dst = append(dst, hexDigit[b>>4], hexDigit[b&0xF])
+		if i == 3 || i == 5 || i == 7 || i == 9 {
+			dst = append(dst, '-')
 		}
-		return fmt.Sprintf("%v", fv.Interface()), true
 	}
-	return "", false
+	return dst
+}
+
+// appendIDText must render ids exactly as the map path's fmt.Sprintf("%v")
+// did: strings as-is, otherwise Stringer/%v.
+func appendIDText(dst []byte, fv reflect.Value) ([]byte, bool) {
+	switch {
+	case fv.Kind() == reflect.String:
+		return append(dst, fv.String()...), true
+	case fv.Type() == uuidType:
+		if fv.CanAddr() {
+			return appendUUID(dst, fv.Addr().Interface().(*uuid.UUID)), true
+		}
+		u := fv.Interface().(uuid.UUID)
+		return appendUUID(dst, &u), true
+	case fv.CanInt():
+		return strconv.AppendInt(dst, fv.Int(), 10), true
+	case fv.CanUint():
+		return strconv.AppendUint(dst, fv.Uint(), 10), true
+	case fv.CanInterface():
+		if s, ok := fv.Interface().(fmt.Stringer); ok {
+			return append(dst, s.String()...), true
+		}
+		return fmt.Appendf(dst, "%v", fv.Interface()), true
+	}
+	return nil, false
+}
+
+// hasSuffixBytes is strings.HasSuffix against a byte slice. The compiler
+// recognizes s[...] == string(suf) and does not copy suf.
+func hasSuffixBytes(s string, suf []byte) bool {
+	return len(s) >= len(suf) && s[len(s)-len(suf):] == string(suf)
 }
 
 // writeJSONString writes a JSON string with the same escaping encoding/json uses
 // by default (including HTML-escaping of <, >, & and U+2028/U+2029).
 func writeJSONString(buf *bytes.Buffer, s string) {
 	buf.WriteByte('"')
+	writeJSONStringBody(buf, s)
+	buf.WriteByte('"')
+}
+
+// writeJSONStringBody omits the surrounding quotes, so callers can build one
+// JSON string from several pieces.
+func writeJSONStringBody(buf *bytes.Buffer, s string) {
 	start := 0
 	for i := 0; i < len(s); {
 		if b := s[i]; b < 0x80 {
@@ -361,7 +411,18 @@ func writeJSONString(buf *bytes.Buffer, s string) {
 	if start < len(s) {
 		buf.WriteString(s[start:])
 	}
-	buf.WriteByte('"')
+}
+
+// Rendered ids are almost always escape-free (uuid, integer, slug), so only
+// the rare case pays for the string conversion.
+func writeJSONStringBodyBytes(buf *bytes.Buffer, b []byte) {
+	for _, c := range b {
+		if c >= 0x80 || !htmlSafeSet[c] {
+			writeJSONStringBody(buf, string(b))
+			return
+		}
+	}
+	buf.Write(b)
 }
 
 const hexDigit = "0123456789abcdef"

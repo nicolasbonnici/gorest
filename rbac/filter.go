@@ -30,6 +30,12 @@ func filterReadFields(resource interface{}, userRoles []string, config Config) (
 		return nil, fmt.Errorf("failed to parse annotations: %w", err)
 	}
 
+	// Runs per row on list responses, so the all-readable case must not
+	// allocate: probe first, hand back the original.
+	if allFieldsReadable(typ, permissions, userRoles, config) {
+		return resource, nil
+	}
+
 	filtered := reflect.New(typ).Elem()
 
 	for i := 0; i < typ.NumField(); i++ {
@@ -72,6 +78,21 @@ func filterSlice(resource interface{}, userRoles []string, config Config) (inter
 	}
 
 	elemType := typ.Elem()
+
+	// Hoisted out of the loop so a fully readable slice skips the per-item
+	// boxing and the result slice entirely.
+	structType := elemType
+	for structType.Kind() == reflect.Ptr {
+		structType = structType.Elem()
+	}
+	if structType.Kind() == reflect.Struct {
+		if permissions, err := parseAnnotationsForType(structType); err == nil {
+			if allFieldsReadable(structType, permissions, userRoles, config) {
+				return resource, nil
+			}
+		}
+	}
+
 	result := reflect.MakeSlice(typ, val.Len(), val.Cap())
 
 	for i := 0; i < val.Len(); i++ {
@@ -99,6 +120,24 @@ func filterSlice(resource interface{}, userRoles []string, config Config) (inter
 }
 
 // canReadField checks if a field can be read based on permissions
+// allFieldsReadable reports whether a filtered copy would equal the original.
+func allFieldsReadable(typ reflect.Type, permissions PermissionSet, userRoles []string, config Config) bool {
+	if len(permissions) == 0 {
+		return config.DefaultFieldPolicy == "allow"
+	}
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		if !canReadField(field.Name, permissions, userRoles, config) {
+			return false
+		}
+	}
+	return true
+}
+
 func canReadField(fieldName string, permissions PermissionSet, userRoles []string, config Config) bool {
 	perm, exists := permissions[fieldName]
 	if !exists {

@@ -208,6 +208,58 @@ func (c *CRUD[T]) Create(ctx context.Context, m T) error {
 	return nil
 }
 
+// Bounds the up-front allocation: limit reaches here straight from the query
+// string, so an untrusted value must not reserve unbounded memory.
+const maxScanPrealloc = 4096
+
+func scanCapacity(limit int) int {
+	if limit <= 0 {
+		return 0
+	}
+	return min(limit, maxScanPrealloc)
+}
+
+// capacityHint pre-sizes the result; 0 means unknown. Rows scan directly into
+// their slot in the slice because scanning into a local would force each item
+// to escape to the heap for the reflect call, then be copied again by append.
+func (c *CRUD[T]) scanRows(ctx context.Context, rows database.Rows, meta *fieldMeta, capacityHint int) ([]T, error) {
+	results := make([]T, 0, capacityHint)
+
+	var zero T
+	for rows.Next() {
+		// append, not a reslice, so rows beyond capacityHint still grow.
+		results = append(results, zero)
+		item := &results[len(results)-1]
+
+		sp := meta.acquireScanTargets(reflect.ValueOf(item).Elem())
+		err := rows.Scan(*sp...)
+		meta.releaseScanTargets(sp)
+		if err != nil {
+			return nil, err
+		}
+
+		// Layer 5: Authorization - Check resource-level read permission
+		if err := c.Hooks.CheckRead(ctx, item); err != nil {
+			// Skip unauthorized items (404 behavior - don't disclose existence).
+			// Clearing keeps the dropped row out of the slice's spare capacity.
+			*item = zero
+			results = results[:len(results)-1]
+			continue
+		}
+
+		// Layer 5: Authorization - Filter forbidden fields
+		if err := c.Hooks.FilterRead(ctx, item); err != nil {
+			return nil, fmt.Errorf("authorization failed: %w", err)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
 func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	var zero T
 	meta := getFieldMeta(reflect.TypeOf(zero))
@@ -235,31 +287,8 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	}
 	defer rows.Close()
 
-	var results []T
-	for rows.Next() {
-		var item T
-		sp := meta.acquireScanTargets(reflect.ValueOf(&item).Elem())
-		err := rows.Scan(*sp...)
-		meta.releaseScanTargets(sp)
-		if err != nil {
-			return nil, err
-		}
-
-		// Layer 5: Authorization - Check resource-level read permission
-		if err := c.Hooks.CheckRead(ctx, &item); err != nil {
-			// Skip unauthorized items (404 behavior - don't disclose existence)
-			continue
-		}
-
-		// Layer 5: Authorization - Filter forbidden fields
-		if err := c.Hooks.FilterRead(ctx, &item); err != nil {
-			return nil, fmt.Errorf("authorization failed: %w", err)
-		}
-
-		results = append(results, item)
-	}
-
-	if err := rows.Err(); err != nil {
+	results, err := c.scanRows(ctx, rows, meta, 0)
+	if err != nil {
 		return nil, err
 	}
 
@@ -332,32 +361,9 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 	}
 	defer rows.Close()
 
-	var results []T
-	for rows.Next() {
-		var item T
-		sp := meta.acquireScanTargets(reflect.ValueOf(&item).Elem())
-		err := rows.Scan(*sp...)
-		meta.releaseScanTargets(sp)
-		if err != nil {
-			return nil, err
-		}
-
-		// Layer 5: Authorization - Check resource-level read permission
-		if err := c.Hooks.CheckRead(ctx, &item); err != nil {
-			// Skip unauthorized items (404 behavior - don't disclose existence)
-			continue
-		}
-
-		// Layer 5: Authorization - Filter forbidden fields
-		if err := c.Hooks.FilterRead(ctx, &item); err != nil {
-			return nil, fmt.Errorf("authorization failed: %w", err)
-		}
-
-		results = append(results, item)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
+	results, scanErr := c.scanRows(ctx, rows, meta, scanCapacity(opts.Limit))
+	if scanErr != nil {
+		return nil, scanErr
 	}
 
 	if err := c.Hooks.AfterQuery(ctx, hooks.OperationGetAll, finalQuery, finalArgs, results, nil); err != nil {
