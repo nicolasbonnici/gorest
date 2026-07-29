@@ -1,7 +1,8 @@
 # GoREST
 
 [![Test](https://github.com/nicolasbonnici/gorest/actions/workflows/test.yml/badge.svg?branch=trunk)](https://github.com/nicolasbonnici/gorest/actions/workflows/test.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/nicolasbonnici/gorest)](https://goreportcard.com/report/github.com/nicolasbonnici/gorest)
+[![Go Reference](https://pkg.go.dev/badge/github.com/nicolasbonnici/gorest.svg)](https://pkg.go.dev/github.com/nicolasbonnici/gorest)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/nicolasbonnici/gorest)](https://github.com/nicolasbonnici/gorest/blob/HEAD/go.mod)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 🚀 **GoREST** is a Go library for building type-safe REST APIs in Go from your existing database schema or from scratch.
