@@ -181,7 +181,7 @@ func (l *Loader) LoadFromJSON(name string, filePath string, target interface{}) 
 
 func (l *Loader) insertRawData(name string, data interface{}) error {
 	val := reflect.ValueOf(data)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 

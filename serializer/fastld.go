@@ -105,7 +105,7 @@ func fkSuffix(key string) string {
 // success, or (nil, false) when the caller should use the map-based path.
 func fastSerializeLD(data interface{}, path string) ([]byte, bool) {
 	val := reflect.ValueOf(data)
-	for val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil, false
 		}
@@ -121,7 +121,7 @@ func fastSerializeLD(data interface{}, path string) ([]byte, bool) {
 	switch val.Kind() {
 	case reflect.Slice:
 		et := val.Type().Elem()
-		for et.Kind() == reflect.Ptr {
+		for et.Kind() == reflect.Pointer {
 			et = et.Elem()
 		}
 		if et.Kind() != reflect.Struct || hasCustomJSON(et) {
@@ -134,7 +134,7 @@ func fastSerializeLD(data interface{}, path string) ([]byte, bool) {
 				buf.WriteByte(',')
 			}
 			iv := val.Index(i)
-			for iv.Kind() == reflect.Ptr {
+			for iv.Kind() == reflect.Pointer {
 				if iv.IsNil() {
 					break
 				}

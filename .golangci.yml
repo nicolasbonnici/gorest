@@ -1,73 +1,71 @@
-# golangci-lint configuration
-# https://golangci-lint.run/usage/configuration/
-
+version: "2"
 run:
-  timeout: 5m
   tests: true
-
 linters:
   enable:
-    - errcheck
     - gocyclo
-    - gofmt
-    - gosimple
-    - govet
-    - ineffassign
     - misspell
-    - staticcheck
-    - typecheck
-    - unused
-
-linters-settings:
-  gofmt:
-    simplify: true
-  gocyclo:
-    min-complexity: 45
-  errcheck:
-    # Don't check error in defer
-    check-blank: false
-    check-type-assertions: false
-    # Exclude functions - these match our .errcheck-excludes patterns
-    exclude-functions:
-      - (io.Closer).Close
-      - (io.ReadCloser).Close
-      - (*os.File).Close
-      - (*database/sql.Rows).Close
-      - (*database/sql.Tx).Rollback
-      - (database/sql.DB).Close
-      - encoding/json.Unmarshal
-      # GoREST specific
-      - (github.com/nicolasbonnici/gorest/database.Database).Close
-      - (github.com/nicolasbonnici/gorest/database.Rows).Close
-      - (github.com/nicolasbonnici/gorest/database.Tx).Rollback
-      - (*github.com/nicolasbonnici/gorest/migrations.MigrationLock).Release
-      - (*github.com/nicolasbonnici/gorest/migrations.MigrationTracker).RecordFailedMigration
-
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
+        - (*os.File).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Tx).Rollback
+        - (database/sql.DB).Close
+        - encoding/json.Unmarshal
+        - (github.com/nicolasbonnici/gorest/database.Database).Close
+        - (github.com/nicolasbonnici/gorest/database.Rows).Close
+        - (github.com/nicolasbonnici/gorest/database.Tx).Rollback
+        - (*github.com/nicolasbonnici/gorest/migrations.MigrationLock).Release
+        - (*github.com/nicolasbonnici/gorest/migrations.MigrationTracker).RecordFailedMigration
+    gocyclo:
+      min-complexity: 45
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - gosec
+        path: _test\.go
+      - linters:
+          - errcheck
+        path: test/
+      - linters:
+          - errcheck
+        path: internal/testhelpers/
+    paths:
+      - .*_test\.go$
+      - vendor
+      - generated
+      - test/generated
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  # Maximum issues count per one linter
   max-issues-per-linter: 0
-  # Maximum count of issues with the same text
   max-same-issues: 0
-
-  # Exclude directories
-  exclude-dirs:
-    - vendor
-    - generated
-    - test/generated
-
-  # Exclude files
-  exclude-files:
-    - ".*_test\\.go$"
-
-  # Exclude test files from errcheck
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-    - path: test/
-      linters:
-        - errcheck
-    - path: internal/testhelpers/
-      linters:
-        - errcheck
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - .*_test\.go$
+      - vendor
+      - generated
+      - test/generated
+      - third_party$
+      - builtin$
+      - examples$

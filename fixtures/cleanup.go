@@ -174,7 +174,7 @@ func getTableName(model interface{}) string {
 	}
 
 	val := reflect.ValueOf(model)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 
@@ -193,7 +193,7 @@ func getTableName(model interface{}) string {
 
 func getIDValue(model interface{}) interface{} {
 	val := reflect.ValueOf(model)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 

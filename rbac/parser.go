@@ -15,7 +15,7 @@ var (
 func ParseAnnotations(resource interface{}) (PermissionSet, error) {
 	t := reflect.TypeOf(resource)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -125,7 +125,7 @@ func ClearCache() {
 func GetFieldNames(resource interface{}) []string {
 	t := reflect.TypeOf(resource)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -147,7 +147,7 @@ func GetFieldNames(resource interface{}) []string {
 func HasAnnotation(resource interface{}, fieldName string) bool {
 	t := reflect.TypeOf(resource)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 

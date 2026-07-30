@@ -11,7 +11,7 @@ func filterReadFields(resource interface{}, userRoles []string, config Config) (
 	typ := reflect.TypeOf(resource)
 
 	isPtr := false
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		isPtr = true
 		val = val.Elem()
 		typ = typ.Elem()
@@ -68,7 +68,7 @@ func filterSlice(resource interface{}, userRoles []string, config Config) (inter
 	val := reflect.ValueOf(resource)
 	typ := reflect.TypeOf(resource)
 
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		val = val.Elem()
 		typ = typ.Elem()
 	}
@@ -82,7 +82,7 @@ func filterSlice(resource interface{}, userRoles []string, config Config) (inter
 	// Hoisted out of the loop so a fully readable slice skips the per-item
 	// boxing and the result slice entirely.
 	structType := elemType
-	for structType.Kind() == reflect.Ptr {
+	for structType.Kind() == reflect.Pointer {
 		structType = structType.Elem()
 	}
 	if structType.Kind() == reflect.Struct {
@@ -105,11 +105,11 @@ func filterSlice(resource interface{}, userRoles []string, config Config) (inter
 
 		filteredVal := reflect.ValueOf(filtered)
 
-		if elemType.Kind() == reflect.Ptr && filteredVal.Kind() != reflect.Ptr {
+		if elemType.Kind() == reflect.Pointer && filteredVal.Kind() != reflect.Pointer {
 			ptr := reflect.New(filteredVal.Type())
 			ptr.Elem().Set(filteredVal)
 			filteredVal = ptr
-		} else if elemType.Kind() != reflect.Ptr && filteredVal.Kind() == reflect.Ptr {
+		} else if elemType.Kind() != reflect.Pointer && filteredVal.Kind() == reflect.Pointer {
 			filteredVal = filteredVal.Elem()
 		}
 

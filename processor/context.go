@@ -18,7 +18,7 @@ func UserIDEnricher(field string) ContextEnricher {
 		}
 
 		v := reflect.ValueOf(model)
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			v = v.Elem()
 		}
 
@@ -38,7 +38,7 @@ func UserIDEnricher(field string) ContextEnricher {
 		switch fieldValue.Kind() {
 		case reflect.String:
 			fieldValue.SetString(user.UserID)
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if fieldValue.Type().Elem().Kind() == reflect.String {
 				userIDCopy := user.UserID
 				fieldValue.Set(reflect.ValueOf(&userIDCopy))
@@ -61,7 +61,7 @@ func TenantIDEnricher(field string) ContextEnricher {
 		}
 
 		v := reflect.ValueOf(model)
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			v = v.Elem()
 		}
 
@@ -86,7 +86,7 @@ func TenantIDEnricher(field string) ContextEnricher {
 		switch fieldValue.Kind() {
 		case reflect.String:
 			fieldValue.SetString(tenantIDStr)
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if fieldValue.Type().Elem().Kind() == reflect.String {
 				tenantIDCopy := tenantIDStr
 				fieldValue.Set(reflect.ValueOf(&tenantIDCopy))

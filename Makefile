@@ -7,6 +7,10 @@ DB_TEST_CONTAINER=gorest_db_test
 GOPATH ?= $(shell go env GOPATH)
 export PATH := $(GOPATH)/bin:$(PATH)
 
+# Kept in step with .github/workflows/test.yml. The v2 config format is not
+# readable by v1, so a stale v1 binary must be upgraded, not merely detected.
+GOLANGCI_LINT_VERSION := v2.12.2
+
 # Version from git tag, fallback to git describe, or "dev" if no git
 VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
@@ -21,8 +25,8 @@ help:
 	@echo "Usage:"
 	@echo "  make install         - Install dependencies and git hooks"
 	@echo "  make version         - Show current version"
-	@echo "  make lint            - Run all quality checks (gofmt, vet, staticcheck, misspell, gocyclo, errcheck)"
-	@echo "  make lint-fix        - Run golangci-lint with --fix for auto-fixable issues"
+	@echo "  make lint            - Run go vet and formatting checks"
+	@echo "  make lint-fix        - Auto-fix formatting with gofmt"
 	@echo "  make test            - Run Go tests"
 	@echo "  make test-coverage   - Run Go tests with coverage report"
 	@echo "  make tidy            - Run go mod tidy"
@@ -43,24 +47,10 @@ install:
 	@echo "✓ Dependencies installed"
 	@echo ""
 	@echo "[2/3] Installing development tools..."
-	@command -v golangci-lint >/dev/null 2>&1 || \
-		(echo "  Installing golangci-lint..." && \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
-	@command -v staticcheck >/dev/null 2>&1 || \
-		(echo "  Installing staticcheck..." && \
-		go install honnef.co/go/tools/cmd/staticcheck@latest)
-	@command -v ineffassign >/dev/null 2>&1 || \
-		(echo "  Installing ineffassign..." && \
-		go install github.com/gordonklaus/ineffassign@latest)
-	@command -v misspell >/dev/null 2>&1 || \
-		(echo "  Installing misspell..." && \
-		go install github.com/client9/misspell/cmd/misspell@latest)
-	@command -v errcheck >/dev/null 2>&1 || \
-		(echo "  Installing errcheck..." && \
-		go install github.com/kisielk/errcheck@latest)
-	@command -v gocyclo >/dev/null 2>&1 || \
-		(echo "  Installing gocyclo..." && \
-		go install github.com/fzipp/gocyclo/cmd/gocyclo@latest)
+	@if ! golangci-lint --version 2>/dev/null | grep -qE 'version v?2\.'; then \
+		echo "  Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."; \
+		GOWORK=off go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+	fi
 	@echo "✓ Development tools installed"
 	@echo ""
 	@echo "[3/3] Installing git hooks..."

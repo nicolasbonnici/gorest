@@ -7,7 +7,7 @@ import (
 
 func getModelID(model interface{}) (any, error) {
 	v := reflect.ValueOf(model)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 

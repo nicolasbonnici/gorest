@@ -16,7 +16,7 @@ func validateWriteFields(resource interface{}, userRoles []string, config Config
 	val := reflect.ValueOf(resource)
 	typ := reflect.TypeOf(resource)
 
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		val = val.Elem()
 		typ = typ.Elem()
 	}
@@ -86,7 +86,7 @@ func isZeroValue(v reflect.Value) bool {
 		return v.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return v.IsNil()
 	case reflect.Struct:
 		return isStructZero(v)

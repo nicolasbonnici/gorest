@@ -68,7 +68,7 @@ func getStructMeta(t reflect.Type) *structMeta {
 // avoiding a json.Marshal/Unmarshal round-trip.
 func structToMap(data interface{}) map[string]interface{} {
 	val := reflect.ValueOf(data)
-	for val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
 		}
@@ -99,7 +99,7 @@ func structToMap(data interface{}) map[string]interface{} {
 			} else {
 				result[f.jsonKey] = structToMap(fv.Interface())
 			}
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if !fv.IsNil() && fv.Elem().Kind() == reflect.Struct && !hasCustomJSON(fv.Elem().Type()) {
 				result[f.jsonKey] = structToMap(fv.Interface())
 			} else {

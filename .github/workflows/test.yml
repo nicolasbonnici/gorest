@@ -3,8 +3,19 @@ name: Test
 on:
   push:
     branches: [ "trunk" ]
+    paths-ignore: [ '**.md', 'docs/**', 'LICENSE' ]
   pull_request:
     branches: [ "trunk" ]
+    paths-ignore: [ '**.md', 'docs/**', 'LICENSE' ]
+
+# A second push to the same branch cancels the run it superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: '1.26.5'
+  GOLANGCI_LINT_VERSION: 'v2.12.2'
 
 jobs:
 
@@ -17,16 +28,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.5'
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: Install quality tools
-        run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
-          go install github.com/gordonklaus/ineffassign@latest
-          go install github.com/client9/misspell/cmd/misspell@latest
-          go install github.com/kisielk/errcheck@latest
-          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-
+      # Uses the toolchain directly, so it costs nothing to install and it
+      # covers test files, which .golangci.yml excludes.
       - name: Check formatting
         run: |
           unformatted=$(gofmt -l . | grep -v '^vendor/' | grep -v 'generated/' || true)
@@ -37,52 +42,14 @@ jobs:
             exit 1
           fi
 
-      - name: Run go vet (excluding benchmark testserver)
-        run: |
-          # Get all packages except the benchmark testserver which requires generated code
-          packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
-          if [ -n "$packages" ]; then
-            go vet $packages
-          fi
-
-      - name: Run staticcheck
-        run: |
-          packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
-          if [ -n "$packages" ]; then
-            staticcheck $packages
-          fi
-
-      - name: Run ineffassign
-        run: ineffassign ./...
-
-      - name: Run misspell
-        run: misspell -error .
-
-      - name: Run errcheck
-        run: |
-          packages=$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true)
-          if [ -n "$packages" ]; then
-            errcheck -exclude .errcheck-excludes -ignoretests $packages
-          fi
-
-      - name: Run gocyclo (threshold 45)
-        run: |
-          gocyclo_output=$(gocyclo -over 45 . | grep -v 'vendor/' | grep -v 'generated/' | grep -v '_test.go' || true)
-          if [ -n "$gocyclo_output" ]; then
-            echo "Functions with cyclomatic complexity > 45:"
-            echo "$gocyclo_output"
-            exit 1
-          fi
-
+      # golangci-lint bundles staticcheck, errcheck, ineffassign, misspell,
+      # gocyclo and govet, all enabled in .golangci.yml. Running them separately
+      # meant compiling six tools from source on every run to duplicate work the
+      # linter already does. The action caches a pinned binary instead.
       - name: Run golangci-lint
-        run: |
-          echo "Running golangci-lint comprehensive checks..."
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-          golangci-lint run
-
-      - name: Cleanup
-        if: always()
-        run: go clean -cache -testcache -modcache
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
 
   test:
     needs: quality
@@ -94,7 +61,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.5'
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Create test environment file
         run: |
