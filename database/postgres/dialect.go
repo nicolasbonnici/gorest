@@ -110,3 +110,9 @@ func (d *PostgresDialect) OnConflictClause(columns []string, action string) stri
 func (d *PostgresDialect) UpsertSupport() bool {
 	return true
 }
+
+// EstimateRowsQuery reads the planner's row estimate from pg_class. reltuples is
+// -1 on tables that have never been analyzed, which callers treat as unknown.
+func (d *PostgresDialect) EstimateRowsQuery(table string) (string, []any, bool) {
+	return "SELECT reltuples::bigint FROM pg_class WHERE oid = to_regclass($1)", []any{table}, true
+}

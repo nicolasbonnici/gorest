@@ -30,6 +30,35 @@ type HydraCollection struct {
 	View       *HydraView  `json:"hydra:view"`
 }
 
+// setNavigation fills in the next/last links.
+//
+// Without a total — the caller asked for no count, or only an estimate that
+// must not drive navigation — a full page is the only evidence that more rows
+// exist, so next is offered on a full page and last is omitted entirely.
+func setNavigation(view *HydraView, total *int, itemCount, limit, page int, basePath string, params url.Values, defaultLimit int) {
+	if limit <= 0 {
+		// Everything came back in one page: nowhere left to navigate.
+		return
+	}
+
+	if total == nil {
+		if itemCount >= limit {
+			nextURL := buildPaginationURL(basePath, params, limit, page+1, defaultLimit)
+			view.Next = &nextURL
+		}
+		return
+	}
+
+	lastPage := (*total + limit - 1) / limit
+	if page < lastPage {
+		nextURL := buildPaginationURL(basePath, params, limit, page+1, defaultLimit)
+		view.Next = &nextURL
+	}
+
+	lastURL := buildPaginationURL(basePath, params, limit, lastPage, defaultLimit)
+	view.Last = &lastURL
+}
+
 func ParseIntQuery(c fiber.Ctx, key string, defaultValue, maxValue int) int {
 	valueStr := c.Query(key)
 	if valueStr == "" {
@@ -95,16 +124,7 @@ func SendHydraCollectionWithExpanded(c fiber.Ctx, expandedItems []interface{}, t
 		view.Previous = &prevURL
 	}
 
-	if total != nil {
-		lastPage := (*total + limit - 1) / limit
-		if page < lastPage {
-			nextURL := buildPaginationURL(basePath, parsedParams, limit, page+1, defaultLimit)
-			view.Next = &nextURL
-		}
-
-		lastURL := buildPaginationURL(basePath, parsedParams, limit, lastPage, defaultLimit)
-		view.Last = &lastURL
-	}
+	setNavigation(view, total, len(expandedItems), limit, page, basePath, parsedParams, defaultLimit)
 
 	format := response.DetermineFormat(c)
 	s := serializer.GetSerializer(format)
@@ -160,19 +180,10 @@ func SendHydraCollection(c fiber.Ctx, items interface{}, total *int, limit, page
 		view.Previous = &prevURL
 	}
 
-	if total != nil {
-		lastPage := (*total + limit - 1) / limit
-		if page < lastPage {
-			nextURL := buildPaginationURL(basePath, parsedParams, limit, page+1, defaultLimit)
-			view.Next = &nextURL
-		}
-
-		lastURL := buildPaginationURL(basePath, parsedParams, limit, lastPage, defaultLimit)
-		view.Last = &lastURL
-	}
-
 	expand := response.ParseExpandQuery(c)
 	formattedItems := formatItems(items, basePath, response.DetermineFormat(c), expand)
+
+	setNavigation(view, total, sliceLen(formattedItems), limit, page, basePath, parsedParams, defaultLimit)
 
 	collection := HydraCollection{
 		Context:    "http://www.w3.org/ns/hydra/context.jsonld",
@@ -184,6 +195,16 @@ func SendHydraCollection(c fiber.Ctx, items interface{}, total *int, limit, page
 	}
 
 	return response.SendJSON(c, fiber.StatusOK, collection)
+}
+
+// sliceLen reports the length of a formatted collection, which is a slice
+// unless formatItems passed a non-slice payload straight through.
+func sliceLen(items interface{}) int {
+	val := reflect.ValueOf(items)
+	if val.Kind() != reflect.Slice {
+		return 0
+	}
+	return val.Len()
 }
 
 func formatItems(items interface{}, path string, format string, expand []string) interface{} {

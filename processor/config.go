@@ -13,6 +13,9 @@ type ProcessorConfig[TModel crud.Model, TCreateDTO any, TUpdateDTO any, TRespons
 
 	PaginationLimit    int
 	PaginationMaxLimit int
+	// CountMode defaults to the application-wide DefaultCountMode. Clients opt
+	// out per request with ?count=false regardless of this setting.
+	CountMode crud.CountMode
 
 	AllowedFields []string
 	FieldMap      map[string]string
@@ -32,6 +35,9 @@ func New[TModel crud.Model, TCreateDTO any, TUpdateDTO any, TResponseDTO any](
 	}
 	if config.PaginationMaxLimit == 0 {
 		config.PaginationMaxLimit = 100
+	}
+	if config.CountMode == "" {
+		config.CountMode = DefaultCountMode()
 	}
 	if config.ErrorHandler == nil {
 		config.ErrorHandler = &DefaultErrorHandler{}

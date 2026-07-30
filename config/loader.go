@@ -179,6 +179,9 @@ func mergeConfigs(base, override *Config) *Config {
 	if override.Pagination.MaxLimit != 0 {
 		result.Pagination.MaxLimit = override.Pagination.MaxLimit
 	}
+	if override.Pagination.Count != "" {
+		result.Pagination.Count = override.Pagination.Count
+	}
 
 	if len(override.Plugins) > 0 {
 		result.Plugins = override.Plugins

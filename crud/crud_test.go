@@ -1095,6 +1095,10 @@ func TestGetAll_RowsError(t *testing.T) {
 func TestGetAllPaginated_CountError(t *testing.T) {
 	db := &mockDatabase{
 		dialect: &mockDialect{name: "postgres", supportsReturning: true},
+		// A full page forces the count query; a short one would be inferred.
+		queryFunc: func(ctx context.Context, q string, args ...interface{}) (database.Rows, error) {
+			return pageOfRows(10), nil
+		},
 		queryRowFunc: func(ctx context.Context, query string, args ...interface{}) database.Row {
 			return &mockRow{
 				scanFunc: func(dest ...interface{}) error {

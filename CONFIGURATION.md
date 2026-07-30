@@ -25,6 +25,7 @@ database:
 pagination:
   default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
   max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
+  count: "${PAGINATION_COUNT:-exact}"
 
 plugins:
   - name: auth
@@ -102,7 +103,37 @@ database:
 pagination:
   default_limit: "${PAGINATION_DEFAULT_LIMIT:-10}"
   max_limit: "${PAGINATION_MAX_LIMIT:-1000}"
+  count: "${PAGINATION_COUNT:-exact}"
 ```
+
+### Total Count Strategy (`pagination.count`)
+
+Every paginated response can report `hydra:totalItems`. Producing that number is
+the single most expensive part of a listing on a large table, so the strategy is
+configurable:
+
+| Value | Behaviour | Cost |
+|-------|-----------|------|
+| `exact` (default) | `COUNT(*)` over the same predicates as the page | Scans as much as the page query |
+| `estimate` | Reads the database's own table statistics | Near-constant, approximate |
+| `none` | Omits `hydra:totalItems` | Free |
+
+Independently of this setting, GoREST **skips the count entirely whenever the
+page already reveals the total** — a page that comes back shorter than the
+requested limit is the last one, so the total is `offset + rows` with no second
+query. Most listings in a small dataset therefore never issue a count at all.
+
+`estimate` only applies to unfiltered listings. Any query filter, or a hook that
+scopes the query (multi-tenancy, soft deletes), falls back to `exact`, as does a
+table the database has no statistics for. It is supported on PostgreSQL
+(`pg_class.reltuples`) and MySQL (`information_schema.TABLES.TABLE_ROWS`); SQLite
+always counts exactly.
+
+Clients can opt out per request with `?count=false` whatever the configured mode.
+
+When no total is available, `hydra:view` omits `hydra:last` and offers
+`hydra:next` whenever the page came back full — following it may land on an
+empty page, which is the accepted trade-off for not counting.
 
 ### Environment Variable Interpolation
 

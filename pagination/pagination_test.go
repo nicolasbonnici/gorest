@@ -425,8 +425,38 @@ func TestSendHydraCollectionWithExpanded_NoTotal(t *testing.T) {
 		t.Error("Last link should not be present without total")
 	}
 
+	// The page came back full, so there may be more rows. Without a total that
+	// is the only signal available, and dropping Next would leave a client
+	// unable to page at all when the count is disabled.
+	if result.View.Next == nil {
+		t.Error("Next link should be present on a full page without total")
+	}
+}
+
+func TestSendHydraCollectionWithExpanded_NoTotalPartialPage(t *testing.T) {
+	app := fiber.New()
+
+	app.Get("/items", func(c fiber.Ctx) error {
+		expandedItems := []interface{}{
+			map[string]interface{}{"id": "1", "name": "Item 1"},
+		}
+		return SendHydraCollectionWithExpanded(c, expandedItems, nil, 10, 1, 10)
+	})
+
+	req := httptest.NewRequest("GET", "/items", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to test: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var result HydraCollection
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
 	if result.View.Next != nil {
-		t.Error("Next link should not be present without total")
+		t.Error("Next link should not be present when the page is not full")
 	}
 }
 
@@ -738,5 +768,31 @@ func TestSendHydraCollection_WithExpandQuery(t *testing.T) {
 
 	if resp.StatusCode != 200 {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestSendHydraCollection_ZeroLimitDoesNotPanic(t *testing.T) {
+	app := fiber.New()
+
+	total := 42
+	app.Get("/items", func(c fiber.Ctx) error {
+		items := []map[string]interface{}{{"id": "1"}}
+		return SendHydraCollection(c, items, &total, 0, 1, 10)
+	})
+
+	req := httptest.NewRequest("GET", "/items", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to test: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var result HydraCollection
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if result.View.Next != nil || result.View.Last != nil {
+		t.Error("an unlimited page has nowhere to navigate")
 	}
 }

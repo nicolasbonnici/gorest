@@ -170,6 +170,7 @@ func (p *StandardProcessor[TModel, TCreateDTO, TUpdateDTO, TResponseDTO]) GetAll
 		Limit:        limit,
 		Offset:       offset,
 		IncludeCount: includeCount,
+		CountMode:    p.config.CountMode,
 		Conditions:   conditions,
 		OrderBy:      orderBy,
 	})

@@ -103,3 +103,10 @@ func (d *MySQLDialect) OnConflictClause(columns []string, action string) string 
 func (d *MySQLDialect) UpsertSupport() bool {
 	return true
 }
+
+// EstimateRowsQuery reads TABLE_ROWS from information_schema. It is an estimate
+// derived from index statistics on InnoDB, and NULL for a table the current
+// schema does not own, which maps to -1 so callers treat it as unknown.
+func (d *MySQLDialect) EstimateRowsQuery(table string) (string, []any, bool) {
+	return "SELECT COALESCE(TABLE_ROWS, -1) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?", []any{table}, true
+}

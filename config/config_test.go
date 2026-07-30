@@ -478,3 +478,52 @@ func TestValidate_MultipleAuthPlugins(t *testing.T) {
 
 // TestValidate_AuthPluginWrongType removed - type validation is now handled
 // by the strongly-typed AuthConfig struct, not by plugin map[string]interface{}
+
+func validTestConfig() *Config {
+	return &Config{
+		Server:     ServerConfig{Port: 3000, Environment: "production"},
+		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
+		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
+		Codegen: CodegenConfig{
+			Output: OutputConfig{Models: "models", Resources: "resources", DTOs: "dtos"},
+		},
+	}
+}
+
+func TestPaginationCountValidation(t *testing.T) {
+	tests := []struct {
+		value   string
+		wantErr bool
+	}{
+		{"", false},
+		{"exact", false},
+		{"estimate", false},
+		{"none", false},
+		{"approx", true},
+		{"EXACT", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.Pagination.Count = tt.value
+
+			err := cfg.Validate()
+			if tt.wantErr && err == nil {
+				t.Errorf("expected %q to be rejected", tt.value)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("expected %q to be accepted, got: %v", tt.value, err)
+			}
+		})
+	}
+}
+
+func TestPaginationCountDefault(t *testing.T) {
+	cfg := &Config{}
+	cfg.SetDefaults()
+
+	if cfg.Pagination.Count != "exact" {
+		t.Errorf("expected the default count mode to be exact, got %q", cfg.Pagination.Count)
+	}
+}

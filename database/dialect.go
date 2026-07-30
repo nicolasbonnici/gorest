@@ -20,6 +20,20 @@ type Dialect interface {
 	UpsertSupport() bool
 }
 
+// RowEstimator is an optional capability a Dialect may implement to answer
+// "roughly how many rows does this table hold?" from catalog statistics instead
+// of a full COUNT(*). It is kept out of Dialect so third-party dialects keep
+// compiling; callers type-assert for it and fall back to an exact count.
+type RowEstimator interface {
+	// EstimateRowsQuery returns a query yielding an approximate row count for
+	// table. ok is false when the dialect has no cheap estimate available.
+	//
+	// The result may be stale, and negative when the database has never
+	// gathered statistics for the table; callers must treat a negative result
+	// as "unknown" rather than as a count.
+	EstimateRowsQuery(table string) (sql string, args []any, ok bool)
+}
+
 type BaseDialect struct{}
 
 func (d *BaseDialect) Placeholder(n int) string {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/config"
+	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
@@ -23,6 +24,7 @@ import (
 	coremigrations "github.com/nicolasbonnici/gorest/migrations/core"
 	"github.com/nicolasbonnici/gorest/plugin"
 	"github.com/nicolasbonnici/gorest/pluginloader"
+	"github.com/nicolasbonnici/gorest/processor"
 	"github.com/nicolasbonnici/gorest/response"
 )
 
@@ -51,6 +53,10 @@ func Start(cfg Config) {
 
 	// Initialize response package with version
 	response.Initialize(Version)
+
+	// Applied before any processor is built so generated resources and plugins
+	// alike inherit the configured strategy.
+	processor.SetDefaultCountMode(crud.CountMode(appConfig.Pagination.Count))
 
 	// API handlers are I/O-bound (they wait on the database), so the pool
 	// should allow well above GOMAXPROCS concurrent connections. pgx's default

@@ -24,5 +24,7 @@ database:
 pagination:
   default_limit: 50
   max_limit: 10000
+  # exact | estimate | none - see CONFIGURATION.md
+  count: exact
 
 plugins: []

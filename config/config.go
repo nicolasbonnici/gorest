@@ -92,6 +92,9 @@ type DBPoolConfig struct {
 type PaginationConfig struct {
 	DefaultLimit int `yaml:"default_limit"`
 	MaxLimit     int `yaml:"max_limit"`
+	// Count is "exact" (default), "estimate" or "none". See crud.CountMode.
+	// Clients can always opt out of a total per request with ?count=false.
+	Count string `yaml:"count"`
 }
 
 type RBACConfig struct {
@@ -134,6 +137,11 @@ func (c *Config) Validate() error {
 	}
 	if c.Pagination.DefaultLimit > c.Pagination.MaxLimit {
 		return fmt.Errorf("pagination.default_limit cannot exceed max_limit")
+	}
+	switch c.Pagination.Count {
+	case "", "exact", "estimate", "none":
+	default:
+		return fmt.Errorf("pagination.count must be one of exact, estimate, none")
 	}
 
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
@@ -275,6 +283,9 @@ func (c *Config) SetDefaults() {
 	}
 	if c.Pagination.MaxLimit == 0 {
 		c.Pagination.MaxLimit = 1000
+	}
+	if c.Pagination.Count == "" {
+		c.Pagination.Count = "exact"
 	}
 
 	if c.Codegen.Output.Models == "" {

@@ -628,3 +628,143 @@ func TestWithHooksLayer(t *testing.T) {
 		t.Errorf("Expected status 201, got %d", resp.StatusCode)
 	}
 }
+
+func newCountProcessor(t *testing.T, mode crud.CountMode) fiber.Handler {
+	t.Helper()
+
+	db := setupTestDB(t)
+	ctx := context.Background()
+	testCRUD := crud.New[TestModel](db)
+
+	for i := 1; i <= 5; i++ {
+		model := TestModel{
+			ID:    fmt.Sprintf("test-%d", i),
+			Name:  fmt.Sprintf("Test %d", i),
+			Email: fmt.Sprintf("test%d@example.com", i),
+		}
+		if err := testCRUD.Create(ctx, model); err != nil {
+			t.Fatalf("Failed to create test model %d: %v", i, err)
+		}
+	}
+
+	proc := New(ProcessorConfig[TestModel, TestCreateDTO, TestUpdateDTO, TestResponseDTO]{
+		DB:                 db,
+		CRUD:               testCRUD,
+		PaginationLimit:    2,
+		PaginationMaxLimit: 10,
+		CountMode:          mode,
+		AllowedFields:      []string{"name", "email"},
+		Converter: &FuncConverter[TestModel, TestCreateDTO, TestUpdateDTO, TestResponseDTO]{
+			CreateToModel: testCreateDTOToModel,
+			UpdateToModel: testUpdateDTOToModel,
+			ModelToDTO:    testModelToDTO,
+		},
+	})
+
+	return proc.GetAll
+}
+
+func totalItemsFor(t *testing.T, handler fiber.Handler, url string) (map[string]interface{}, bool) {
+	t.Helper()
+
+	app := fiber.New()
+	app.Get("/test", handler)
+
+	resp, err := app.Test(httptest.NewRequest("GET", url, nil))
+	if err != nil {
+		t.Fatalf("Failed to send test request: %v", err)
+	}
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected status 200, got %d. Response: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	_, present := result["hydra:totalItems"]
+	return result, present
+}
+
+func TestGetAll_CountExactReportsTotal(t *testing.T) {
+	handler := newCountProcessor(t, crud.CountExact)
+
+	result, present := totalItemsFor(t, handler, "/test?limit=2&page=1")
+	if !present {
+		t.Fatal("expected hydra:totalItems to be reported")
+	}
+	if result["hydra:totalItems"] != float64(5) {
+		t.Errorf("expected 5 total items, got %v", result["hydra:totalItems"])
+	}
+}
+
+func TestGetAll_CountNoneOmitsTotal(t *testing.T) {
+	handler := newCountProcessor(t, crud.CountNone)
+
+	if _, present := totalItemsFor(t, handler, "/test?limit=2&page=1"); present {
+		t.Error("expected hydra:totalItems to be omitted")
+	}
+}
+
+func TestGetAll_QueryOptOutOverridesConfiguredMode(t *testing.T) {
+	handler := newCountProcessor(t, crud.CountExact)
+
+	if _, present := totalItemsFor(t, handler, "/test?limit=2&page=1&count=false"); present {
+		t.Error("?count=false must omit hydra:totalItems even when the mode is exact")
+	}
+}
+
+func TestGetAll_ShortPageStillReportsTotal(t *testing.T) {
+	handler := newCountProcessor(t, crud.CountExact)
+
+	// 5 rows, limit 10: a single short page, so the total is inferred rather
+	// than counted, and must still be correct.
+	result, present := totalItemsFor(t, handler, "/test?limit=10&page=1")
+	if !present {
+		t.Fatal("expected hydra:totalItems to be reported")
+	}
+	if result["hydra:totalItems"] != float64(5) {
+		t.Errorf("expected 5 total items, got %v", result["hydra:totalItems"])
+	}
+}
+
+func TestDefaultCountMode(t *testing.T) {
+	t.Cleanup(func() { SetDefaultCountMode(crud.CountExact) })
+
+	if DefaultCountMode() != crud.CountExact {
+		t.Errorf("expected exact before startup sets one, got %q", DefaultCountMode())
+	}
+
+	SetDefaultCountMode(crud.CountEstimate)
+	if DefaultCountMode() != crud.CountEstimate {
+		t.Errorf("expected estimate, got %q", DefaultCountMode())
+	}
+
+	SetDefaultCountMode("")
+	if DefaultCountMode() != crud.CountExact {
+		t.Errorf("an unset mode should fall back to exact, got %q", DefaultCountMode())
+	}
+}
+
+func TestProcessorInheritsDefaultCountMode(t *testing.T) {
+	t.Cleanup(func() { SetDefaultCountMode(crud.CountExact) })
+	SetDefaultCountMode(crud.CountNone)
+
+	handler := newCountProcessor(t, "")
+	if _, present := totalItemsFor(t, handler, "/test?limit=2&page=1"); present {
+		t.Error("a processor without an explicit CountMode should inherit the application default")
+	}
+}
+
+func TestExplicitCountModeOverridesDefault(t *testing.T) {
+	t.Cleanup(func() { SetDefaultCountMode(crud.CountExact) })
+	SetDefaultCountMode(crud.CountNone)
+
+	handler := newCountProcessor(t, crud.CountExact)
+	if _, present := totalItemsFor(t, handler, "/test?limit=2&page=1"); !present {
+		t.Error("an explicit CountMode should win over the application default")
+	}
+}

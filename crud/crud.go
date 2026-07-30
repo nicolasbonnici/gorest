@@ -20,12 +20,33 @@ type CRUD[T Model] struct {
 	Hooks hooks.Hooks[T]
 }
 
+// CountMode selects how the total row count backing hydra:totalItems is
+// obtained.
+type CountMode string
+
+const (
+	// CountExact runs a COUNT(*) over the same predicates. Accurate, and the
+	// most expensive: on large tables it scans as much as the page query.
+	CountExact CountMode = "exact"
+
+	// CountEstimate reads the database's own table statistics instead. Orders of
+	// magnitude cheaper, approximate, and only usable for unfiltered listings —
+	// any condition or query-scoping hook falls back to CountExact.
+	CountEstimate CountMode = "estimate"
+
+	// CountNone omits the total entirely. Callers still get next/previous links.
+	CountNone CountMode = "none"
+)
+
 type PaginationOptions struct {
-	Limit        int
-	Offset       int
+	Limit  int
+	Offset int
+	// IncludeCount requests a total; CountMode decides how it is obtained.
 	IncludeCount bool
-	Conditions   []query.Condition
-	OrderBy      []OrderByClause
+	// CountMode defaults to CountExact when empty.
+	CountMode  CountMode
+	Conditions []query.Condition
+	OrderBy    []OrderByClause
 }
 
 // OrderByClause represents a column ordering for pagination.
@@ -222,11 +243,16 @@ func scanCapacity(limit int) int {
 // capacityHint pre-sizes the result; 0 means unknown. Rows scan directly into
 // their slot in the slice because scanning into a local would force each item
 // to escape to the heap for the reflect call, then be copied again by append.
-func (c *CRUD[T]) scanRows(ctx context.Context, rows database.Rows, meta *fieldMeta, capacityHint int) ([]T, error) {
+//
+// scanned counts the rows the database returned, before authorization drops any
+// of them, so callers can reason about the underlying result set.
+func (c *CRUD[T]) scanRows(ctx context.Context, rows database.Rows, meta *fieldMeta, capacityHint int) ([]T, int, error) {
 	results := make([]T, 0, capacityHint)
+	scanned := 0
 
 	var zero T
 	for rows.Next() {
+		scanned++
 		// append, not a reslice, so rows beyond capacityHint still grow.
 		results = append(results, zero)
 		item := &results[len(results)-1]
@@ -235,7 +261,7 @@ func (c *CRUD[T]) scanRows(ctx context.Context, rows database.Rows, meta *fieldM
 		err := rows.Scan(*sp...)
 		meta.releaseScanTargets(sp)
 		if err != nil {
-			return nil, err
+			return nil, scanned, err
 		}
 
 		// Layer 5: Authorization - Check resource-level read permission
@@ -249,15 +275,15 @@ func (c *CRUD[T]) scanRows(ctx context.Context, rows database.Rows, meta *fieldM
 
 		// Layer 5: Authorization - Filter forbidden fields
 		if err := c.Hooks.FilterRead(ctx, item); err != nil {
-			return nil, fmt.Errorf("authorization failed: %w", err)
+			return nil, scanned, fmt.Errorf("authorization failed: %w", err)
 		}
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, scanned, err
 	}
 
-	return results, nil
+	return results, scanned, nil
 }
 
 func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
@@ -287,7 +313,7 @@ func (c *CRUD[T]) GetAll(ctx context.Context) ([]T, error) {
 	}
 	defer rows.Close()
 
-	results, err := c.scanRows(ctx, rows, meta, 0)
+	results, _, err := c.scanRows(ctx, rows, meta, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -324,26 +350,6 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 
 	qb = qb.Limit(opts.Limit).Offset(opts.Offset)
 
-	var total *int
-	if opts.IncludeCount {
-		countBuilder := query.New(c.DB.Dialect()).Select("COUNT(*)").From(zero.TableName())
-		countBuilder, _ = c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, countBuilder)
-		for _, cond := range opts.Conditions {
-			countBuilder = countBuilder.Where(cond)
-		}
-
-		countQuery, countArgs, countErr := countBuilder.Build()
-		if countErr != nil {
-			return nil, fmt.Errorf("count query build failed: %w", countErr)
-		}
-
-		var count int
-		if err := c.DB.QueryRow(ctx, countQuery, countArgs...).Scan(&count); err != nil {
-			return nil, err
-		}
-		total = &count
-	}
-
 	queryStr, args, buildErr := qb.Build()
 	if buildErr != nil {
 		return nil, fmt.Errorf("query build failed: %w", buildErr)
@@ -361,7 +367,7 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 	}
 	defer rows.Close()
 
-	results, scanErr := c.scanRows(ctx, rows, meta, scanCapacity(opts.Limit))
+	results, scanned, scanErr := c.scanRows(ctx, rows, meta, scanCapacity(opts.Limit))
 	if scanErr != nil {
 		return nil, scanErr
 	}
@@ -374,10 +380,86 @@ func (c *CRUD[T]) GetAllPaginated(ctx context.Context, opts PaginationOptions) (
 		return nil, err
 	}
 
+	// Counted after the page is fetched: a short page already reveals the total,
+	// which saves the count query entirely.
+	total, err := c.countTotal(ctx, zero.TableName(), opts, modified, scanned)
+	if err != nil {
+		return nil, err
+	}
+
 	return &PaginationResult[T]{
 		Items: results,
 		Total: total,
 	}, nil
+}
+
+// countTotal resolves hydra:totalItems for a page. scoped reports whether a hook
+// narrowed the query, which rules out the table-wide estimate.
+func (c *CRUD[T]) countTotal(ctx context.Context, table string, opts PaginationOptions, scoped bool, scanned int) (*int, error) {
+	if !opts.IncludeCount || opts.CountMode == CountNone {
+		return nil, nil
+	}
+
+	// The database returned fewer rows than asked for, so this page is the last
+	// one and the total follows from the offset. Exact, and free.
+	if opts.Limit <= 0 || scanned < opts.Limit {
+		total := opts.Offset + scanned
+		return &total, nil
+	}
+
+	if opts.CountMode == CountEstimate && len(opts.Conditions) == 0 && !scoped {
+		if total, ok := c.estimateTotal(ctx, table); ok {
+			return total, nil
+		}
+	}
+
+	return c.exactTotal(ctx, table, opts)
+}
+
+func (c *CRUD[T]) exactTotal(ctx context.Context, table string, opts PaginationOptions) (*int, error) {
+	countBuilder := query.New(c.DB.Dialect()).Select("COUNT(*)").From(table)
+	countBuilder, _ = c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetAll, countBuilder)
+	for _, cond := range opts.Conditions {
+		countBuilder = countBuilder.Where(cond)
+	}
+
+	countQuery, countArgs, countErr := countBuilder.Build()
+	if countErr != nil {
+		return nil, fmt.Errorf("count query build failed: %w", countErr)
+	}
+
+	var count int
+	if err := c.DB.QueryRow(ctx, countQuery, countArgs...).Scan(&count); err != nil {
+		return nil, err
+	}
+	return &count, nil
+}
+
+// estimateTotal reads the database's table statistics. ok is false whenever the
+// figure cannot be trusted — dialect without support, query failure, or a table
+// the database has no statistics for — leaving the caller to count exactly.
+func (c *CRUD[T]) estimateTotal(ctx context.Context, table string) (*int, bool) {
+	estimator, ok := c.DB.Dialect().(database.RowEstimator)
+	if !ok {
+		return nil, false
+	}
+
+	estimateQuery, estimateArgs, ok := estimator.EstimateRowsQuery(table)
+	if !ok {
+		return nil, false
+	}
+
+	var estimate int64
+	if err := c.DB.QueryRow(ctx, estimateQuery, estimateArgs...).Scan(&estimate); err != nil {
+		return nil, false
+	}
+
+	if estimate < 0 {
+		return nil, false
+	}
+
+	total := int(estimate)
+	return &total, true
 }
 
 func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
@@ -470,7 +552,7 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 	}
 	defer rows.Close()
 
-	results, err := c.scanRows(ctx, rows, meta, scanCapacity(len(ids)))
+	results, _, err := c.scanRows(ctx, rows, meta, scanCapacity(len(ids)))
 	if err != nil {
 		return nil, err
 	}
