@@ -397,7 +397,7 @@ func TestExpandRelations_Single(t *testing.T) {
 			Field:           "user",
 			ForeignKeyField: "userId",
 			RelatedTable:    "users",
-			CRUD:            userCRUD,
+			Fetcher:         crud.RelationFetcher(userCRUD),
 		},
 	}
 
@@ -455,7 +455,7 @@ func TestExpandRelations_Slice(t *testing.T) {
 			Field:           "user",
 			ForeignKeyField: "userId",
 			RelatedTable:    "users",
-			CRUD:            userCRUD,
+			Fetcher:         crud.RelationFetcher(userCRUD),
 		},
 	}
 
@@ -697,7 +697,7 @@ func TestExpandRelations_NilForeignKey(t *testing.T) {
 			Field:           "user",
 			ForeignKeyField: "userId",
 			RelatedTable:    "users",
-			CRUD:            userCRUD,
+			Fetcher:         crud.RelationFetcher(userCRUD),
 		},
 	}
 

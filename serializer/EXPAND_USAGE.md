@@ -41,11 +41,31 @@ func (r *TodoResource) getExpandConfigs() map[string]serializer.RelationConfig {
 			Field:           "user",
 			ForeignKeyField: "userId",
 			RelatedTable:    "users",
-			CRUD:            r.UserCRUD,
+			Fetcher:         crud.RelationFetcher(r.UserCRUD),
 		},
 	}
 }
 ```
+
+`Fetcher` is a `serializer.RelationFetcher`. `crud.RelationFetcher` adapts any
+`*crud.CRUD[T]` to it, resolving a whole page with **one query per relation**
+instead of one per item: expanding 25 todos over 2 relations costs 2 queries, not
+50. Batched lookups go through `CRUD.GetByIDs`, so `ModifySelectQuery` scoping
+(multi-tenancy, soft deletes) and the read authorization hooks apply exactly as
+they would on a single `GetByID`.
+
+Implement `RelationFetcher` yourself to source a relation from somewhere other
+than a CRUD instance (a cache, an upstream service):
+
+```go
+type RelationFetcher interface {
+	FetchByIDs(ctx context.Context, ids []string) (map[string]any, error)
+}
+```
+
+The returned map is keyed by identifier. Missing keys are not an error: the item
+keeps its foreign key unexpanded. A fetcher returning an error leaves that one
+relation unexpanded rather than failing the whole response.
 
 ### 2. Modify List Endpoint
 
@@ -196,5 +216,5 @@ GET /todos/todo-123?expand[]=user
 - Expand is optional - works transparently with existing endpoints
 - No database schema changes required
 - No model changes required (uses map[string]interface{} internally)
-- Fetches relations separately (not SQL JOINs)
+- Fetches relations separately (not SQL JOINs), one batched query per relation
 - DTOs for expanded objects use their own DTO rules

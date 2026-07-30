@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/nicolasbonnici/gorest/internal/idkey"
 )
 
 // structField caches json tag metadata for a single exported field.
@@ -300,96 +302,110 @@ func toCamelCase(s string) string {
 	return strings.Join(parts, "")
 }
 
+// RelationFetcher resolves related resources in bulk, keyed by identifier.
+// crud.NewRelationFetcher adapts a CRUD instance to it.
+type RelationFetcher interface {
+	FetchByIDs(ctx context.Context, ids []string) (map[string]interface{}, error)
+}
+
 type RelationConfig struct {
 	Field           string
 	ForeignKeyField string
 	RelatedTable    string
-	CRUD            interface{}
+	Fetcher         RelationFetcher
 }
 
+// ExpandRelations replaces foreign keys with the resources they point at.
+//
+// Each relation costs one fetch for the whole input rather than one per item,
+// so expanding a page of N items over R relations is R round-trips, not N*R.
 func ExpandRelations(ctx context.Context, data interface{}, relations []string, configs map[string]RelationConfig) (interface{}, error) {
 	val := reflect.ValueOf(data)
-	if val.Kind() == reflect.Slice {
-		return expandSlice(ctx, data, relations, configs)
-	}
-	return expandSingle(ctx, data, relations, configs)
-}
-
-func expandSingle(ctx context.Context, item interface{}, relations []string, configs map[string]RelationConfig) (interface{}, error) {
-	result := make(map[string]interface{})
-
-	itemBytes, _ := json.Marshal(item)
-	json.Unmarshal(itemBytes, &result)
-
-	for _, rel := range relations {
-		cfg, ok := configs[rel]
-		if !ok {
-			continue
-		}
-
-		fkValue, ok := result[cfg.ForeignKeyField]
-		if !ok || fkValue == nil {
-			continue
-		}
-
-		fkStr, ok := fkValue.(string)
-		if !ok || fkStr == "" {
-			continue
-		}
-
-		relatedItem, err := fetchRelatedItem(ctx, cfg.CRUD, fkStr)
-		if err != nil {
-			continue
-		}
-
-		result[rel] = relatedItem
-		delete(result, cfg.ForeignKeyField)
+	if val.Kind() != reflect.Slice {
+		expanded := expandItems(ctx, []interface{}{data}, relations, configs)
+		return expanded[0], nil
 	}
 
-	return result, nil
+	items := make([]interface{}, val.Len())
+	for i := range items {
+		items[i] = val.Index(i).Interface()
+	}
+	return expandItems(ctx, items, relations, configs), nil
 }
 
-func expandSlice(ctx context.Context, items interface{}, relations []string, configs map[string]RelationConfig) (interface{}, error) {
-	val := reflect.ValueOf(items)
-	results := make([]interface{}, val.Len())
+func expandItems(ctx context.Context, items []interface{}, relations []string, configs map[string]RelationConfig) []interface{} {
+	results := make([]interface{}, len(items))
+	maps := make([]map[string]interface{}, len(items))
 
-	for i := 0; i < val.Len(); i++ {
-		item := val.Index(i).Interface()
-		expandedItem, err := expandSingle(ctx, item, relations, configs)
-		if err != nil {
+	for i, item := range items {
+		m := structToMap(item)
+		if m == nil {
+			// Not decomposable (nil pointer, unsupported kind): pass it through
+			// untouched rather than dropping the item from the response.
 			results[i] = item
 			continue
 		}
-		results[i] = expandedItem
+		maps[i] = m
+		results[i] = m
 	}
 
-	return results, nil
+	for _, rel := range relations {
+		cfg, ok := configs[rel]
+		if !ok || cfg.Fetcher == nil {
+			continue
+		}
+
+		related, err := fetchRelation(ctx, maps, cfg)
+		if err != nil {
+			// A relation that fails to resolve leaves its foreign key in place;
+			// a partially expandable payload beats failing the whole response.
+			continue
+		}
+
+		for _, m := range maps {
+			if m == nil {
+				continue
+			}
+			key, ok := idkey.Format(m[cfg.ForeignKeyField])
+			if !ok {
+				continue
+			}
+			item, found := related[key]
+			if !found {
+				continue
+			}
+			m[rel] = item
+			delete(m, cfg.ForeignKeyField)
+		}
+	}
+
+	return results
 }
 
-func fetchRelatedItem(ctx context.Context, crudInterface interface{}, id string) (interface{}, error) {
-	method := reflect.ValueOf(crudInterface).MethodByName("GetByID")
-	if !method.IsValid() {
+func fetchRelation(ctx context.Context, maps []map[string]interface{}, cfg RelationConfig) (map[string]interface{}, error) {
+	ids := make([]string, 0, len(maps))
+	seen := make(map[string]struct{}, len(maps))
+
+	for _, m := range maps {
+		if m == nil {
+			continue
+		}
+		key, ok := idkey.Format(m[cfg.ForeignKeyField])
+		if !ok {
+			continue
+		}
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		ids = append(ids, key)
+	}
+
+	if len(ids) == 0 {
 		return nil, nil
 	}
 
-	ctxVal := reflect.ValueOf(ctx)
-	idVal := reflect.ValueOf(id)
-
-	results := method.Call([]reflect.Value{ctxVal, idVal})
-	if len(results) != 2 {
-		return nil, nil
-	}
-
-	if !results[1].IsNil() {
-		return nil, results[1].Interface().(error)
-	}
-
-	itemPtr := results[0].Interface()
-	if itemPtr == nil {
-		return nil, nil
-	}
-
-	return reflect.ValueOf(itemPtr).Elem().Interface(), nil
+	return cfg.Fetcher.FetchByIDs(ctx, ids)
 }
 
 func ParseExpand(expandParams []string, configs map[string]RelationConfig) []string {

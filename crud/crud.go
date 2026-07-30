@@ -432,6 +432,9 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 	return &item, nil
 }
 
+// GetByIDs resolves many rows in a single round-trip. It runs the GetByID hooks
+// so query scoping (multi-tenancy, soft deletes) stays identical to fetching the
+// same rows one at a time.
 func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 	if len(ids) == 0 {
 		return []T{}, nil
@@ -440,49 +443,47 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 	var zero T
 	meta := getFieldMeta(reflect.TypeOf(zero))
 
-	placeholders := make([]string, len(ids))
-	for i := range ids {
-		placeholders[i] = c.DB.Dialect().Placeholder(i + 1)
+	qb := query.New(c.DB.Dialect()).
+		Select(meta.allCols...).
+		From(zero.TableName()).
+		Where(query.In("id", ids...))
+
+	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetByID, qb)
+	if modified {
+		qb = modifiedBuilder
 	}
 
-	rawQuery := fmt.Sprintf(
-		"SELECT %s FROM %s WHERE id IN (%s)",
-		strings.Join(meta.allCols, ", "),
-		zero.TableName(),
-		strings.Join(placeholders, ", "),
-	)
+	queryStr, args, buildErr := qb.Build()
+	if buildErr != nil {
+		return nil, fmt.Errorf("query build failed: %w", buildErr)
+	}
 
-	rows, err := c.DB.Query(ctx, rawQuery, ids...)
+	finalQuery, finalArgs, err := c.Hooks.BeforeQuery(ctx, hooks.OperationGetByID, queryStr, args)
 	if err != nil {
 		return nil, err
 	}
+
+	rows, execErr := c.DB.Query(ctx, finalQuery, finalArgs...)
+	if execErr != nil {
+		_ = c.Hooks.AfterQuery(ctx, hooks.OperationGetByID, finalQuery, finalArgs, nil, execErr)
+		return nil, execErr
+	}
 	defer rows.Close()
 
-	var items []T
-	for rows.Next() {
-		var item T
-		sp := meta.acquireScanTargets(reflect.ValueOf(&item).Elem())
-		err := rows.Scan(*sp...)
-		meta.releaseScanTargets(sp)
-		if err != nil {
-			return nil, err
-		}
-
-		// Layer 5: Authorization - Check resource-level read permission
-		if err := c.Hooks.CheckRead(ctx, &item); err != nil {
-			// Skip unauthorized items (404 behavior - don't disclose existence)
-			continue
-		}
-
-		// Layer 5: Authorization - Filter forbidden fields
-		if err := c.Hooks.FilterRead(ctx, &item); err != nil {
-			return nil, fmt.Errorf("authorization failed: %w", err)
-		}
-
-		items = append(items, item)
+	results, err := c.scanRows(ctx, rows, meta, scanCapacity(len(ids)))
+	if err != nil {
+		return nil, err
 	}
 
-	return items, nil
+	if err := c.Hooks.AfterQuery(ctx, hooks.OperationGetByID, finalQuery, finalArgs, results, nil); err != nil {
+		return nil, err
+	}
+
+	if err := c.Hooks.SerializeMany(ctx, hooks.OperationGetByID, &results); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
