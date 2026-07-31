@@ -25,8 +25,8 @@ help:
 	@echo "Usage:"
 	@echo "  make install         - Install dependencies and git hooks"
 	@echo "  make version         - Show current version"
-	@echo "  make lint            - Run go vet and formatting checks"
-	@echo "  make lint-fix        - Auto-fix formatting with gofmt"
+	@echo "  make lint            - Run gofmt check and golangci-lint"
+	@echo "  make lint-fix        - Auto-fix with gofmt and golangci-lint --fix"
 	@echo "  make test            - Run Go tests"
 	@echo "  make test-coverage   - Run Go tests with coverage report"
 	@echo "  make tidy            - Run go mod tidy"
@@ -82,12 +82,10 @@ version:
 # Linting targets
 # ----------------------------
 .PHONY: lint lint-fix
+# Mirrors the CI gate: golangci-lint applies govet plus staticcheck, errcheck,
+# ineffassign, misspell and gocyclo from .golangci.yml. The separate gofmt pass
+# stays because .golangci.yml excludes test files from the formatters.
 lint:
-	@echo "[INFO] Running go vet (excluding benchmark testserver)..."
-	@packages=$$(go list ./... 2>/dev/null | grep -v '/plugins/benchmark/testserver' || true); \
-	if [ -n "$$packages" ]; then \
-		go vet $$packages; \
-	fi
 	@echo "[INFO] Checking formatting..."
 	@unformatted=$$(gofmt -l . | grep -v '^vendor/' | grep -v 'generated/' || true); \
 	if [ -n "$$unformatted" ]; then \
@@ -96,13 +94,17 @@ lint:
 		echo "Run 'make lint-fix' to fix"; \
 		exit 1; \
 	fi
+	@echo "[INFO] Running golangci-lint..."
+	@GOWORK=off $$(go env GOPATH)/bin/golangci-lint run
 	@echo "[INFO] All checks passed!"
 
 .PHONY: lint-fix
 lint-fix:
 	@echo "[INFO] Fixing formatting issues..."
 	@gofmt -w -s $$(find . -name '*.go' | grep -v vendor | grep -v /generated/)
-	@echo "[INFO] Formatting fixed!"
+	@echo "[INFO] Applying golangci-lint auto-fixes..."
+	@GOWORK=off $$(go env GOPATH)/bin/golangci-lint run --fix || true
+	@echo "[INFO] Fixes applied!"
 
 # ----------------------------
 # Test targets
