@@ -32,7 +32,6 @@ var (
 	// cannot be used to probe which tokens exist.
 	ErrInvalidToken = errors.New("invalid refresh token")
 
-	// ErrExpiredToken means the token was valid but is past its expiry.
 	ErrExpiredToken = errors.New("expired refresh token")
 
 	// ErrTokenReuse means an already-revoked token was presented, which implies
@@ -48,14 +47,13 @@ type Token struct {
 	RevokedAt *time.Time
 }
 
-// Service issues, validates and rotates refresh tokens.
 type Service struct {
 	db  database.Database
 	ttl time.Duration
 }
 
-// NewService creates a refresh token service. A ttlSeconds of 0 selects DefaultTTL.
-func NewService(db database.Database, ttlSeconds int) *Service {
+// New creates a refresh token service. A ttlSeconds of 0 selects DefaultTTL.
+func New(db database.Database, ttlSeconds int) *Service {
 	if ttlSeconds <= 0 {
 		ttlSeconds = DefaultTTL
 	}
@@ -66,7 +64,6 @@ func NewService(db database.Database, ttlSeconds int) *Service {
 	}
 }
 
-// TTL returns the configured refresh token lifetime.
 func (s *Service) TTL() time.Duration {
 	return s.ttl
 }
@@ -213,7 +210,7 @@ func (s *Service) Revoke(ctx context.Context, plaintext string) error {
 	return nil
 }
 
-// RevokeAllForUser revokes every active token for a user, ending all sessions.
+// RevokeAllForUser ends every session a user has.
 func (s *Service) RevokeAllForUser(ctx context.Context, userID uuid.UUID) error {
 	queryStr, args, err := query.New(s.db.Dialect()).
 		Update(tableName).

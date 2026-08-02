@@ -56,7 +56,7 @@ func (p *Plugin) Initialize(config map[string]interface{}) error {
 		refreshTTL = ttl
 	}
 
-	p.refresh = refresh.NewService(p.db, refreshTTL)
+	p.refresh = refresh.New(p.db, refreshTTL)
 
 	return nil
 }

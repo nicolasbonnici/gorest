@@ -89,10 +89,8 @@ func GetMigrations() migrations.MigrationSource {
 					replaced_by UUID,
 					created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 				)`,
-				// The foreign key is added separately on MySQL: it only accepts a
-				// reference when user_id's collation matches users.id exactly, and
-				// users may have been created with the server default rather than
-				// this migration's collation.
+				// MySQL adds its foreign key afterwards, in
+				// addMySQLRefreshTokenForeignKey.
 				MySQL: `CREATE TABLE IF NOT EXISTS refresh_tokens (
 					id CHAR(36) PRIMARY KEY,
 					user_id CHAR(36) NOT NULL,
@@ -120,8 +118,7 @@ func GetMigrations() migrations.MigrationSource {
 				return addMySQLRefreshTokenForeignKey(ctx, db)
 			}
 
-			// MySQL declares its index inline above; UNIQUE on token_hash already
-			// covers lookup by token on every engine.
+			// MySQL declared this index inline in its CREATE TABLE.
 			return migrations.CreateIndex(ctx, db, "idx_refresh_token_user", "refresh_tokens", "user_id")
 		},
 		func(ctx context.Context, db database.Database) error {

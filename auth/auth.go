@@ -41,7 +41,7 @@ func NewService(authConfig config.AuthConfig, db database.Database) (*Service, e
 	return &Service{
 		config:  config,
 		jwt:     jwt.NewService(config.JWTSecret, config.JWTTTL),
-		refresh: refresh.NewService(db, config.RefreshTTL),
+		refresh: refresh.New(db, config.RefreshTTL),
 		db:      db,
 	}, nil
 }

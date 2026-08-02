@@ -45,7 +45,7 @@ func setup(t *testing.T) (database.Database, *Service, uuid.UUID) {
 		t.Fatalf("failed to insert user: %v", err)
 	}
 
-	return db, NewService(db, 3600), userID
+	return db, New(db, 3600), userID
 }
 
 func TestIssueAndValidate(t *testing.T) {
@@ -123,7 +123,7 @@ func TestValidateExpiredToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Negative TTL issues a token that is already past its expiry.
-	svc := NewService(db, 3600)
+	svc := New(db, 3600)
 	svc.ttl = -time.Minute
 
 	plaintext, err := svc.Issue(ctx, userID)
@@ -291,7 +291,7 @@ func TestDeleteExpired(t *testing.T) {
 		t.Fatalf("Issue failed: %v", err)
 	}
 
-	expiredSvc := NewService(db, 3600)
+	expiredSvc := New(db, 3600)
 	expiredSvc.ttl = -time.Hour
 	if _, err := expiredSvc.Issue(ctx, userID); err != nil {
 		t.Fatalf("Issue failed: %v", err)
@@ -330,10 +330,10 @@ func TestTokensAreUnique(t *testing.T) {
 func TestDefaultTTLApplied(t *testing.T) {
 	db := testhelpers.SetupSQLite(t)
 
-	if got := NewService(db, 0).TTL(); got != DefaultTTL*time.Second {
+	if got := New(db, 0).TTL(); got != DefaultTTL*time.Second {
 		t.Errorf("expected default TTL, got %v", got)
 	}
-	if got := NewService(db, -5).TTL(); got != DefaultTTL*time.Second {
+	if got := New(db, -5).TTL(); got != DefaultTTL*time.Second {
 		t.Errorf("expected default TTL for negative input, got %v", got)
 	}
 }

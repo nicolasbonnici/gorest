@@ -87,7 +87,7 @@ func setupCrossDB(t *testing.T, db database.Database) (*Service, uuid.UUID) {
 		}
 	})
 
-	return NewService(db, 3600), userID
+	return New(db, 3600), userID
 }
 
 // runLifecycle exercises the paths where dialect differences would show up:
@@ -134,7 +134,7 @@ func runLifecycle(t *testing.T, db database.Database) {
 	}
 
 	// Expiry is compared as an integer, so verify it works on this engine.
-	expiredSvc := NewService(db, 3600)
+	expiredSvc := New(db, 3600)
 	expiredSvc.ttl = -time.Hour
 	expired, err := expiredSvc.Issue(ctx, userID)
 	if err != nil {
