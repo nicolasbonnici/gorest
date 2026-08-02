@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	authmigrations "github.com/nicolasbonnici/gorest/auth/migrations"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/mysql"
 	_ "github.com/nicolasbonnici/gorest/database/postgres"
 	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 	"github.com/nicolasbonnici/gorest/migrations"
+	coremigrations "github.com/nicolasbonnici/gorest/migrations/core"
 	"github.com/nicolasbonnici/gorest/query"
 )
 
@@ -35,10 +35,11 @@ func setupCrossDB(t *testing.T, db database.Database) (*Service, uuid.UUID) {
 	if _, err := db.Exec(ctx, "DROP TABLE IF EXISTS refresh_tokens"); err != nil {
 		t.Fatalf("failed to drop refresh_tokens: %v", err)
 	}
+	authSource := coremigrations.GetAuthMigrations()
 	deleteRecord, recordArgs, err := query.New(db.Dialect()).
 		Delete("schema_migrations").
 		Where(query.Eq("version", refreshTokensMigrationVersion)).
-		And(query.Eq("source", "auth")).
+		And(query.Eq("source", authSource.Name())).
 		Build()
 	if err != nil {
 		t.Fatalf("failed to build migration reset: %v", err)
@@ -47,7 +48,7 @@ func setupCrossDB(t *testing.T, db database.Database) (*Service, uuid.UUID) {
 		t.Fatalf("failed to reset migration record: %v", err)
 	}
 
-	migrator := migrations.NewMigrator(db, authmigrations.GetMigrations())
+	migrator := migrations.NewMigrator(db, authSource)
 	if err := migrator.Up(ctx); err != nil && !errors.Is(err, migrations.ErrNoPendingMigrations) {
 		t.Fatalf("failed to run auth migrations: %v", err)
 	}

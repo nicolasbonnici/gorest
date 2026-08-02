@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type Service struct {
@@ -20,10 +21,16 @@ func NewService(secret string, ttl int) *Service {
 }
 
 func (j *Service) GenerateToken(userID string) (string, error) {
+	now := time.Now()
+
+	// jti keeps every token distinct. exp/iat are whole seconds (RFC 7519
+	// NumericDate), so without it two tokens minted for the same user in the
+	// same second carry identical claims and sign to a byte-identical string.
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(time.Duration(j.ttl) * time.Second).Unix(),
-		"iat":     time.Now().Unix(),
+		"jti":     uuid.NewString(),
+		"exp":     now.Add(time.Duration(j.ttl) * time.Second).Unix(),
+		"iat":     now.Unix(),
 	})
 
 	return token.SignedString([]byte(j.secret))

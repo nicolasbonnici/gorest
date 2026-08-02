@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	authmigrations "github.com/nicolasbonnici/gorest/auth/migrations"
 	"github.com/nicolasbonnici/gorest/database"
 	_ "github.com/nicolasbonnici/gorest/database/sqlite"
 	"github.com/nicolasbonnici/gorest/internal/testhelpers"
 	"github.com/nicolasbonnici/gorest/migrations"
+	coremigrations "github.com/nicolasbonnici/gorest/migrations/core"
 	"github.com/nicolasbonnici/gorest/query"
 )
 
@@ -23,7 +23,7 @@ func setup(t *testing.T) (database.Database, *Service, uuid.UUID) {
 	db := testhelpers.SetupSQLite(t)
 	ctx := context.Background()
 
-	migrator := migrations.NewMigrator(db, authmigrations.GetMigrations())
+	migrator := migrations.NewMigrator(db, coremigrations.GetAuthMigrations())
 	if err := migrator.Up(ctx); err != nil && !errors.Is(err, migrations.ErrNoPendingMigrations) {
 		t.Fatalf("failed to run auth migrations: %v", err)
 	}
