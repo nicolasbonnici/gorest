@@ -35,6 +35,13 @@ func setupCrossDB(t *testing.T, db database.Database) (*Service, uuid.UUID) {
 	if _, err := db.Exec(ctx, "DROP TABLE IF EXISTS refresh_tokens"); err != nil {
 		t.Fatalf("failed to drop refresh_tokens: %v", err)
 	}
+
+	// On a fresh database (CI) schema_migrations does not exist until the
+	// migrator first runs, so create it before deleting from it.
+	if err := migrations.NewMigrationTracker(db).CreateTrackingTable(ctx); err != nil {
+		t.Fatalf("failed to create migration tracking table: %v", err)
+	}
+
 	authSource := coremigrations.GetAuthMigrations()
 	deleteRecord, recordArgs, err := query.New(db.Dialect()).
 		Delete("schema_migrations").
