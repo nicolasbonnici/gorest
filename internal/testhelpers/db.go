@@ -12,7 +12,9 @@ import (
 
 const (
 	defaultPostgresDSN = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
-	defaultMySQLDSN    = "testuser:testpass@tcp(localhost:3307)/mydb_test"
+	// parseTime is required or the driver hands TIMESTAMP columns back as []byte,
+	// which breaks any Scan into a time.Time (the migration tracker, for one).
+	defaultMySQLDSN = "testuser:testpass@tcp(localhost:3307)/mydb_test?parseTime=true"
 )
 
 // SetupTestDB creates a test database connection with auto-detection from environment or SQLite fallback.

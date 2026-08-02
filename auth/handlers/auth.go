@@ -2,6 +2,7 @@ package handlers
 
 import (
 	stdcontext "context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/nicolasbonnici/gorest/auth/dtos"
 	"github.com/nicolasbonnici/gorest/auth/jwt"
 	"github.com/nicolasbonnici/gorest/auth/models"
+	"github.com/nicolasbonnici/gorest/auth/refresh"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/query"
@@ -30,20 +32,29 @@ type RegisterRequest struct {
 }
 
 type AuthResponse struct {
-	Token string                `json:"token"`
-	User  *dtos.UserResponseDTO `json:"user"`
+	Token        string                `json:"token"`
+	RefreshToken string                `json:"refresh_token"`
+	ExpiresIn    int                   `json:"expires_in"`
+	User         *dtos.UserResponseDTO `json:"user"`
 }
 
-func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *jwt.Service) {
+type TokenResponse struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
+func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *jwt.Service, refreshService *refresh.Service) {
 	authGroup := router.Group("/auth")
 	userCRUD := crud.New[models.User](db)
 
-	authGroup.Post("/register", handleRegister(db, userCRUD, jwtService))
-	authGroup.Post("/login", handleLogin(db, jwtService))
-	authGroup.Post("/refresh", handleRefresh(jwtService))
+	authGroup.Post("/register", handleRegister(db, userCRUD, jwtService, refreshService))
+	authGroup.Post("/login", handleLogin(db, jwtService, refreshService))
+	authGroup.Post("/refresh", handleRefresh(jwtService, refreshService))
+	authGroup.Post("/logout", handleLogout(refreshService))
 }
 
-func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtService *jwt.Service) fiber.Handler {
+func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtService *jwt.Service, refreshService *refresh.Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var req RegisterRequest
 		if err := c.Bind().Body(&req); err != nil {
@@ -79,6 +90,11 @@ func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtS
 			return response.SendError(c, fiber.StatusInternalServerError, "failed to generate token")
 		}
 
+		refreshToken, err := refreshService.Issue(ctx, user.ID)
+		if err != nil {
+			return response.SendError(c, fiber.StatusInternalServerError, "failed to issue refresh token")
+		}
+
 		roles, _ := user.GetRoles(ctx, db)
 
 		converter := &converters.UserConverter{}
@@ -86,13 +102,15 @@ func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtS
 		userDTO.Roles = roles
 
 		return response.SendCreated(c, AuthResponse{
-			Token: token,
-			User:  &userDTO,
+			Token:        token,
+			RefreshToken: refreshToken,
+			ExpiresIn:    jwtService.TTL(),
+			User:         &userDTO,
 		})
 	}
 }
 
-func handleLogin(db database.Database, jwtService *jwt.Service) fiber.Handler {
+func handleLogin(db database.Database, jwtService *jwt.Service, refreshService *refresh.Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var req LoginRequest
 		if err := c.Bind().Body(&req); err != nil {
@@ -115,6 +133,11 @@ func handleLogin(db database.Database, jwtService *jwt.Service) fiber.Handler {
 			return response.SendError(c, fiber.StatusInternalServerError, "failed to generate token")
 		}
 
+		refreshToken, err := refreshService.Issue(ctx, user.ID)
+		if err != nil {
+			return response.SendError(c, fiber.StatusInternalServerError, "failed to issue refresh token")
+		}
+
 		roles, _ := user.GetRoles(ctx, db)
 
 		converter := &converters.UserConverter{}
@@ -122,31 +145,66 @@ func handleLogin(db database.Database, jwtService *jwt.Service) fiber.Handler {
 		userDTO.Roles = roles
 
 		return response.SendFormatted(c, fiber.StatusOK, AuthResponse{
-			Token: token,
-			User:  &userDTO,
+			Token:        token,
+			RefreshToken: refreshToken,
+			ExpiresIn:    jwtService.TTL(),
+			User:         &userDTO,
 		})
 	}
 }
 
-func handleRefresh(jwtService *jwt.Service) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		type RefreshRequest struct {
-			Token string `json:"token" validate:"required"`
-		}
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
 
+func handleRefresh(jwtService *jwt.Service, refreshService *refresh.Service) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		var req RefreshRequest
 		if err := c.Bind().Body(&req); err != nil {
 			return response.SendError(c, fiber.StatusBadRequest, "invalid request body")
 		}
 
-		newToken, err := jwtService.RefreshToken(req.Token)
+		ctx := c.Context()
+
+		rotated, newRefreshToken, err := refreshService.Rotate(ctx, req.RefreshToken)
 		if err != nil {
-			return response.SendError(c, fiber.StatusUnauthorized, "invalid or expired token")
+			switch {
+			case errors.Is(err, refresh.ErrTokenReuse):
+				// The family is already revoked at this point; say so explicitly
+				// so clients stop retrying and force a fresh login.
+				return response.SendError(c, fiber.StatusUnauthorized, "refresh token reuse detected, all sessions revoked")
+			case errors.Is(err, refresh.ErrInvalidToken), errors.Is(err, refresh.ErrExpiredToken):
+				return response.SendError(c, fiber.StatusUnauthorized, "invalid or expired refresh token")
+			default:
+				return response.SendError(c, fiber.StatusInternalServerError, "failed to refresh token")
+			}
 		}
 
-		return response.SendFormatted(c, fiber.StatusOK, fiber.Map{
-			"token": newToken,
+		token, err := jwtService.GenerateToken(rotated.UserID.String())
+		if err != nil {
+			return response.SendError(c, fiber.StatusInternalServerError, "failed to generate token")
+		}
+
+		return response.SendFormatted(c, fiber.StatusOK, TokenResponse{
+			Token:        token,
+			RefreshToken: newRefreshToken,
+			ExpiresIn:    jwtService.TTL(),
 		})
+	}
+}
+
+func handleLogout(refreshService *refresh.Service) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		var req RefreshRequest
+		if err := c.Bind().Body(&req); err != nil {
+			return response.SendError(c, fiber.StatusBadRequest, "invalid request body")
+		}
+
+		if err := refreshService.Revoke(c.Context(), req.RefreshToken); err != nil {
+			return response.SendError(c, fiber.StatusInternalServerError, "failed to revoke refresh token")
+		}
+
+		return c.SendStatus(fiber.StatusNoContent)
 	}
 }
 

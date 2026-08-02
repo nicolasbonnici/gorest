@@ -183,6 +183,10 @@ func Start(cfg Config) {
 	if authService != nil {
 		authService.RegisterRoutes(router)
 		logger.Log.Info("Auth endpoints registered", "prefix", "/auth")
+
+		cleanupCtx, stopCleanup := context.WithCancel(context.Background())
+		defer stopCleanup()
+		authService.StartRefreshTokenCleanup(cleanupCtx)
 	}
 
 	if cfg.RegisterRoutes != nil {

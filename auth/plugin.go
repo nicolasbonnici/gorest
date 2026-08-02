@@ -9,14 +9,16 @@ import (
 	"github.com/nicolasbonnici/gorest/auth/middleware"
 	"github.com/nicolasbonnici/gorest/auth/migrations"
 	"github.com/nicolasbonnici/gorest/auth/models"
+	"github.com/nicolasbonnici/gorest/auth/refresh"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
 // Plugin implements the plugin interface for auth functionality
 type Plugin struct {
-	db  database.Database
-	jwt *authjwt.Service
+	db      database.Database
+	jwt     *authjwt.Service
+	refresh *refresh.Service
 }
 
 // NewPlugin creates a new auth plugin
@@ -49,6 +51,13 @@ func (p *Plugin) Initialize(config map[string]interface{}) error {
 
 	p.jwt = authjwt.NewService(jwtSecret, jwtTTL)
 
+	refreshTTL := 0 // zero selects the refresh package default
+	if ttl, ok := config["refresh_ttl"].(int); ok {
+		refreshTTL = ttl
+	}
+
+	p.refresh = refresh.NewService(p.db, refreshTTL)
+
 	return nil
 }
 
@@ -58,7 +67,7 @@ func (p *Plugin) SetupEndpoints(router fiber.Router) error {
 		return nil
 	}
 
-	handlers.RegisterAuthRoutes(router, p.db, p.jwt)
+	handlers.RegisterAuthRoutes(router, p.db, p.jwt, p.refresh)
 	return nil
 }
 
