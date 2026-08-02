@@ -109,9 +109,10 @@ type RBACConfig struct {
 }
 
 type AuthConfig struct {
-	Enabled   bool   `yaml:"enabled"`
-	JWTSecret string `yaml:"jwt_secret"`
-	JWTTTL    int    `yaml:"jwt_ttl"`
+	Enabled    bool   `yaml:"enabled"`
+	JWTSecret  string `yaml:"jwt_secret"`
+	JWTTTL     int    `yaml:"jwt_ttl"`
+	RefreshTTL int    `yaml:"refresh_ttl"`
 }
 
 func (c *Config) Validate() error {
@@ -126,6 +127,14 @@ func (c *Config) Validate() error {
 		}
 		if len(c.Auth.JWTSecret) < 32 {
 			return fmt.Errorf("auth.jwt_secret must be at least 32 characters long for security")
+		}
+		if c.Auth.RefreshTTL < 0 {
+			return fmt.Errorf("auth.refresh_ttl cannot be negative")
+		}
+		// A refresh token that outlives no access token is useless: it would expire
+		// before it ever gets a chance to mint a replacement.
+		if c.Auth.RefreshTTL > 0 && c.Auth.JWTTTL > 0 && c.Auth.RefreshTTL <= c.Auth.JWTTTL {
+			return fmt.Errorf("auth.refresh_ttl must be greater than auth.jwt_ttl")
 		}
 	}
 
