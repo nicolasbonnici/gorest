@@ -1,0 +1,85 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Shared Renovate preset for the GoREST workspace (core + all gorest-* plugins)",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "timezone": "Europe/Paris",
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 20,
+  "prHourlyLimit": 0,
+  "platformAutomerge": true,
+  "constraints": {
+    "go": "1.26"
+  },
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "schedule": ["at any time"],
+    "minimumReleaseAge": null,
+    "automerge": true
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Tool versions pinned in workflow env blocks, marked with a renovate comment",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+[A-Z_]+: ['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Indirect Go modules",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["indirect"],
+      "enabled": true
+    },
+    {
+      "description": "One weekly PR for every non-breaking Go dependency bump",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "go dependencies",
+      "schedule": ["before 6am on monday"],
+      "minimumReleaseAge": "3 days",
+      "automerge": true
+    },
+    {
+      "description": "Major Go bumps get their own PR and stay parked on the dashboard until approved",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "labels": ["dependencies", "major"]
+    },
+    {
+      "description": "The Go toolchain moves in lockstep across go.mod and the CI env block",
+      "matchDepNames": ["go", "golang"],
+      "groupName": "go toolchain",
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
+      "matchManagers": ["github-actions", "custom.regex"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "github actions",
+      "schedule": ["before 6am on monday"],
+      "minimumReleaseAge": "3 days",
+      "automerge": true
+    },
+    {
+      "matchManagers": ["github-actions", "custom.regex"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    }
+  ]
+}
