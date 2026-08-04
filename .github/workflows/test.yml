@@ -22,7 +22,7 @@ env:
 jobs:
 
   quality:
-    name: Code Quality Checks
+    name: Quality Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -55,7 +55,7 @@ jobs:
 
   test:
     needs: quality
-    name: Test suite
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
