@@ -6,7 +6,7 @@
     ":semanticCommits",
     ":semanticCommitTypeAll(chore)"
   ],
-  "timezone": "Europe/Paris",
+  "timezone": "UTC",
   "dependencyDashboard": true,
   "prConcurrentLimit": 20,
   "prHourlyLimit": 0,
