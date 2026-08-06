@@ -44,12 +44,23 @@
       "enabled": true
     },
     {
-      "description": "One weekly PR for every non-breaking Go dependency bump",
+      "description": "Patches carry the least behaviour change, so they ride daily once quarantine has passed",
       "matchManagers": ["gomod"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "go dependencies",
+      "matchUpdateTypes": ["patch", "digest"],
+      "groupName": "go dependencies (patch)",
+      "schedule": ["before 6am"],
+      "minimumReleaseAge": "3 days",
+      "rebaseWhen": "behind-base-branch",
+      "automerge": true
+    },
+    {
+      "description": "Minor bumps batch into one weekly checkpoint, where behaviour drift is easier to spot",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "go dependencies (minor)",
       "schedule": ["before 6am on monday"],
       "minimumReleaseAge": "3 days",
+      "rebaseWhen": "behind-base-branch",
       "automerge": true
     },
     {
@@ -69,10 +80,20 @@
     },
     {
       "matchManagers": ["github-actions", "custom.regex"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "github actions",
+      "matchUpdateTypes": ["patch", "digest"],
+      "groupName": "github actions (patch)",
+      "schedule": ["before 6am"],
+      "minimumReleaseAge": "3 days",
+      "rebaseWhen": "behind-base-branch",
+      "automerge": true
+    },
+    {
+      "matchManagers": ["github-actions", "custom.regex"],
+      "matchUpdateTypes": ["minor"],
+      "groupName": "github actions (minor)",
       "schedule": ["before 6am on monday"],
       "minimumReleaseAge": "3 days",
+      "rebaseWhen": "behind-base-branch",
       "automerge": true
     },
     {
