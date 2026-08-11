@@ -22,7 +22,6 @@
   "vulnerabilityAlerts": {
     "labels": ["security"],
     "schedule": ["at any time"],
-    "minimumReleaseAge": null,
     "automerge": true
   },
   "customManagers": [
@@ -49,7 +48,6 @@
       "matchUpdateTypes": ["patch", "digest"],
       "groupName": "go dependencies (patch)",
       "schedule": ["before 6am"],
-      "minimumReleaseAge": "3 days",
       "rebaseWhen": "behind-base-branch",
       "automerge": true
     },
@@ -59,7 +57,6 @@
       "matchUpdateTypes": ["minor"],
       "groupName": "go dependencies (minor)",
       "schedule": ["before 6am on monday"],
-      "minimumReleaseAge": "3 days",
       "rebaseWhen": "behind-base-branch",
       "automerge": true
     },
@@ -83,7 +80,6 @@
       "matchUpdateTypes": ["patch", "digest"],
       "groupName": "github actions (patch)",
       "schedule": ["before 6am"],
-      "minimumReleaseAge": "3 days",
       "rebaseWhen": "behind-base-branch",
       "automerge": true
     },
@@ -92,7 +88,6 @@
       "matchUpdateTypes": ["minor"],
       "groupName": "github actions (minor)",
       "schedule": ["before 6am on monday"],
-      "minimumReleaseAge": "3 days",
       "rebaseWhen": "behind-base-branch",
       "automerge": true
     },
