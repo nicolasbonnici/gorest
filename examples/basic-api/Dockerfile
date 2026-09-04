@@ -13,7 +13,7 @@ WORKDIR /build/examples/basic-api
 RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags="-w -s" -o api .
 
-FROM alpine:3.19
+FROM alpine:3.24
 
 WORKDIR /app
 COPY --from=builder /build/migrate         .
