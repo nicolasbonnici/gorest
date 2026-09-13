@@ -113,6 +113,50 @@ type AuthConfig struct {
 	JWTSecret  string `yaml:"jwt_secret"`
 	JWTTTL     int    `yaml:"jwt_ttl"`
 	RefreshTTL int    `yaml:"refresh_ttl"`
+
+	// Throttle for the credential endpoints. The global server limiter is sized
+	// for traffic floods and is far too loose to stop password guessing: a few
+	// attempts per minute is invisible to it but is exactly what a brute force
+	// looks like. Set LoginRateLimit to a negative number to switch this off.
+	LoginRateLimit  int `yaml:"login_rate_limit"`
+	LoginRateWindow int `yaml:"login_rate_window"`
+}
+
+// validateProductionHardening refuses to boot a production server that is
+// configured like a development one. Each of these is a setting that is
+// harmless on localhost and a real exposure on a public host, and every one of
+// them is easy to carry into production by forgetting to change it.
+func (c *Config) validateProductionHardening() error {
+	if !strings.EqualFold(c.Server.Environment, "production") {
+		return nil
+	}
+
+	for _, origin := range strings.Split(c.Server.CORSOrigins, ",") {
+		if strings.TrimSpace(origin) == "*" {
+			return fmt.Errorf("server.cors_origins cannot be \"*\" in production: name the origins that may read authenticated responses")
+		}
+	}
+
+	if !c.Server.RateLimitEnabled {
+		return fmt.Errorf("server.ratelimit_enabled must be true in production: without it the API has no brute-force or flood protection")
+	}
+
+	if !strings.EqualFold(c.Server.Scheme, "https") {
+		return fmt.Errorf("server.scheme must be https in production, got %q: bearer tokens over plain http are readable in transit", c.Server.Scheme)
+	}
+
+	if c.Auth.Enabled {
+		// Placeholders long enough to clear the 32-character floor still ship
+		// as secrets in more deployments than anyone would like.
+		lowered := strings.ToLower(c.Auth.JWTSecret)
+		for _, marker := range []string{"change", "example", "placeholder", "your-secret", "test-secret", "dev-secret", "secret-key"} {
+			if strings.Contains(lowered, marker) {
+				return fmt.Errorf("auth.jwt_secret looks like a placeholder (contains %q); generate a random secret for production", marker)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *Config) Validate() error {
@@ -155,6 +199,10 @@ func (c *Config) Validate() error {
 
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
 		return fmt.Errorf("server.port must be between 1 and 65535")
+	}
+
+	if err := c.validateProductionHardening(); err != nil {
+		return err
 	}
 
 	if c.Codegen.Output.Models == "" {
@@ -341,6 +389,12 @@ func (c *Config) SetDefaults() {
 	// Auth defaults
 	if c.Auth.JWTTTL == 0 {
 		c.Auth.JWTTTL = 900 // Default 15 minutes
+	}
+	if c.Auth.LoginRateLimit == 0 {
+		c.Auth.LoginRateLimit = 10
+	}
+	if c.Auth.LoginRateWindow == 0 {
+		c.Auth.LoginRateWindow = 300
 	}
 	// Auth.Enabled defaults to false unless explicitly set
 }

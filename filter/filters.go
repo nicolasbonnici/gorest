@@ -134,9 +134,15 @@ func (fs *FilterSet) parseFieldAndOperator(key string) (string, FilterOperator) 
 		return trimmedKey, OpIn
 	}
 
-	if strings.Contains(key, "[") && strings.Contains(key, "]") {
-		start := strings.Index(key, "[")
-		end := strings.Index(key, "]")
+	if start := strings.Index(key, "["); start >= 0 {
+		// The closing bracket has to be located after the opening one. Indexing
+		// for "]" from the front instead matches a key like "][" at position 0,
+		// and the resulting key[2:0] slice panics on any request that sends it.
+		rel := strings.Index(key[start+1:], "]")
+		if rel < 0 {
+			return key, OpEqual
+		}
+		end := start + 1 + rel
 		field := key[:start]
 		op := key[start+1 : end]
 

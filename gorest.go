@@ -6,10 +6,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	recovermw "github.com/gofiber/fiber/v3/middleware/recover"
 
 	"github.com/nicolasbonnici/gorest/auth"
 	"github.com/nicolasbonnici/gorest/config"
@@ -53,6 +55,11 @@ func Start(cfg Config) {
 
 	// Initialize response package with version
 	response.Initialize(Version)
+	// Outside development the version header only helps someone match the
+	// deployment against a CVE list.
+	if !strings.EqualFold(appConfig.Server.Environment, "development") {
+		response.DisablePoweredBy()
+	}
 
 	// Applied before any processor is built so generated resources and plugins
 	// alike inherit the configured strategy.
@@ -107,6 +114,20 @@ func Start(cfg Config) {
 			})
 		},
 	})
+
+	// First in the chain so it covers every later middleware and handler. A
+	// panic in a request used to take the whole process down with it: one
+	// malformed query parameter was enough to stop serving everyone.
+	app.Use(recovermw.New(recovermw.Config{
+		EnableStackTrace: !strings.EqualFold(appConfig.Server.Environment, "production"),
+		StackTraceHandler: func(c fiber.Ctx, e any) {
+			logger.Log.Error("Recovered from panic in request handler",
+				"panic", e,
+				"method", c.Method(),
+				"path", c.Path(),
+			)
+		},
+	}))
 
 	app.Use(middleware.Security())
 	app.Use(middleware.CORS(appConfig.Server.CORSOrigins))

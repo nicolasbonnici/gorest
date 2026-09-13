@@ -37,12 +37,16 @@ func (j *Service) GenerateToken(userID string) (string, error) {
 }
 
 func (j *Service) ValidateToken(tokenString string) (string, error) {
+	// WithValidMethods rejects the token on the header alone, before any
+	// signature work. The keyfunc check below is kept as the second gate: the
+	// two together are what stop "alg":"none" and the RS256-to-HS256 confusion
+	// where an attacker signs with the public key as an HMAC secret.
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(j.secret), nil
-	})
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 
 	if err != nil {
 		return "", fmt.Errorf("failed to parse token: %w", err)

@@ -14,6 +14,12 @@ import (
 // envVarRegex matches ${VAR} or ${VAR:-default} patterns
 var envVarRegex = regexp.MustCompile(`\$\{([^}:]+)(:-([^}]*))?\}`)
 
+// environmentRegex bounds the environment name to a single path segment. The
+// name is interpolated straight into the per-environment config filename, so an
+// unconstrained value ("../../home/user/.ssh/id_rsa") would make Load read and
+// YAML-parse an arbitrary file off disk.
+var environmentRegex = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
 func Load(configPath string) (*Config, error) {
 	baseConfigFile := filepath.Join(configPath, "gorest.yaml")
 	if _, err := os.Stat(baseConfigFile); os.IsNotExist(err) {
@@ -33,8 +39,15 @@ func Load(configPath string) (*Config, error) {
 		environment = "development"
 	}
 
+	if !environmentRegex.MatchString(environment) {
+		return nil, fmt.Errorf("invalid environment name %q: expected 1-64 characters of [A-Za-z0-9_-]", environment)
+	}
+
 	envConfigFile := filepath.Join(configPath, fmt.Sprintf("gorest.%s.yaml", environment))
-	if _, err := os.Stat(envConfigFile); err == nil {
+	// configPath is supplied by the embedding application, not by request input,
+	// and environment is constrained to one path segment above; gosec's taint
+	// analysis cannot see either guard.
+	if _, err := os.Stat(envConfigFile); err == nil { // #nosec G703
 		envConfig, err := loadConfigFile(envConfigFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load environment config: %w", err)
@@ -56,7 +69,9 @@ func Load(configPath string) (*Config, error) {
 }
 
 func loadConfigFile(filename string) (*Config, error) {
-	data, err := os.ReadFile(filename)
+	// Callers reach this only with a path built from the application-supplied
+	// configPath and a validated environment name.
+	data, err := os.ReadFile(filename) // #nosec G703
 	if err != nil {
 		return nil, err
 	}

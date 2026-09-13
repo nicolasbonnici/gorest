@@ -149,3 +149,39 @@ test-coverage: test-up test-schema
 .PHONY: ci-setup
 ci-setup: test-up test-schema
 	@echo "[INFO] CI setup complete - database ready"
+# ----------------------------
+# Security
+# ----------------------------
+# Pinned so a local scan and a CI scan judge the same code the same way; an
+# unpinned scanner turns a green build red on someone else's machine.
+GOVULNCHECK_VERSION := v1.8.0
+GITLEAKS_VERSION := v8.30.1
+
+.PHONY: security security-tools security-sast security-vuln security-secrets
+
+security-tools:
+	@if ! command -v govulncheck >/dev/null 2>&1; then \
+		echo "  Installing govulncheck $(GOVULNCHECK_VERSION)..."; \
+		GOWORK=off go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION); \
+	fi
+	@if ! command -v gitleaks >/dev/null 2>&1; then \
+		echo "  Installing gitleaks $(GITLEAKS_VERSION)..."; \
+		GOWORK=off go install github.com/zricethezav/gitleaks/v8@$(GITLEAKS_VERSION); \
+	fi
+
+# gosec also runs as part of `make lint`; this target isolates it so a security
+# regression is readable without the rest of the linter output.
+security-sast:
+	@echo "[INFO] gosec (static analysis)..."
+	@GOWORK=off $$(go env GOPATH)/bin/golangci-lint run --enable-only=gosec ./...
+
+security-vuln: security-tools
+	@echo "[INFO] govulncheck (known CVEs, incl. stdlib)..."
+	@GOWORK=off $$(go env GOPATH)/bin/govulncheck ./...
+
+security-secrets: security-tools
+	@echo "[INFO] gitleaks (secret scan)..."
+	@$$(go env GOPATH)/bin/gitleaks dir . --no-banner --redact
+
+security: security-sast security-vuln security-secrets
+	@echo "[INFO] All security checks passed!"

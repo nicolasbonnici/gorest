@@ -29,3 +29,5 @@ bin
 pentest.sh
 
 CLAUDE.md
+# Per-developer Claude Code permissions; can capture dev tokens.
+.claude/settings.local.json

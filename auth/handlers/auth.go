@@ -17,6 +17,7 @@ import (
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/query"
 	"github.com/nicolasbonnici/gorest/response"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type LoginRequest struct {
@@ -44,13 +45,29 @@ type TokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
-func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *jwt.Service, refreshService *refresh.Service) {
+// RegisterAuthRoutes mounts the credential endpoints. throttle is applied to
+// every route that accepts or exchanges a secret; pass nil to mount them
+// unthrottled (the tests do, so a table of cases is not fighting a limiter).
+func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *jwt.Service, refreshService *refresh.Service, throttle fiber.Handler) {
 	authGroup := router.Group("/auth")
 	userCRUD := crud.New[models.User](db)
 
-	authGroup.Post("/register", handleRegister(db, userCRUD, jwtService, refreshService))
-	authGroup.Post("/login", handleLogin(db, jwtService, refreshService))
-	authGroup.Post("/refresh", handleRefresh(jwtService, refreshService))
+	register := handleRegister(db, userCRUD, jwtService, refreshService)
+	login := handleLogin(db, jwtService, refreshService)
+	refreshHandler := handleRefresh(jwtService, refreshService)
+
+	if throttle != nil {
+		// Logout only invalidates a token the caller already holds, so it is
+		// left off the throttle: rate-limiting it would push a client that is
+		// trying to end its session into keeping it alive.
+		authGroup.Post("/register", throttle, register)
+		authGroup.Post("/login", throttle, login)
+		authGroup.Post("/refresh", throttle, refreshHandler)
+	} else {
+		authGroup.Post("/register", register)
+		authGroup.Post("/login", login)
+		authGroup.Post("/refresh", refreshHandler)
+	}
 	authGroup.Post("/logout", handleLogout(refreshService))
 }
 
@@ -120,8 +137,15 @@ func handleLogin(db database.Database, jwtService *jwt.Service, refreshService *
 		ctx := c.Context()
 
 		user, err := getUserByEmail(ctx, db, req.Email)
+		if errors.Is(err, errUserNotFound) {
+			// Burn a bcrypt comparison anyway. Skipping it would answer an
+			// unknown address in a fraction of the time a known one takes,
+			// which enumerates accounts just as well as a distinct status code.
+			equalizeLoginTiming(req.Password)
+			return response.SendError(c, fiber.StatusUnauthorized, "invalid email or password")
+		}
 		if err != nil {
-			return err
+			return response.SendError(c, fiber.StatusInternalServerError, "authentication failed")
 		}
 
 		if !user.CheckPassword(req.Password) {
@@ -238,6 +262,19 @@ func checkEmailExists(ctx stdcontext.Context, db database.Database, email string
 	return nil
 }
 
+// errUserNotFound separates "no such account" from a genuine lookup failure.
+// The caller must answer both with the same status and message, or the login
+// endpoint tells an attacker which addresses are registered.
+var errUserNotFound = errors.New("user not found")
+
+// dummyHash is a valid bcrypt digest of a value nothing can log in with. It
+// exists solely to give the unknown-account path the same cost as the real one.
+var dummyHash = []byte("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy")
+
+func equalizeLoginTiming(password string) {
+	_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
+}
+
 func getUserByEmail(ctx stdcontext.Context, db database.Database, email string) (*models.User, error) {
 	qb := query.New(db.Dialect()).
 		Select("id", "firstname", "lastname", "email", "password", "created_at", "updated_at").
@@ -255,7 +292,7 @@ func getUserByEmail(ctx stdcontext.Context, db database.Database, email string) 
 	err = db.QueryRow(ctx, queryStr, args...).
 		Scan(&user.ID, &user.Firstname, &user.Lastname, &user.Email, &password, &user.CreatedAt, &updatedAt)
 	if crud.IsNotFoundError(err) {
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, errUserNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("database error: %w", err)

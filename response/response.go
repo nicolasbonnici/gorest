@@ -12,13 +12,28 @@ var version = "dev"
 // Precomputed: every response sets this header.
 var poweredBy = "GoREST/" + version
 
+// Initialize records the framework version used in the X-Powered-By header.
 func Initialize(v string) {
 	version = v
 	poweredBy = "GoREST/" + version
 }
 
+// DisablePoweredBy stops advertising the framework and its exact version on
+// every response. A version string is the first thing an attacker looks up
+// against a CVE list, and it buys a client nothing, so gorest.Start turns the
+// header off outside development.
+func DisablePoweredBy() {
+	poweredBy = ""
+}
+
+func setPoweredBy(c fiber.Ctx) {
+	if poweredBy != "" {
+		c.Set("X-Powered-By", poweredBy)
+	}
+}
+
 func SetCommonHeaders(c fiber.Ctx) {
-	c.Set("X-Powered-By", poweredBy)
+	setPoweredBy(c)
 }
 
 func SetContentTypeHeader(c fiber.Ctx, format string) {
@@ -47,7 +62,7 @@ func SendFormatted(c fiber.Ctx, statusCode int, data interface{}) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to serialize response"})
 	}
 
-	c.Set("X-Powered-By", poweredBy)
+	setPoweredBy(c)
 	c.Set("Content-Type", s.ContentType())
 	return c.Status(statusCode).Send(formatted)
 }
@@ -91,7 +106,7 @@ func DetermineFormat(c fiber.Ctx) string {
 }
 
 func SendError(c fiber.Ctx, statusCode int, message string) error {
-	c.Set("X-Powered-By", poweredBy)
+	setPoweredBy(c)
 	return c.Status(statusCode).JSON(fiber.Map{
 		"error": message,
 	})
@@ -99,17 +114,17 @@ func SendError(c fiber.Ctx, statusCode int, message string) error {
 
 // TODO refactor to more flexible Send method with status code
 func SendSuccess(c fiber.Ctx, data interface{}) error {
-	c.Set("X-Powered-By", poweredBy)
+	setPoweredBy(c)
 	return c.Status(fiber.StatusOK).JSON(data)
 }
 
 func SendCreated(c fiber.Ctx, data interface{}) error {
-	c.Set("X-Powered-By", poweredBy)
+	setPoweredBy(c)
 	return c.Status(fiber.StatusCreated).JSON(data)
 }
 
 func SendJSON(c fiber.Ctx, statusCode int, data interface{}) error {
-	c.Set("X-Powered-By", poweredBy)
+	setPoweredBy(c)
 	format := DetermineFormat(c)
 	SetContentTypeHeader(c, format)
 	SetCommonHeaders(c)

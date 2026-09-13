@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"math"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -35,7 +36,13 @@ func (d *PostgresDriver) Connect(ctx context.Context, dsn string) error {
 	}
 
 	if d.poolCfg.MaxOpen > 0 {
-		cfg.MaxConns = int32(d.poolCfg.MaxOpen)
+		// MaxConns is an int32; a config value above that range would wrap to a
+		// negative pool size, which pgxpool accepts and then never serves.
+		maxOpen := d.poolCfg.MaxOpen
+		if maxOpen > math.MaxInt32 {
+			maxOpen = math.MaxInt32
+		}
+		cfg.MaxConns = int32(maxOpen)
 	}
 	// pgxpool has no max-idle knob; MaxIdle is intentionally not mapped
 	// to MinConns (which is a floor, not a ceiling) to avoid the opposite effect.

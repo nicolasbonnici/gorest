@@ -48,7 +48,15 @@ func NewService(authConfig config.AuthConfig, db database.Database) (*Service, e
 
 // RegisterRoutes registers authentication endpoints
 func (s *Service) RegisterRoutes(router fiber.Router) {
-	handlers.RegisterAuthRoutes(router, s.db, s.jwt, s.refresh)
+	var throttle fiber.Handler
+	if s.config.LoginRateLimit > 0 {
+		window := time.Duration(s.config.LoginRateWindow) * time.Second
+		if window <= 0 {
+			window = 5 * time.Minute
+		}
+		throttle = middleware.CredentialRateLimit(s.config.LoginRateLimit, window)
+	}
+	handlers.RegisterAuthRoutes(router, s.db, s.jwt, s.refresh, throttle)
 }
 
 // RefreshService exposes the refresh token store so applications can revoke
