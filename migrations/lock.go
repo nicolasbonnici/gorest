@@ -132,5 +132,7 @@ func (l *MigrationLock) releaseSQLite(ctx context.Context) error {
 func (l *MigrationLock) hashLockKey() int64 {
 	h := fnv.New64a()
 	h.Write([]byte(l.lockKey))
-	return int64(h.Sum64())
+	// Postgres advisory locks take a signed key, so the wrap is the intended
+	// reinterpretation of the hash bits, not a lossy conversion.
+	return int64(h.Sum64()) // #nosec G115
 }

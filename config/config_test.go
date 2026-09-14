@@ -305,7 +305,7 @@ func TestValidate_Success(t *testing.T) {
 	cfg := &Config{
 		Server: ServerConfig{
 			Port:        3000,
-			Environment: "production",
+			Environment: "staging",
 		},
 		Database: DatabaseConfig{
 			URL: "postgres://localhost/db",
@@ -375,7 +375,7 @@ func TestSetDefaults_PreservesExistingValues(t *testing.T) {
 	cfg := &Config{
 		Server: ServerConfig{
 			Port:        8080,
-			Environment: "production",
+			Environment: "staging",
 		},
 		Pagination: PaginationConfig{
 			DefaultLimit: 20,
@@ -395,7 +395,7 @@ func TestSetDefaults_PreservesExistingValues(t *testing.T) {
 		t.Errorf("Port should not be overridden, got %d", cfg.Server.Port)
 	}
 
-	if cfg.Server.Environment != "production" {
+	if cfg.Server.Environment != "staging" {
 		t.Errorf("Environment should not be overridden, got %s", cfg.Server.Environment)
 	}
 
@@ -481,7 +481,7 @@ func TestValidate_MultipleAuthPlugins(t *testing.T) {
 
 func validTestConfig() *Config {
 	return &Config{
-		Server:     ServerConfig{Port: 3000, Environment: "production"},
+		Server:     ServerConfig{Port: 3000, Environment: "staging"},
 		Database:   DatabaseConfig{URL: "postgres://localhost/db"},
 		Pagination: PaginationConfig{DefaultLimit: 10, MaxLimit: 100},
 		Codegen: CodegenConfig{

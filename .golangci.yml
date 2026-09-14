@@ -4,6 +4,7 @@ run:
 linters:
   enable:
     - gocyclo
+    - gosec
     - misspell
   settings:
     errcheck:

@@ -11,7 +11,9 @@ import (
 )
 
 const (
-	defaultPostgresDSN = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable"
+	// Credentials for the throwaway container in test/compose.yml, overridden by
+	// TEST_DATABASE_URL everywhere else.
+	defaultPostgresDSN = "postgres://postgres:postgres@localhost:5433/mydb_test?sslmode=disable" // #nosec G101
 	// parseTime is required or the driver hands TIMESTAMP columns back as []byte,
 	// which breaks any Scan into a time.Time (the migration tracker, for one).
 	defaultMySQLDSN = "testuser:testpass@tcp(localhost:3307)/mydb_test?parseTime=true"

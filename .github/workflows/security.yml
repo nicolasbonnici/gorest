@@ -1,0 +1,64 @@
+name: Security
+
+# Runs on every change, and weekly regardless: govulncheck compares the code
+# against a database that moves on its own, so a repository with no commits can
+# still become vulnerable between runs.
+on:
+  pull_request:
+    branches: [trunk]
+    paths-ignore: [ '**.md', 'LICENSE' ]
+  push:
+    branches: [trunk]
+    paths-ignore: [ '**.md', 'LICENSE' ]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # renovate: datasource=golang-version depName=go
+  GO_VERSION: '1.26.6'
+  # renovate: datasource=github-releases depName=golangci/golangci-lint
+  GOLANGCI_LINT_VERSION: 'v2.12.2'
+  # renovate: datasource=go depName=golang.org/x/vuln
+  GOVULNCHECK_VERSION: 'v1.8.0'
+  # renovate: datasource=github-releases depName=gitleaks/gitleaks
+  GITLEAKS_VERSION: 'v8.30.1'
+
+jobs:
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        # Secret scanning reads history, not just the working tree, so the
+        # default shallow clone would miss a credential added and then removed.
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      # gosec also runs inside `make lint`; isolating it here means a security
+      # regression is legible without reading the whole linter report.
+      - name: Static analysis (gosec)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          args: --enable-only=gosec ./...
+
+      - name: Known vulnerabilities (govulncheck)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@${{ env.GOVULNCHECK_VERSION }}
+          govulncheck ./...
+
+      - name: Secret scan (gitleaks)
+        run: |
+          go install github.com/zricethezav/gitleaks/v8@${{ env.GITLEAKS_VERSION }}
+          gitleaks dir . --no-banner --redact

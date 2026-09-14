@@ -88,6 +88,9 @@ func TestLoad_EnvironmentOverride(t *testing.T) {
 server:
   port: 8000
   environment: production
+  scheme: https
+  ratelimit_enabled: true
+  cors_origins: https://app.example.com
 database:
   url: postgres://localhost/db
 pagination:
@@ -776,6 +779,8 @@ server:
   host: "${SERVER_HOST:-localhost}"
   port: 8080
   environment: "${ENV:-development}"
+  ratelimit_enabled: true
+  cors_origins: "https://app.example.com"
 database:
   url: "${DATABASE_URL:-postgres://localhost:5432/testdb}"
 pagination:

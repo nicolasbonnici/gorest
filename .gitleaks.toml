@@ -1,0 +1,35 @@
+# Shared GoREST secret-scanning config. Keep in sync across gorest and gorest-*.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation placeholders and throwaway local-only credentials"
+
+paths = [
+  # Per-developer Claude Code settings. Untracked by design, but the scanner
+  # walks the working tree, so it would flag captured dev tokens on every run.
+  '''\.claude/settings\.local\.json''',
+]
+
+regexes = [
+  # Placeholder tokens in READMEs and curl examples.
+  '''YOUR_[A-Z0-9_]+''',
+  '''(?i)(your|my|some|a)[-_](secret|token|key|password)''',
+  '''(?i)\b(changeme|placeholder|example|dummy|redacted|xxx+)\b''',
+  # Truncated sample responses, e.g. "eyJhbGciOiJIUzI1NiIs...".
+  '''\.\.\.''',
+  # Fixture material: a value carrying "test", "pentest", "fake" and friends as
+  # a delimited word. Real keys are random, so one that happens to contain such
+  # a token between separators is not a case worth optimising for.
+  '''(?i)(^|[-_])(test|pentest|dummy|fake|mock|sample|fixture)([-_]|$)''',
+  # Deliberately invalid values the pentest suite sends to prove rejection.
+  '''invalid[-_]?token[-_a-z0-9]*''',
+  # Credentials for throwaway localhost containers defined in this repo's own
+  # compose files. Never reachable from outside the developer's machine.
+  '''postgres://postgres:postgres@(localhost|127\.0\.0\.1|db|db_test)''',
+  '''(testuser:testpass|root:root|mysql:mysql)@''',
+  # Fixed secret the benchmark harness feeds its throwaway server so runs are
+  # comparable. Documented as such at the call site.
+  '''bmk-jwt-k3y-f0r-4p1-p3rf0rm4nc3-m34sur3m3nts-0nly''',
+  '''test-secret-key-minimum-32-characters-long[-a-z0-9]*''',
+]
