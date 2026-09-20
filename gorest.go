@@ -99,8 +99,15 @@ func Start(cfg Config) {
 		logger.Log.Info("Authentication service enabled")
 	}
 
+	// Fiber reads a non-positive BodyLimit as "unlimited", so a config built
+	// without SetDefaults must not silently uncap the server.
+	bodyLimit := appConfig.Server.BodyLimit
+	if bodyLimit <= 0 {
+		bodyLimit = config.DefaultBodyLimit
+	}
+
 	app := fiber.New(fiber.Config{
-		BodyLimit:    4 * 1024 * 1024,
+		BodyLimit:    bodyLimit,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,

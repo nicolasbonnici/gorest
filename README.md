@@ -68,6 +68,7 @@ server:
   cors_origins: "${CORS_ORIGINS:-*}"
   compression_enabled: true  # gzip/deflate/brotli support (default: true)
   compression_level: 2       # 1=speed, 2=balanced, 3=best compression
+  body_limit: 4194304       # Max request body in bytes (default: 4 MiB). Raise it for large uploads.
 
 
 database:

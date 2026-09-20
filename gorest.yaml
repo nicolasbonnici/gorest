@@ -17,6 +17,7 @@ server:
   ratelimit_burst: 200
   compression_enabled: true  # Enable gzip/deflate/brotli compression (default: true)
   compression_level: 2       # 1=best speed, 2=balanced (default), 3=best compression
+  body_limit: 4194304       # Max request body in bytes (default: 4 MiB). Raise it for large uploads.
 
 database:
   url: "${DATABASE_URL}"

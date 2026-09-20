@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -60,6 +61,59 @@ type PaginationResult[T any] struct {
 	Total *int
 }
 
+// ErrInvalidID reports an identifier that the primary key could never hold,
+// such as "0" or "../../etc/passwd" for a table keyed by UUID.
+//
+// It wraps sql.ErrNoRows on purpose. A value that cannot address a row has not
+// found one, so every caller already written against IsNotFoundError answers
+// 404 without a change, while a caller that wants to distinguish the two can
+// still ask IsInvalidIDError.
+var ErrInvalidID = fmt.Errorf("invalid identifier: %w", sql.ErrNoRows)
+
+// checkID rejects an identifier before it reaches the driver.
+//
+// Postgres answers a malformed UUID with `invalid input syntax for type uuid:
+// "0" (SQLSTATE 22P02)`, which names the column type and the SQLSTATE, and that
+// message has a way of reaching the client through a generic error path. The
+// cheaper and more reliable fix is never to ask the question: an id that cannot
+// parse as the key's type cannot match a row, so it is answered locally.
+//
+// Only types the framework can decide about are checked. An unrecognised key
+// type falls through to the database, which is the previous behaviour.
+func checkID(meta *fieldMeta, id any) error {
+	if meta == nil || meta.idFieldType == nil {
+		return nil
+	}
+
+	s, ok := id.(string)
+	if !ok {
+		// A caller that already holds a uuid.UUID or an int has parsed it.
+		return nil
+	}
+
+	t := meta.idFieldType
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+
+	switch {
+	case t == reflect.TypeOf(uuid.UUID{}):
+		if _, err := uuid.Parse(s); err != nil {
+			return ErrInvalidID
+		}
+	case t.Kind() >= reflect.Int && t.Kind() <= reflect.Int64:
+		if _, err := strconv.ParseInt(s, 10, 64); err != nil {
+			return ErrInvalidID
+		}
+	case t.Kind() >= reflect.Uint && t.Kind() <= reflect.Uint64:
+		if _, err := strconv.ParseUint(s, 10, 64); err != nil {
+			return ErrInvalidID
+		}
+	}
+
+	return nil
+}
+
 func IsNotFoundError(err error) bool {
 	return errors.Is(err, sql.ErrNoRows)
 }
@@ -68,11 +122,36 @@ func IsInvalidIDError(err error) bool {
 	if err == nil {
 		return false
 	}
+	if errors.Is(err, ErrInvalidID) {
+		return true
+	}
+	// The string matching below is the fallback for a driver error that got
+	// past checkID, for instance from a caller-supplied value in a body rather
+	// than in the path.
 	errMsg := err.Error()
 	return strings.Contains(errMsg, "invalid input syntax for") ||
 		strings.Contains(errMsg, "invalid UUID") ||
 		strings.Contains(errMsg, "uuid:") ||
 		strings.Contains(errMsg, "SQLSTATE 22P02")
+}
+
+// IsDuplicateError reports a unique-constraint violation.
+//
+// It exists because a check-then-insert is not atomic: two concurrent requests
+// both pass the "does this already exist" query and the index refuses the
+// second. That is the caller's duplicate, not a server fault, and answering it
+// as a 500 both misreports it and makes concurrency a way to tell a taken
+// value from a free one.
+func IsDuplicateError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "sqlstate 23505") || // PostgreSQL unique_violation
+		strings.Contains(msg, "duplicate key value") || // PostgreSQL wording
+		strings.Contains(msg, "error 1062") || // MySQL ER_DUP_ENTRY
+		strings.Contains(msg, "duplicate entry") || // MySQL wording
+		strings.Contains(msg, "unique constraint failed") // SQLite
 }
 
 func New[T Model](db database.Database) *CRUD[T] {
@@ -466,6 +545,10 @@ func (c *CRUD[T]) GetByID(ctx context.Context, id any) (*T, error) {
 	var item T
 	meta := getFieldMeta(reflect.TypeOf(item))
 
+	if err := checkID(meta, id); err != nil {
+		return nil, err
+	}
+
 	qb := query.New(c.DB.Dialect()).Select(meta.allCols...).From(item.TableName()).Where(query.Eq("id", id))
 	modifiedBuilder, modified := c.Hooks.ModifySelectQuery(ctx, hooks.OperationGetByID, qb)
 	if modified {
@@ -525,6 +608,19 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 	var zero T
 	meta := getFieldMeta(reflect.TypeOf(zero))
 
+	// A single malformed id in the batch would otherwise fail the whole query
+	// with a driver error; dropping it returns the rows that could match.
+	kept := make([]any, 0, len(ids))
+	for _, id := range ids {
+		if checkID(meta, id) == nil {
+			kept = append(kept, id)
+		}
+	}
+	if len(kept) == 0 {
+		return []T{}, nil
+	}
+	ids = kept
+
 	qb := query.New(c.DB.Dialect()).
 		Select(meta.allCols...).
 		From(zero.TableName()).
@@ -569,6 +665,10 @@ func (c *CRUD[T]) GetByIDs(ctx context.Context, ids []any) ([]T, error) {
 }
 
 func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
+	if err := checkID(getFieldMeta(reflect.TypeOf(m)), id); err != nil {
+		return err
+	}
+
 	// Layer 5: Authorization - Validate field-level write permissions
 	if err := c.Hooks.ValidateWrite(ctx, &m); err != nil {
 		return fmt.Errorf("authorization failed: %w", err)
@@ -627,6 +727,9 @@ func (c *CRUD[T]) Update(ctx context.Context, id any, m T) error {
 
 func (c *CRUD[T]) Delete(ctx context.Context, id any) error {
 	var zero T
+	if err := checkID(getFieldMeta(reflect.TypeOf(zero)), id); err != nil {
+		return err
+	}
 
 	// Layer 5: Authorization - Check resource-level delete permission
 	if err := c.Hooks.CheckDelete(ctx, id); err != nil {

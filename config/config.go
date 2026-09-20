@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// DefaultBodyLimit caps the request body when server.body_limit is unset. A
+// plugin accepting larger uploads needs this raised too: Fiber enforces it
+// before routing, so the plugin never sees the request.
+const DefaultBodyLimit = 4 << 20
+
 type Config struct {
 	Codegen    CodegenConfig    `yaml:"codegen"`
 	API        APIConfig        `yaml:"api"`
@@ -72,6 +77,8 @@ type ServerConfig struct {
 	RateLimitEnabled   bool   `yaml:"ratelimit_enabled"`
 	CompressionEnabled bool   `yaml:"compression_enabled"`
 	CompressionLevel   int    `yaml:"compression_level"`
+	// BodyLimit is in bytes; 0 uses DefaultBodyLimit.
+	BodyLimit int `yaml:"body_limit"`
 }
 
 type DatabaseConfig struct {
@@ -120,6 +127,21 @@ type AuthConfig struct {
 	// looks like. Set LoginRateLimit to a negative number to switch this off.
 	LoginRateLimit  int `yaml:"login_rate_limit"`
 	LoginRateWindow int `yaml:"login_rate_window"`
+
+	// Password policy applied at registration. Length is the control that
+	// matters (NIST SP 800-63B); PasswordBlocklist adds screening against the
+	// passwords that are guessed first, which length alone lets through.
+	// Defaults to password.DefaultMinLength when zero, and the blocklist is on
+	// unless explicitly disabled.
+	PasswordMinLength int   `yaml:"password_min_length"`
+	PasswordBlocklist *bool `yaml:"password_blocklist"`
+}
+
+// PasswordBlocklistEnabled reports whether common-password screening is on.
+// The field is a pointer so an absent key means "on" while `false` means off;
+// a plain bool could not tell the two apart.
+func (a AuthConfig) PasswordBlocklistEnabled() bool {
+	return a.PasswordBlocklist == nil || *a.PasswordBlocklist
 }
 
 // validateProductionHardening refuses to boot a production server that is
@@ -333,6 +355,9 @@ func (c *Config) SetDefaults() {
 	// CompressionLevel defaults to 2 (balanced) if not set or invalid
 	if c.Server.CompressionLevel == 0 {
 		c.Server.CompressionLevel = 2
+	}
+	if c.Server.BodyLimit == 0 {
+		c.Server.BodyLimit = DefaultBodyLimit
 	}
 
 	if c.Pagination.DefaultLimit == 0 {

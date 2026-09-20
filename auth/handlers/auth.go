@@ -12,6 +12,7 @@ import (
 	"github.com/nicolasbonnici/gorest/auth/dtos"
 	"github.com/nicolasbonnici/gorest/auth/jwt"
 	"github.com/nicolasbonnici/gorest/auth/models"
+	"github.com/nicolasbonnici/gorest/auth/password"
 	"github.com/nicolasbonnici/gorest/auth/refresh"
 	"github.com/nicolasbonnici/gorest/crud"
 	"github.com/nicolasbonnici/gorest/database"
@@ -48,11 +49,11 @@ type TokenResponse struct {
 // RegisterAuthRoutes mounts the credential endpoints. throttle is applied to
 // every route that accepts or exchanges a secret; pass nil to mount them
 // unthrottled (the tests do, so a table of cases is not fighting a limiter).
-func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *jwt.Service, refreshService *refresh.Service, throttle fiber.Handler) {
+func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *jwt.Service, refreshService *refresh.Service, throttle fiber.Handler, pwPolicy password.Policy) {
 	authGroup := router.Group("/auth")
 	userCRUD := crud.New[models.User](db)
 
-	register := handleRegister(db, userCRUD, jwtService, refreshService)
+	register := handleRegister(db, userCRUD, jwtService, refreshService, pwPolicy)
 	login := handleLogin(db, jwtService, refreshService)
 	refreshHandler := handleRefresh(jwtService, refreshService)
 
@@ -71,7 +72,7 @@ func RegisterAuthRoutes(router fiber.Router, db database.Database, jwtService *j
 	authGroup.Post("/logout", handleLogout(refreshService))
 }
 
-func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtService *jwt.Service, refreshService *refresh.Service) fiber.Handler {
+func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtService *jwt.Service, refreshService *refresh.Service, pwPolicy password.Policy) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var req RegisterRequest
 		if err := c.Bind().Body(&req); err != nil {
@@ -80,8 +81,21 @@ func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtS
 
 		ctx := c.Context()
 
+		// Checked before the email lookup so a weak password is refused the
+		// same way whether or not the address is already taken; answering the
+		// two in a different order turns the endpoint into a membership
+		// oracle.
+		if err := pwPolicy.Validate(req.Password); err != nil {
+			return response.SendError(c, fiber.StatusUnprocessableEntity, err.Error())
+		}
+
 		if err := checkEmailExists(ctx, db, req.Email, uuid.Nil); err != nil {
-			return response.SendError(c, fiber.StatusBadRequest, err.Error())
+			// errEmailTaken is the only message here meant for the caller. A
+			// lookup that failed for any other reason must not describe itself.
+			if errors.Is(err, errEmailTaken) {
+				return response.SendError(c, fiber.StatusBadRequest, err.Error())
+			}
+			return response.SendError(c, fiber.StatusInternalServerError, "registration failed")
 		}
 
 		password := req.Password
@@ -99,6 +113,14 @@ func handleRegister(db database.Database, userCRUD *crud.CRUD[models.User], jwtS
 		}
 
 		if err := userCRUD.Create(ctx, user); err != nil {
+			// The check above and this insert are not atomic. Two concurrent
+			// registrations of the same address both pass the check, and the
+			// unique index refuses the second: that is a duplicate, not a
+			// server fault, and it must answer identically to the sequential
+			// case or concurrency becomes a way to distinguish them.
+			if crud.IsDuplicateError(err) {
+				return response.SendError(c, fiber.StatusBadRequest, errEmailTaken.Error())
+			}
 			return response.SendError(c, fiber.StatusInternalServerError, "failed to create user")
 		}
 
@@ -251,9 +273,9 @@ func checkEmailExists(ctx stdcontext.Context, db database.Database, email string
 	err = db.QueryRow(ctx, queryStr, args...).Scan(&existingEmail)
 	if err == nil {
 		if excludeUserID == uuid.Nil {
-			return fmt.Errorf("user with this email already exists")
+			return errEmailTaken
 		}
-		return fmt.Errorf("email already in use")
+		return errEmailInUse
 	}
 	if !crud.IsNotFoundError(err) {
 		return fmt.Errorf("failed to check existing email: %w", err)
@@ -261,6 +283,15 @@ func checkEmailExists(ctx stdcontext.Context, db database.Database, email string
 
 	return nil
 }
+
+// errEmailTaken and errEmailInUse are the two outcomes of the email check that
+// are safe to repeat to the caller. Every other failure of that lookup is an
+// operator's problem and is answered generically; sentinels make the two
+// distinguishable with errors.Is rather than by matching on message text.
+var (
+	errEmailTaken = errors.New("user with this email already exists")
+	errEmailInUse = errors.New("email already in use")
+)
 
 // errUserNotFound separates "no such account" from a genuine lookup failure.
 // The caller must answer both with the same status and message, or the login

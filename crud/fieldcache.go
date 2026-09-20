@@ -20,6 +20,9 @@ type fieldMeta struct {
 
 	// Struct field index for the "id" column (-1 if absent)
 	idFieldIndex int
+	// Go type of that field, used to reject an identifier the column could
+	// never hold before it is sent to the driver.
+	idFieldType reflect.Type
 
 	// Pools []interface{} slices of len(allIndices) for row scanning
 	scanPool sync.Pool
@@ -50,6 +53,7 @@ func buildFieldMeta(t reflect.Type) *fieldMeta {
 
 		if tag == "id" {
 			meta.idFieldIndex = i
+			meta.idFieldType = t.Field(i).Type
 		}
 
 		if tag != "created_at" && tag != "updated_at" {

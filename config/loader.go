@@ -183,6 +183,9 @@ func mergeConfigs(base, override *Config) *Config {
 	if override.Server.Environment != "" {
 		result.Server.Environment = override.Server.Environment
 	}
+	if override.Server.BodyLimit != 0 {
+		result.Server.BodyLimit = override.Server.BodyLimit
+	}
 
 	if override.Database.URL != "" {
 		result.Database.URL = override.Database.URL

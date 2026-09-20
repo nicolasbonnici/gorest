@@ -9,6 +9,7 @@ import (
 	"github.com/nicolasbonnici/gorest/auth/handlers"
 	"github.com/nicolasbonnici/gorest/auth/jwt"
 	"github.com/nicolasbonnici/gorest/auth/middleware"
+	"github.com/nicolasbonnici/gorest/auth/password"
 	"github.com/nicolasbonnici/gorest/auth/refresh"
 	"github.com/nicolasbonnici/gorest/config"
 	"github.com/nicolasbonnici/gorest/database"
@@ -56,7 +57,18 @@ func (s *Service) RegisterRoutes(router fiber.Router) {
 		}
 		throttle = middleware.CredentialRateLimit(s.config.LoginRateLimit, window)
 	}
-	handlers.RegisterAuthRoutes(router, s.db, s.jwt, s.refresh, throttle)
+	handlers.RegisterAuthRoutes(router, s.db, s.jwt, s.refresh, throttle, s.passwordPolicy())
+}
+
+// passwordPolicy resolves the configured rules, falling back to the package
+// defaults. An application that sets neither key gets NIST-aligned screening
+// rather than none: an unset policy used to mean "any password", which is how
+// "a" and the empty string were accepted.
+func (s *Service) passwordPolicy() password.Policy {
+	return password.Policy{
+		MinLength: s.config.PasswordMinLength,
+		Blocklist: s.config.PasswordBlocklistEnabled(),
+	}
 }
 
 // RefreshService exposes the refresh token store so applications can revoke

@@ -25,17 +25,36 @@ func (h *DefaultErrorHandler) HandleError(c fiber.Ctx, err error, operation stri
 		return response.SendError(c, ferr.Code, msg)
 	}
 
-	if crud.IsInvalidIDError(err) {
-		return response.SendError(c, fiber.StatusBadRequest, err.Error())
-	}
-
+	// Checked before IsInvalidIDError because crud.ErrInvalidID wraps
+	// sql.ErrNoRows: an identifier that cannot address a row has not found one,
+	// and answering 404 keeps a probe from learning the key's type.
 	if crud.IsNotFoundError(err) {
 		return response.SendError(c, fiber.StatusNotFound, "Not found")
 	}
 
-	if operation == "validate" {
-		return response.SendError(c, fiber.StatusBadRequest, err.Error())
+	// Reached when the driver, not checkID, was the thing that rejected the
+	// value. checkID only sees models whose key field is typed uuid.UUID;
+	// several plugins declare `ID string` over a uuid column, and for those the
+	// driver error is the only signal available.
+	//
+	// Which answer is right depends on where the value came from. A malformed
+	// id in the path addresses no row, so it is answered 404 exactly as
+	// checkID's own rejection would be, and the two paths stay
+	// indistinguishable from outside. A malformed value in a body is a request
+	// the caller can fix, so it is answered 400. Neither repeats the driver's
+	// wording.
+	if crud.IsInvalidIDError(err) {
+		switch operation {
+		case "getById", "update", "delete":
+			return response.SendError(c, fiber.StatusNotFound, "Not found")
+		default:
+			return response.SendError(c, fiber.StatusBadRequest, "Invalid identifier in request")
+		}
 	}
 
-	return response.SendError(c, fiber.StatusInternalServerError, err.Error())
+	if operation == "validate" {
+		return response.SendError(c, fiber.StatusBadRequest, response.SafeMessage(err, "Validation failed"))
+	}
+
+	return response.SendError(c, fiber.StatusInternalServerError, "Internal server error")
 }

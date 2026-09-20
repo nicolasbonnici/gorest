@@ -221,10 +221,40 @@ auth:
   jwt_secret: string    # JWT signing secret (required, min 32 chars)
   jwt_ttl: int          # Access token TTL in seconds (default: 900 = 15 min)
   refresh_ttl: int      # Refresh token TTL in seconds (default: 2592000 = 30 days)
+
+  login_rate_limit: int   # Failed credential attempts per window (default: 10)
+  login_rate_window: int  # Window in seconds (default: 300)
+
+  password_min_length: int    # Minimum password length (default: 12)
+  password_blocklist: bool    # Screen against common passwords (default: true)
 ```
 
 `refresh_ttl` must be greater than `jwt_ttl`; startup fails otherwise, since a
 refresh token that expires before the access token it renews is useless.
+
+### Password policy
+
+`POST /auth/register` refuses a password that is shorter than
+`password_min_length`, longer than bcrypt's 72-byte input limit, or on the
+common-password list. Rejections are `422` and name what to fix without
+echoing the password.
+
+The rules follow NIST SP 800-63B: length is the control that matters, and
+screening against known-common passwords catches what length alone lets
+through. Composition rules (one uppercase, one digit, one symbol) are
+deliberately absent; 800-63B recommends against them because they push people
+towards predictable shapes like `Password1!` without adding real entropy.
+
+The blocklist also folds leetspeak, strips trailing decoration and collapses a
+doubled word, so the single entry `password` refuses `P@ssw0rd2024`,
+`password1234` and `passwordpassword`. It is a short curated list compiled into
+the binary, not a breach corpus: an application that needs the full corpus
+should screen against a service such as Pwned Passwords in its own
+registration hook.
+
+Set `password_blocklist: false` to apply length only. Both keys are optional;
+an unset policy means the defaults apply, **not** that any password is
+accepted.
 
 ## Security Best Practices
 
