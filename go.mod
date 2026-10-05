@@ -13,7 +13,7 @@ require (
 	github.com/jackc/pgx/v5 v5.11.0
 	golang.org/x/crypto v0.57.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.59.0
+	modernc.org/sqlite v1.60.1
 )
 
 require (
@@ -32,8 +32,8 @@ require (
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/molecule-man/go-brrr v1.1.1 // indirect
-	github.com/ncruces/go-strftime v1.0.0 // indirect
+	github.com/molecule-man/go-brrr v1.2.0 // indirect
+	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
