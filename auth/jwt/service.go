@@ -46,7 +46,13 @@ func (j *Service) ValidateToken(tokenString string) (string, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(j.secret), nil
-	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+	},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		// A 32-byte HMAC leaves 2 unused bits in the last base64url character;
+		// lenient decoding ignores them, so one signature has several accepted
+		// spellings. Strict decoding pins each token to a single encoding.
+		jwt.WithStrictDecoding(),
+	)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to parse token: %w", err)
