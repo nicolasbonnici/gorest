@@ -5,7 +5,7 @@ go 1.26.0
 toolchain go1.26.10
 
 require (
-	github.com/go-playground/validator/v10 v10.30.5
+	github.com/go-playground/validator/v10 v10.30.6
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/gofiber/fiber/v3 v3.6.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
