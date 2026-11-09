@@ -32,6 +32,9 @@ func Logger(environment string) fiber.Handler {
 			"ip", c.IP(),
 			"user_agent", c.Get("User-Agent"),
 		}
+		if clientRID := ClientRequestIDFromContext(c); clientRID != "" {
+			logFields = append(logFields, "client_request_id", clientRID)
+		}
 
 		// Add error message in development environment if there's an error
 		if err != nil && environment == "development" {

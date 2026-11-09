@@ -3,6 +3,7 @@ package middleware
 import (
 	"io"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
@@ -388,5 +389,62 @@ func TestRequestID_NoCollisions(t *testing.T) {
 		if count > 1 {
 			t.Errorf("request ID '%s' appeared %d times, expected 1", id, count)
 		}
+	}
+}
+
+func TestRequestID_IgnoresClientSuppliedID(t *testing.T) {
+	var clientRID string
+	app := fiber.New()
+	app.Use(RequestID())
+	app.Get("/test", func(c fiber.Ctx) error {
+		clientRID = ClientRequestIDFromContext(c)
+		return c.SendString("ok")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Request-ID", "attacker-chosen-id")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := resp.Header.Get("X-Request-ID")
+	if got == "" || got == "attacker-chosen-id" {
+		t.Errorf("X-Request-ID = %q, want a server-minted id", got)
+	}
+	if clientRID != "attacker-chosen-id" {
+		t.Errorf("ClientRequestIDFromContext = %q, want the caller's id kept for tracing", clientRID)
+	}
+}
+
+func TestRequestID_DropsUnloggableClientID(t *testing.T) {
+	tests := map[string]string{
+		"too long":  strings.Repeat("a", maxClientRequestIDLen+1),
+		"non-ascii": "id-é",
+		"tab":       "id\tforged",
+	}
+	for name, supplied := range tests {
+		t.Run(name, func(t *testing.T) {
+			clientRID := "unset"
+			app := fiber.New()
+			app.Use(RequestID())
+			app.Get("/test", func(c fiber.Ctx) error {
+				clientRID = ClientRequestIDFromContext(c)
+				return c.SendString("ok")
+			})
+
+			req := httptest.NewRequest("GET", "/test", nil)
+			req.Header.Set("X-Request-ID", supplied)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if clientRID != "" {
+				t.Errorf("ClientRequestIDFromContext = %q, want it dropped", clientRID)
+			}
+			if got := resp.Header.Get("X-Request-ID"); got == "" || got == supplied {
+				t.Errorf("X-Request-ID = %q, want a server-minted id", got)
+			}
+		})
 	}
 }

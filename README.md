@@ -3,6 +3,7 @@
 [![Test](https://github.com/nicolasbonnici/gorest/actions/workflows/test.yml/badge.svg?branch=trunk)](https://github.com/nicolasbonnici/gorest/actions/workflows/test.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/nicolasbonnici/gorest.svg)](https://pkg.go.dev/github.com/nicolasbonnici/gorest)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/nicolasbonnici/gorest)](https://github.com/nicolasbonnici/gorest/blob/HEAD/go.mod)
+[![Release](https://img.shields.io/github/v/release/nicolasbonnici/gorest)](https://github.com/nicolasbonnici/gorest/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 🚀 **GoREST** is a Go library for building type-safe REST APIs in Go from your existing database schema or from scratch.
@@ -10,18 +11,20 @@
 > [!WARNING]
 > **Pre-1.0 Development**: The API is not yet stabilized and may introduce breaking changes until v1.0.0 is released. Pin to a specific version tag and test thoroughly before production use.
 
+---
+
 ## ✨ Features
 
-- ⚡ Type-safe generic CRUD operations with hooks system
-- 🚀 **Unified processor module** eliminating handler boilerplate - handlers become one-liners with automatic RBAC, validation, pagination, filtering & serialization
+- ⚡ Type-safe generic CRUD operations
+- 🚀 Unified processor module eliminating handler boilerplate: handlers become one-liners with automatic RBAC, validation, pagination, filtering & serialization
 - 🔧 Fluent SQL query builder with database abstraction
-- 🔑 **Built-in JWT authentication** with user management, registration, login, and token refresh
-- 🔐 RBAC Role based access control layer with field-level permissions and voter system
-- 🧐 Audit log
+- 🔑 Built-in JWT authentication with registration, login, and rotating refresh tokens
+- 🔐 Role based access control with field-level permissions and a voter system
+- 🧐 [Audit log](RBAC.md) of role assignments
 - ✅ Security best practices, rate limiting, CORS, response compression and many more configurable core middleware
 - 🎭 Hook layer to add your business logic and override any API layer
 - 🧩 Modular plugin system that can add features, override some or all existing endpoints or even CLI commands
-- 🛠 **Code generation plugin** for REST endpoints, DTOs and models ([gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen))
+- 🛠 Code generation plugin for REST endpoints, DTOs and models ([gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen))
 - 🌐 JSON-LD support with semantic web context (@context, @type, @id)
 - 🔗 Advanced resource deserialization with IRI and optional on demand relations
 - 🔍 Advanced serialization, filtering & ordering
@@ -32,30 +35,248 @@
 - 📜 OpenAPI 3 spec generation ([gorest-openapi](https://github.com/nicolasbonnici/gorest-openapi))
 - 💚 Status endpoint for health check ([gorest-status](https://github.com/nicolasbonnici/gorest-status))
 - 🐳 Docker and Kubernetes support
-- 🧪 Full test coverage with automated testing
+- 🧪 Unit, integration and cross-database test suites
+
+---
+
+## 📚 Core Documentation
+
+### Getting Started
+- **[Configuration →](CONFIGURATION.md)** - YAML configuration, environment overrides, and templates
+- **[Processor →](processor/README.md)** - Unified API processor eliminating CRUD boilerplate with one-liner handlers
+
+### Data Management
+- **[Query Builder →](query/README.md)** - Type-safe SQL query builder with fluent API
+- **[Filtering & Ordering →](FILTERING.md)** - Advanced query filtering, comparison operators, and ordering
+- **[Relation Expansion →](serializer/EXPAND_USAGE.md)** - Expand IRI references to full nested objects
+- **[Serializer →](serializer/README.md)** - Flexible resource serializer with JSON-LD support
+- **[Database Migrations →](migrations/README.md)** - Migration system with multi-database support
+- **[Fixtures →](fixtures/README.md)** - Test fixture management
+
+### CLI
+- **[Migration CLI →](migrations/CLI.md)** - `migrate` CLI for running, rolling back, and repairing migrations
+- **[User & Role CLI →](cmd/user/CLI.md)** - `user` CLI for managing users, assigning roles, and viewing role hierarchy
+
+### Security & Access Control
+- **[Authentication →](auth/README.md)** - Built-in JWT auth with rotating, database-backed refresh tokens
+- **[Authorization →](AUTHORIZATION.md)** - Mandatory authorization layer and hook execution order
+- **[RBAC →](RBAC.md)** - Role-based access control, voters, and field-level permissions
+- **[Security Policy →](SECURITY.md)** - Reporting vulnerabilities and supported versions
+
+### Business Logic
+- **[DTOs & Field Control →](DTOS.md)** - Control resource attributes with `dto` tags
+- **[Hooks System →](HOOKS.md)** - Lifecycle hooks for custom business logic
+- **[Plugins →](PLUGINS.md)** - Plugin system, built-in plugins, and custom plugin creation
+
+---
+
+## 📦 GoREST usage
+
+Import GoREST library directly in your Go projects:
+
+```bash
+go get github.com/nicolasbonnici/gorest@latest
+```
+
+### Available Packages
+
+| Package | Description |
+|---------|-------------|
+| `processor` | Unified API processor eliminating handler boilerplate |
+| `query` | Type-safe SQL query builder |
+| `crud` | Type-safe CRUD operations with hooks |
+| `database` | Multi-database abstraction |
+| `filter` | Query filtering & ordering |
+| `serializer` | JSON-LD serialization and relation expansion |
+| `hooks` | Lifecycle hooks for business logic |
+| `plugin` | Plugin interfaces |
+| `pluginloader` | Plugin factory & loading |
+| `pagination` | Hydra-compliant pagination |
+| `response` | HTTP response helpers |
+| `migrations` | Database migration system |
+| `fixtures` | Test fixture management |
+
+### Example
+
+Use the packages on their own, without `gorest.Start`:
+
+```go
+package main
+
+import (
+    "log"
+
+    "github.com/gofiber/fiber/v3"
+    "github.com/nicolasbonnici/gorest/crud"
+    "github.com/nicolasbonnici/gorest/database"
+    _ "github.com/nicolasbonnici/gorest/database/postgres" // registers the driver
+    "github.com/nicolasbonnici/gorest/query"
+)
+
+type User struct {
+    ID     string `json:"id" db:"id"`
+    Email  string `json:"email" db:"email"`
+    Status string `json:"status" db:"status"`
+}
+
+func (User) TableName() string { return "users" }
+
+func main() {
+    db, err := database.Open("postgres", "postgres://...")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+
+    users := crud.New[User](db)
+    app := fiber.New()
+
+    app.Get("/users", func(c fiber.Ctx) error {
+        result, err := users.GetAllPaginated(c.Context(), crud.PaginationOptions{
+            Limit:      10,
+            Conditions: []query.Condition{query.Eq("status", "active")},
+        })
+        if err != nil {
+            return fiber.ErrInternalServerError
+        }
+        return c.JSON(result.Items)
+    })
+
+    log.Fatal(app.Listen(":8000"))
+}
+```
+
+📚 [Full API documentation on pkg.go.dev](https://pkg.go.dev/github.com/nicolasbonnici/gorest)
+
+---
+
+## 🔍 Quick Examples
+
+### Query Builder
+
+```go
+import "github.com/nicolasbonnici/gorest/query"
+
+// Build type-safe, parameterized SQL queries
+sql, args, err := query.New(db.Dialect()).
+    Select("id", "name", "email").
+    From("users").
+    Where(query.Eq("status", "active")).
+    Where(query.Gt("age", 18)).
+    OrderBy("created_at", query.DESC).
+    Limit(10).
+    Build()
+
+// Use in hooks without string manipulation
+func (h *PostHooks) ModifySelectQuery(ctx context.Context, op hooks.Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool) {
+    if !isAuthenticated(ctx) {
+        builder = builder.Where(query.Eq("status", "published"))
+        return builder, true
+    }
+    return builder, false
+}
+```
+
+📚 **[Full query builder documentation →](query/README.md)**
+
+### Processor Pattern
+
+```go
+import "github.com/nicolasbonnici/gorest/processor"
+
+// Create processor with configuration
+proc := processor.New(processor.ProcessorConfig[
+    models.Todo,
+    dtos.TodoCreateDTO,
+    dtos.TodoUpdateDTO,
+    dtos.TodoResponseDTO,
+]{
+    DB:                 db,
+    CRUD:               crud.New[models.Todo](db),
+    Converter:          &converters.TodoConverter{},
+    PaginationLimit:    20,
+    PaginationMaxLimit: 100,
+    AllowedFields:      []string{"id", "title", "status", "created_at"},
+}).
+    WithCreateHook(setTodoOwner) // func(c fiber.Ctx, dto dtos.TodoCreateDTO, todo *models.Todo) error
+
+// Handlers become one-liners
+type TodoResource struct {
+    processor processor.Processor[models.Todo, dtos.TodoCreateDTO, dtos.TodoUpdateDTO, dtos.TodoResponseDTO]
+}
+
+func (r *TodoResource) Create(c fiber.Ctx) error  { return r.processor.Create(c) }
+func (r *TodoResource) GetAll(c fiber.Ctx) error  { return r.processor.GetAll(c) }
+func (r *TodoResource) GetByID(c fiber.Ctx) error { return r.processor.GetByID(c) }
+func (r *TodoResource) Update(c fiber.Ctx) error  { return r.processor.Update(c) }
+func (r *TodoResource) Delete(c fiber.Ctx) error  { return r.processor.Delete(c) }
+```
+
+📚 **[Full processor documentation →](processor/README.md)**
+
+### Filtering & Ordering
+
+```bash
+# Filter by status
+GET /todos?status=active
+
+# Multiple filters with comparison
+GET /todos?status=active&priority[gte]=5
+
+# Order results
+GET /todos?order[createdAt]=desc
+
+# Combine all
+GET /todos?status=active&priority[gte]=5&order[createdAt]=desc&limit=10
+```
+
+📚 **[Full filtering documentation →](FILTERING.md)**
+
+### Expand Relations
+
+```bash
+# IRI reference (default)
+GET /todos/123
+# Returns: { "user": "/users/456", ... }
+
+# Expand to full object
+GET /todos/123?expand[]=user
+# Returns: { "user": { "id": "456", "name": "Alice", ... }, ... }
+```
+
+📚 **[Full expansion documentation →](serializer/EXPAND_USAGE.md)**
+
+### JSON-LD Support
+
+```bash
+# Regular JSON
+curl -H "Accept: application/json" http://localhost:8000/todos/123
+
+# JSON-LD with semantic context
+curl -H "Accept: application/ld+json" http://localhost:8000/todos/123
+
+# With API versioning enabled (api.versioning in gorest.yaml)
+curl -H "Accept: application/ld+json" https://api.example.com/v2/todos/123
+```
+
+📚 **[Full JSON-LD documentation →](serializer/README.md)**
 
 ---
 
 ## 🚀 Quick Start
 
 ### 1. Create Your Project
+
+GoREST requires Go 1.26+.
+
 ```bash
 mkdir my-api && cd my-api
 go mod init github.com/yourusername/my-api
 go get github.com/nicolasbonnici/gorest@latest
+go get github.com/nicolasbonnici/gorest-openapi@latest
 ```
 
-### 2. Install Development Environment
-
-First you need Go 1.25+ installed, then run:
-
-```bash
-make install
-```
-
-That's it! Your development environment is now set up.
-
-### 3. Configure Your API
+### 2. Configure Your API
 
 Create `gorest.yaml` in your project root:
 
@@ -68,8 +289,7 @@ server:
   cors_origins: "${CORS_ORIGINS:-*}"
   compression_enabled: true  # gzip/deflate/brotli support (default: true)
   compression_level: 2       # 1=speed, 2=balanced, 3=best compression
-  body_limit: 4194304       # Max request body in bytes (default: 4 MiB). Raise it for large uploads.
-
+  body_limit: 4194304        # Max request body in bytes (default: 4 MiB). Raise it for large uploads.
 
 database:
   url: "${DATABASE_URL}"
@@ -99,12 +319,12 @@ export SERVER_SCHEME="https"         # default: http
 export SERVER_HOST="api.example.com" # default: localhost
 export SERVER_PORT="8080"            # default: 8000
 export JWT_SECRET=$(openssl rand -base64 32)
-export CORS_ORIGINS="localhost:8000" # default: *
+export CORS_ORIGINS="https://app.example.com" # default: *, origins need a scheme
 export PAGINATION_DEFAULT_LIMIT="20" # default: 10
 export PAGINATION_MAX_LIMIT="5000"   # default: 1000
 ```
 
-Or use a `.env` file (dotenv> support):
+Or use a `.env` file (dotenv support):
 ```bash
 ENV=production
 DATABASE_URL=postgres://user:pass@localhost:5432/mydb?sslmode=require
@@ -112,7 +332,7 @@ SERVER_SCHEME=https
 SERVER_HOST=api.example.com
 SERVER_PORT=8080
 JWT_SECRET=your-secret-key-here
-CORS_ORIGINS=example.com
+CORS_ORIGINS=https://app.example.com
 PAGINATION_DEFAULT_LIMIT=20
 PAGINATION_MAX_LIMIT=5000
 ```
@@ -156,7 +376,7 @@ auth:
 - If the environment variable is not set and a default is provided, the default is used
 - If the environment variable is not set and no default is provided, the original `${VAR}` string remains
 
-**Note:** Environment variable interpolation only works for string fields in the configuration. Integer fields like `port`, `default_limit`, and `max_limit` must be specified as numeric values directly in the YAML file.
+**Note:** A quoted placeholder that resolves to a number or `true`/`false` is unquoted before parsing, so `"${SERVER_PORT:-8000}"` fills an integer field like `port` and `"${RATELIMIT_ENABLED:-true}"` a boolean one.
 
 ### 3. Create Your Main Application
 
@@ -167,11 +387,19 @@ You can either write your routes manually or use the **[gorest-codegen](https://
 package main
 
 import (
-    "github.com/gofiber/fiber/v2"
+    "github.com/gofiber/fiber/v3"
     "github.com/nicolasbonnici/gorest"
     "github.com/nicolasbonnici/gorest/crud"
     "github.com/nicolasbonnici/gorest/database"
+    "github.com/nicolasbonnici/gorest/plugin"
+    "github.com/nicolasbonnici/gorest/pluginloader"
+    openapiplugin "github.com/nicolasbonnici/gorest-openapi"
 )
+
+// Plugins listed in gorest.yaml must be registered before gorest.Start.
+func init() {
+    pluginloader.RegisterPluginFactory("openapi", openapiplugin.NewPlugin)
+}
 
 type User struct {
     ID    string `json:"id" db:"id"`
@@ -185,8 +413,11 @@ func main() {
         ConfigPath: ".",
         RegisterRoutes: func(router fiber.Router, db database.Database, paginationLimit, paginationMaxLimit int, pluginRegistry *plugin.PluginRegistry) {
             userCRUD := crud.New[User](db)
-            router.Get("/users", func(c *fiber.Ctx) error {
-                result, _ := userCRUD.GetAllPaginated(c.Context(), crud.PaginationOptions{Limit: 10})
+            router.Get("/users", func(c fiber.Ctx) error {
+                result, err := userCRUD.GetAllPaginated(c.Context(), crud.PaginationOptions{Limit: paginationLimit})
+                if err != nil {
+                    return fiber.ErrInternalServerError
+                }
                 return c.JSON(result.Items)
             })
         },
@@ -207,7 +438,13 @@ package main
 import (
     "github.com/yourusername/my-api/generated/resources"
     "github.com/nicolasbonnici/gorest"
+    "github.com/nicolasbonnici/gorest/pluginloader"
+    openapiplugin "github.com/nicolasbonnici/gorest-openapi"
 )
+
+func init() {
+    pluginloader.RegisterPluginFactory("openapi", openapiplugin.NewPlugin)
+}
 
 func main() {
     cfg := gorest.Config{
@@ -223,224 +460,19 @@ func main() {
 go run main.go
 ```
 
-Your API is now running at: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/v1.0.0/**
-- 📚 API specs: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/v1.0.0/openapi**
-- 💚 Status: **${SERVER_SCHEME}://${SERVER_HOST}:${SERVER_PORT}/v1.0.0/status**
+Your API is now running at **http://localhost:8000/** (with the default `SERVER_*` values):
+- 📚 API specs: **http://localhost:8000/openapi** (hidden when `environment` is `production`, unless the plugin sets `hide_on_production: false`)
+- 💚 Status: **http://localhost:8000/status** (with [gorest-status](https://github.com/nicolasbonnici/gorest-status))
+- 🔑 Auth: **http://localhost:8000/auth/register**, `/auth/login`, `/auth/refresh`, `/auth/logout`
 
-(With default values: **http://localhost:8000/v1.0.0/**)
-
-**Note**: Development builds default to `/v1.0.0` prefix. Use build-time version injection for production deployments.
-
----
-
-## 📦 GoREST usage
-
-Import GoREST library directly in your Go projects:
-
-```bash
-go get github.com/nicolasbonnici/gorest@latest
-```
-
-### Available Packages
-
-| Package | Description |
-|---------|-------------|
-| `processor` | Unified API processor eliminating handler boilerplate |
-| `query` | Type-safe SQL query builder |
-| `crud` | Type-safe CRUD operations with hooks |
-| `database` | Multi-database abstraction |
-| `expand` | Relation expansion (IRI to object) |
-| `filter` | Query filtering & ordering |
-| `serializer` | JSON-LD response serialization |
-| `hooks` | Lifecycle hooks for business logic |
-| `plugin` | Plugin interfaces |
-| `pluginloader` | Plugin factory & loading |
-| `pagination` | Hydra-compliant pagination |
-| `response` | HTTP response helpers |
-| `migrations` | Database migration system |
-| `fixtures` | Test fixture management |
-
-### Example
-
-```go
-import (
-    "github.com/gofiber/fiber/v2"
-    "github.com/nicolasbonnici/gorest/database"
-    "github.com/nicolasbonnici/gorest/crud"
-    authpkg "github.com/nicolasbonnici/gorest/auth"
-)
-
-type User struct {
-    ID    string `json:"id" db:"id"`
-    Email string `json:"email" db:"   email"`
-}
-
-func (User) TableName() string { return "users" }
-
-func main() {
-    db, _ := database.Open("postgres", "postgres://...")
-    defer db.Close()
-
-    userCRUD := crud.New[User](db)
-    router := fiber.New()
-
-    router.Get("/users", auth.RequireAuth("secret", func(c *fiber.Ctx) error {
-        ctx := auth.Context(c)
-        result, _ := userCRUD.GetAllPaginated(ctx, crud.PaginationOptions{Limit: 10})
-        return c.JSON(result.Items)
-    }))
-
-    router.Listen(":8000")
-}
-```
-
-📚 [Full API documentation on pkg.go.dev](https://pkg.go.dev/github.com/nicolasbonnici/gorest)
-
----
-
-## 📚 Core Documentation
-
-### Configuration & Setup
-- **[Configuration →](CONFIGURATION.md)** - YAML configuration, environment overrides, and templates
-
-### API Development
-- **[Processor →](processor/README.md)** - Unified API processor eliminating CRUD boilerplate with one-liner handlers
-
-### Data Management
-- **[Query Builder →](QUERY_BUILDER.md)** - Type-safe SQL query builder with fluent API
-- **[Filtering & Ordering →](FILTERING.md)** - Advanced query filtering, comparison operators, and ordering
-- **[Relation Expansion →](serializer/EXPAND_USAGE.md)** - Expand IRI references to full nested objects
-- **[Serializer →](serializer/README.md)** - Flexible resource serializer with JSON-LD support
-- **[Database Migrations →](migrations/README.md)** - Migration system with multi-database support
-- **[Migration CLI →](migrations/CLI.md)** - `migrate` CLI for running, rolling back, and repairing migrations
-- **[User & Role CLI →](cmd/user/CLI.md)** - `user` CLI for managing users, assigning roles, and viewing role hierarchy
-- **[Fixtures →](fixtures/README.md)** - Test fixture management
-
-### Business Logic
-- **[DTOs & Field Control →](DTOS.md)** - Control resource attributes with `dto` tags
-- **[Hooks System →](HOOKS.md)** - Lifecycle hooks for custom business logic
-- **[Plugins →](PLUGINS.md)** - Plugin system, built-in plugins, and custom plugin creation
-
----
-   
-## 🔍 Quick Examples
-
-### Query Builder
-
-```go
-import "github.com/nicolasbonnici/gorest/query"
-
-// Build type-safe SQL queries
-sql, args := query.New(db.Dialect()).
-    Select("id", "name", "email").
-    From("users").
-    Where(query.Eq("status", "active")).
-    Where(query.Gt("age", 18)).
-    OrderBy("created_at", query.DESC).
-    Limit(10).
-    Build()
-
-// Use in hooks without string manipulation
-func (h *PostHooks) ModifySelectQuery(ctx context.Context, op hooks.Operation, builder *query.SelectBuilder) (*query.SelectBuilder, bool) {
-    if !isAuthenticated(ctx) {
-        builder = builder.Where(query.Eq("status", "published"))
-        return builder, true
-    }
-    return builder, false
-}
-```
-
-📚 **[Full query builder documentation →](QUERY_BUILDER.md)**
-
-### Processor Pattern
-
-```go
-import "github.com/nicolasbonnici/gorest/processor"
-
-// Create processor with configuration
-proc := processor.New(processor.ProcessorConfig[
-    models.Todo,
-    dtos.TodoCreateDTO,
-    dtos.TodoUpdateDTO,
-    dtos.TodoResponseDTO,
-]{
-    DB:                 db,
-    CRUD:               crud.New[models.Todo](db),
-    Converter:          &converters.TodoConverter{},
-    PaginationLimit:    20,
-    PaginationMaxLimit: 100,
-    AllowedFields:      []string{"id", "title", "status", "created_at"},
-}).
-    WithCreateHook(hooks.CreateHook).
-    WithUpdateHook(hooks.UpdateHook)
-
-// Handlers become one-liners
-type TodoResource struct {
-    processor processor.Processor[models.Todo, dtos.TodoCreateDTO, dtos.TodoUpdateDTO, dtos.TodoResponseDTO]
-}
-
-func (r *TodoResource) Create(c *fiber.Ctx) error  { return r.processor.Create(c) }
-func (r *TodoResource) GetAll(c *fiber.Ctx) error  { return r.processor.GetAll(c) }
-func (r *TodoResource) GetByID(c *fiber.Ctx) error { return r.processor.GetByID(c) }
-func (r *TodoResource) Update(c *fiber.Ctx) error  { return r.processor.Update(c) }
-func (r *TodoResource) Delete(c *fiber.Ctx) error  { return r.processor.Delete(c) }
-```
-
-📚 **[Full processor documentation →](processor/README.md)**
-
-### Filtering & Ordering
-
-```bash
-# Filter by status
-GET /v1.0.0/todos?status=active
-
-# Multiple filters with comparison
-GET /v1.0.0/todos?status=active&priority[gte]=5
-
-# Order results
-GET /v1.0.0/todos?order[createdAt]=desc
-
-# Combine all
-GET /v1.0.0/todos?status=active&priority[gte]=5&order[createdAt]=desc&limit=10
-```
-
-📚 **[Full filtering documentation →](FILTERING.md)**
-
-### Expand Relations
-
-```bash
-# IRI reference (default)
-GET /v1.0.0/todos/123
-# Returns: { "user": "/v1.0.0/users/456", ... }
-
-# Expand to full object
-GET /v1.0.0/todos/123?expand[]=user
-# Returns: { "user": { "id": "456", "name": "Alice", ... }, ... }
-```
-
-📚 **[Full expansion documentation →](serializer/EXPAND_USAGE.md)**
-
-### JSON-LD Support
-
-```bash
-# Regular JSON
-curl -H "Accept: application/json" http://localhost:8000/v1.0.0/todos/123
-
-# JSON-LD with semantic context
-curl -H "Accept: application/ld+json" http://localhost:8000/v1.0.0/todos/123
-
-# Production with custom version
-curl -H "Accept: application/json" https://api.example.com/v2.1.0/todos/123
-```
-
-📚 **[Full JSON-LD documentation →](serializer/README.md)**
+Routes live at the root. See API Versioning below to serve them under a `/v1` style prefix.
 
 ---
 
 ## 📂 Project Structure
 
 ### Basic Project
-```   
+```
 my-api/
 ├── gorest.yaml              # Configuration
 └── main.go                  # Your application
@@ -463,16 +495,17 @@ my-api/
 gorest/
 ├── processor/               # Unified API processor
 ├── auth/                    # Built-in authentication layer
+├── rbac/                    # Role-based access control
 ├── crud/                    # Generic CRUD
+├── query/                   # SQL query builder
 ├── database/                # Multi-DB abstraction
 │   ├── postgres/
 │   ├── mysql/
 │   └── sqlite/
 ├── migrations/              # Migration system
 ├── fixtures/                # Fixture management
-├── expand/                  # Relation expansion
 ├── filter/                  # Query filtering
-├── serializer/              # JSON-LD serialization
+├── serializer/              # JSON-LD serialization, relation expansion
 ├── hooks/                   # Lifecycle hooks
 ├── plugin/                  # Plugin interfaces
 ├── pluginloader/            # Plugin loading
@@ -483,39 +516,26 @@ gorest/
 
 ---
 
-## 🛠 Development Commands
-
-```bash
-# Testing
-make test-up          # Start test databases
-make test-schema      # Load test schema
-make test             # Run all tests
-make test-coverage    # Run tests with coverage
-```
-
-**Code Generation Plugin:**
-See [gorest-codegen](https://github.com/nicolasbonnici/gorest-codegen) for generating models, resources, DTOs and OpenAPI specs from your database schema.
-
----
-
 ## 🚀 Production Deployment
 
 ### Docker
 
-Using GoREST status plugin [gorest-status](https://github.com/nicolasbonnici/gorest-status)
+Health checks use the [gorest-status](https://github.com/nicolasbonnici/gorest-status) plugin.
 
 ```dockerfile
 # Dockerfile
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
-# Inject version from git tag at build time
-RUN go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=$(git describe --tags --always)" -o api
+RUN go build -o api
 
-FROM alpine:latest
+FROM alpine:3
 RUN apk --no-cache add ca-certificates curl
-WORKDIR /root/
+WORKDIR /app
 COPY --from=builder /app/api .
+COPY gorest.yaml .
 CMD ["./api"]
 ```
 
@@ -523,16 +543,13 @@ CMD ["./api"]
 # docker-compose.yml
 services:
   api:
-    build:
-      context: .
-      args:
-        VERSION: v1.0.0  # Or use git describe --tags
+    build: .
     ports: ["8000:8000"]
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v1.0.0/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -546,19 +563,19 @@ upstream gorest {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name api.example.com;
 
     # SSL configuration
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
 
-    # Redirect root to latest versioned API docs
+    # Redirect root to the API docs
     location = / {
-        return 301 https://$host/v2.0.0/openapi;
+        return 301 https://$host/openapi;
     }
 
-    # Proxy all versioned routes
     location / {
         proxy_pass http://gorest;
         proxy_set_header Host $host;
@@ -566,7 +583,8 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # Recommended headers
+        # Recommended headers. GoREST mints its own request id and logs this
+        # one as client_request_id, so nginx and app log lines still join up.
         proxy_set_header X-Request-ID $request_id;
         proxy_buffering off;
     }
@@ -578,14 +596,14 @@ server {
 ```yaml
 livenessProbe:
   httpGet:
-    path: /v1.0.0/status
+    path: /status
     port: 8000
   initialDelaySeconds: 10
   periodSeconds: 30
 
 readinessProbe:
   httpGet:
-    path: /v1.0.0/status
+    path: /status
     port: 8000
   initialDelaySeconds: 5
   periodSeconds: 10
@@ -595,95 +613,29 @@ readinessProbe:
 
 ## 🏷️ API Versioning
 
-GoREST automatically versions your API routes based on your git tags with zero configuration required. All routes are prefixed with the version for consistency across development, staging, and production environments.
+Versioning is off by default and routes are served at the root (`/posts`, `/auth/login`, `/openapi`). Turn it on in `gorest.yaml` to prefix every route, including plugin and auth endpoints:
 
-### How It Works
-
-All routes are automatically prefixed with the version for consistency across all environments:
-
-| Environment | Build Command | Version Variable | Route Example |
-|-------------|--------------|------------------|---------------|
-| Development | `go build` | `dev` → **v1.0.0** (fallback) | `/v1.0.0/posts` |
-| Staging | `go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v1.0.0-rc1"` | `v1.0.0-rc1` | `/v1.0.0-rc1/posts` |
-| Production | `go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v2.3.1"` | `v2.3.1` | `/v2.3.1/posts` |
-| From Git | `go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=$(git describe --tags)"` | Git tag | `/v1.2.3/posts` |
-
-**Fallback behavior**: If no version is provided or version is `"dev"`, routes default to `/v1.0.0` prefix.
-
-### Build with Version
-
-```bash
-# Development build (defaults to v1.0.0)
-go build
-# Routes: /v1.0.0/posts, /v1.0.0/health, /v1.0.0/login
-
-# Production build with version from git tag
-go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=$(git describe --tags --always)"
-# Routes: /v1.2.3/posts, /v1.2.3/health, /v1.2.3/login
-
-# Or use a specific version
-go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v2.0.0"
-# Routes: /v2.0.0/posts, /v2.0.0/health, /v2.0.0/login
+```yaml
+api:
+  versioning:
+    enabled: true
+    version: "v2"   # default: v1
 ```
 
-### Example
-
 ```bash
-# Development build (defaults to v1.0.0)
-go build
-curl http://localhost:8000/v1.0.0/posts
-
-# Production build with version v2.0.0
-go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v2.0.0"
-curl http://localhost:8000/v2.0.0/posts
+curl http://localhost:8000/v2/posts
+curl http://localhost:8000/v2/auth/login
 ```
 
-### What Gets Versioned
-
-All routes are automatically versioned, including:
-- **User routes**: Your application endpoints (e.g., `/v1.0.0/posts`, `/v2.0.0/users`)
-- **Plugin endpoints**: Built-in plugin routes (e.g., `/v1.0.0/health`, `/v1.0.0/login`, `/v1.0.0/openapi`)
-
-### Benefits
-
-✅ **Consistent across environments** - Same URL structure in dev, staging, and production (all use proper semantic versions)
-✅ **Easy API evolution** - Support multiple API versions simultaneously
-✅ **Clear versioning** - Version is always visible in the URL
-✅ **Zero configuration** - Defaults to v1.0.0, or use build-time version injection
-✅ **No weird prefixes** - Always uses proper semantic versioning (v1.0.0, v2.1.3, etc.)
-
-### Multiple API Versions
-
-To support multiple API versions simultaneously, deploy separate instances with different version builds:
-
-```bash
-# Build v1.0.0
-go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v1.0.0" -o api-v1
-
-# Build v2.0.0 with breaking changes
-go build -ldflags "-X github.com/nicolasbonnici/gorest.Version=v2.0.0" -o api-v2
-
-# Run both on different ports
-PORT=8001 ./api-v1 &  # Serves /v1.0.0/*
-PORT=8002 ./api-v2 &  # Serves /v2.0.0/*
-```
-
-Use a reverse proxy to route by version prefix:
+To serve several API versions at once, run one instance per version and route by prefix:
 
 ```nginx
-# Route v1 requests
-location /v1.0.0/ {
-    proxy_pass http://localhost:8001/v1.0.0/;
+location /v1/ {
+    proxy_pass http://localhost:8001;
 }
 
-# Route v2 requests
-location /v2.0.0/ {
-    proxy_pass http://localhost:8002/v2.0.0/;
-}
-
-# Default to latest version
-location / {
-    proxy_pass http://localhost:8002/v2.0.0/;
+location /v2/ {
+    proxy_pass http://localhost:8002;
 }
 ```
 
@@ -691,46 +643,20 @@ location / {
 
 ## 🔒 Security
 
-- **Passwords**: bcrypt hashing with automatic salts
-- **JWT**: 32+ character secrets required
-- **CORS**: Configurable origins
-- **Rate Limiting**: Configurable per-IP limits
-- **SQL Injection**: Parameterized queries
+- **Passwords**: bcrypt hashing with a length policy
+- **JWT**: short-lived access tokens, 32+ character secrets required
+- **Refresh tokens**: opaque, stored hashed, rotated on every use; replaying a revoked token revokes the whole family
+- **Errors**: database and driver messages never reach clients
+- **Request IDs**: always minted server-side; a client supplied `X-Request-ID` is only logged as `client_request_id`
+- **CORS**: configurable origins
+- **Rate Limiting**: configurable per-IP limits
+- **SQL Injection**: parameterized queries through the query builder
 - **Input Validation**: go-playground/validator support
-- **Security Headers**: X-Frame-Options, C   SP, HSTS, etc.
+- **Security Headers**: X-Frame-Options, CSP, HSTS, etc.
+
+See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ---
-
-## Git Hooks
-
-This directory contains git hooks for the GoREST project to maintain code quality.
-
-### Available Hooks
-
-#### pre-commit
-
-Runs before each commit to ensure code quality:
-- **Linting**: Runs `make lint` to check code style and potential issues
-- **Tests**: Runs `make test` to verify all tests pass
-
-### Installation
-
-#### Automatic Installation
-
-Run the install script from the project root:
-
-```bash
-./.githooks/install.sh
-```
-
-### Manual Installation
-
-Copy the hooks to your `.git/hooks` directory:
-
-```bash
-cp .githooks/pre-commit .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
 
 ## 🤝 Contributing
 
@@ -745,12 +671,23 @@ make test-up && make test-schema && make test
 
 ---
 
-## 📋 Changelog
+## 📋 Resources
 
-See [CHANGELOG.md](CHANGELOG.md) for release history.
+- [Release history](https://github.com/nicolasbonnici/gorest/releases)
+- [API reference on pkg.go.dev](https://pkg.go.dev/github.com/nicolasbonnici/gorest)
+
+### Blog Posts
+
+GoREST articles on [nbonnici.info](https://nbonnici.info/blog/?tag=gorest), most recent first:
+
+- 2026-11-04: [GoREST: faster, stronger, safer](https://nbonnici.info/blog/gorest-faster-stronger-safer)
+- 2025-12-04: [Dites bonjour à GoREST v0.3](https://nbonnici.info/blog/say-hello-to-gorest-v03-4k8k)
+- 2025-11-15: [Comment créer une API REST en quelques secondes avec Go](https://nbonnici.info/blog/how-to-create-a-rest-api-in-seconds-59a4)
+- 2025-11-12: [GoREST est mort...](https://nbonnici.info/blog/gorest-is-dead-1ap9)
+- 2025-11-05: [GoREST turn any database to a production grade REST API](https://nbonnici.info/blog/from-a-database-to-a-rest-api-3cgf)
 
 ---
 
 ## 📜 License
 
-MIT – free to use in your projects 🚀
+MIT, free to use in your projects 🚀

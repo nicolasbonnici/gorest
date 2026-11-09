@@ -63,6 +63,16 @@ Documentation improvements are always welcome:
    make test           # All tests should pass ✅
    ```
 
+4. **Install the git hooks**
+   ```bash
+   make install        # Dependencies, dev tools and the pre-commit hook
+   # or only the hooks
+   ./.githooks/install.sh
+   ```
+   The pre-commit hook runs `make lint` and `make test` before every commit.
+
+Other useful targets: `make test-coverage`, `make lint-fix`, `make help`.
+
 #### Making Changes
 
 1. **Create a branch** from `main`
